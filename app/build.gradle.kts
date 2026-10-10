@@ -14,7 +14,18 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.0.1"
+        ndk { abiFilters += "arm64-v8a" }
+        externalNativeBuild {
+            cmake {
+                // Release even for debug variants: a debug-built llama.cpp is unusably slow.
+                arguments += listOf(
+                    "-DCMAKE_BUILD_TYPE=Release", "-DANDROID_STL=c++_static", "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON",
+                    "-DCMAKE_C_FLAGS=-march=armv8.2-a+dotprod", "-DCMAKE_CXX_FLAGS=-march=armv8.2-a+dotprod",
+                )
+            }
+        }
     }
+    externalNativeBuild { cmake { path = file("src/main/cpp/CMakeLists.txt") } }
 
     buildTypes {
         release { isMinifyEnabled = false }

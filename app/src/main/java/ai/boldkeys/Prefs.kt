@@ -33,6 +33,7 @@ object Prefs {
     fun autoCapitals(c: Context) = bool(c, "autocaps", true)
     fun doubleSpace(c: Context) = bool(c, "doubleSpace", true)
     fun nextWord(c: Context) = bool(c, "nextWord", true)
+    fun contextModel(c: Context) = bool(c, "contextModel", false) // needs a downloaded model, so off until the user turns it on
     fun spelling(c: Context) = string(c, "spelling", "us") // us or uk
 
     // symbols and emoji

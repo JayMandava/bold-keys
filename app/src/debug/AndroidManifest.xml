@@ -2,6 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application>
         <activity android:name=".EvalActivity" android:exported="true" />
+        <activity android:name=".ContextEvalActivity" android:exported="true" />
         <activity android:name=".IconDumpActivity" android:exported="true" />
     </application>
 </manifest>

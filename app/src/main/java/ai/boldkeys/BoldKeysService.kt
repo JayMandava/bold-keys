@@ -35,6 +35,13 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
     private var smart = false // suggestions and autocorrect are off in password, email, web-address and "no suggestions" fields
     private var shown: List<String> = emptyList()
 
+    // The context model (optional): judges the word just typed by the sentence around it, a moment after the space is typed.
+    private val lmWorker = Executors.newSingleThreadExecutor()
+    @Volatile private var lm: ContextLm? = null
+    @Volatile private var lmId: String? = null
+    private var contextOn = false
+    private var lmJob = 0
+
     /** The last autocorrect, kept so Backspace right after it can put back what was typed. */
     private class Undo(val typed: String, val fixed: String, val sep: String)
     private var undo: Undo? = null
@@ -51,7 +58,48 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         }
     }
 
-    override fun onDestroy() { saveLearned(); super.onDestroy() }
+    override fun onDestroy() { saveLearned(); lmWorker.execute { lm?.close(); lm = null }; super.onDestroy() }
+
+    /** Loads the chosen model when the setting is on (and one is installed), and lets go of it when it is off or changed. */
+    private fun syncContextModel() {
+        ContextModels.init(this)
+        val want = if (contextOn) ContextModels.selected() else null
+        if (want?.id == lmId) return
+        lmId = want?.id
+        lmWorker.execute {
+            lm?.close(); lm = null
+            if (want != null) lm = ContextLm.load(ContextModels.file(want).absolutePath)
+        }
+    }
+
+    /**
+     * After a space or punctuation mark has been typed, asks the model whether the word before it was the right one. This runs behind the typing
+     * (the space is already in): if the model disagrees and nothing has been typed since, the word is swapped in place and Backspace undoes it.
+     */
+    private fun judgeInContext(word: String, fixed: String?, sep: String, before: String) {
+        val e = engine ?: return
+        if (!contextOn || lm == null || word.length < 2 || !word.all { it.isLetter() || it == '\'' }) return
+        val left = ContextJudge.leftContext(before) ?: return
+        val shownWord = fixed ?: word
+        val job = ++lmJob
+        lmWorker.execute {
+            val model = lm ?: return@execute
+            if (job != lmJob) return@execute // a newer word has been typed: this one is stale
+            val pick = ContextJudge.judge(model, e, left, word, fixed) ?: return@execute
+            ui.post {
+                val ic = currentInputConnection ?: return@post
+                val tail = shownWord + sep
+                if (job != lmJob || ic.getTextBeforeCursor(tail.length, 0)?.toString() != tail) return@post
+                val out = matchCase(word, pick)
+                ic.beginBatchEdit()
+                ic.deleteSurroundingText(tail.length, 0)
+                ic.commitText(out + sep, 1)
+                ic.endBatchEdit()
+                undo = Undo(word, out, sep)
+                refreshAutoCaps(); refreshStrip()
+            }
+        }
+    }
 
     // ---- closing when the user taps outside the keyboard
 
@@ -115,6 +163,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         // what the user chose in Settings, read afresh each time the keyboard opens
         autocorrectOn = Prefs.autocorrect(this); suggestOn = Prefs.suggestions(this); emoticonsOn = Prefs.emoticons(this); autoCapsOn = Prefs.autoCapitals(this)
         doubleSpaceOn = Prefs.doubleSpace(this); nextWordOn = Prefs.nextWord(this); engine?.british = Prefs.spelling(this) == "uk"
+        contextOn = Prefs.contextModel(this); syncContextModel()
         kb.applySettings(); bar.applyTheme(Prefs.isDark(this))
         reloadLearnedIfChanged()
         currentInputConnection?.requestCursorUpdates(android.view.inputmethod.InputConnection.CURSOR_UPDATE_MONITOR or android.view.inputmethod.InputConnection.CURSOR_UPDATE_FILTER_EDITOR_BOUNDS)
@@ -138,8 +187,14 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         editorOnScreen = b?.let { android.graphics.RectF(it).also { r -> info.matrix.mapRect(r) } }
     }
 
+    private var selStart = 0
+    private var selEnd = 0
+    private var dragAnchor = -1 // where a trackpad selection started; -1 when none is being dragged
+    private var dragFocus = 0
+
     override fun onUpdateSelection(oldSelStart: Int, oldSelEnd: Int, newSelStart: Int, newSelEnd: Int, candidatesStart: Int, candidatesEnd: Int) {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
+        selStart = newSelStart; selEnd = newSelEnd
         ui.removeCallbacks(hideRunnable) // the cursor moved: the tap was in the field, not away from it
         if (::bar.isInitialized) refreshStrip()
     }
@@ -167,14 +222,17 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
             val word = currentWord()
             if (word.isNotEmpty()) {
                 val fix = if (word == "i") "I" else if (autocorrectOn) e.autocorrect(word)?.let { matchCase(word, it) } else null
+                val ctx = if (contextOn && lm != null) ic.getTextBeforeCursor(160, 0)?.toString()?.dropLast(word.length) else null
                 if (fix != null && fix != word) {
                     ic.deleteSurroundingText(word.length, 0)
                     ic.commitText(fix + text, 1)
                     undo = Undo(word, fix, text)
                     refreshAutoCaps(); refreshStrip()
+                    if (ctx != null) judgeInContext(word, fix, text, ctx)
                     return
                 }
                 e.noteTyped(word)
+                if (ctx != null) { ic.commitText(text, 1); undo = null; refreshAutoCaps(); refreshStrip(); judgeInContext(word, null, text, ctx); return }
             }
         }
         undo = null
@@ -320,6 +378,14 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
                 currentInputConnection?.sendKeyEvent(KeyEvent(t, t, KeyEvent.ACTION_DOWN, code, 0, meta))
                 currentInputConnection?.sendKeyEvent(KeyEvent(t, t, KeyEvent.ACTION_UP, code, 0, meta))
             }
+        }
+        if (!select) dragAnchor = -1
+        if (select && dx != 0 && dy == 0) {
+            // Shift+arrow key events are ignored by many apps (browsers, custom editors), so select by setting the range directly.
+            if (dragAnchor < 0) { dragAnchor = selStart; dragFocus = selEnd; if (selStart != selEnd && dx < 0) { dragAnchor = selEnd; dragFocus = selStart } }
+            dragFocus = (dragFocus + dx).coerceAtLeast(0)
+            if (currentInputConnection?.setSelection(minOf(dragAnchor, dragFocus), maxOf(dragAnchor, dragFocus)) == true) { undo = null; return }
+            dragAnchor = -1
         }
         if (dx != 0) press(if (dx > 0) KeyEvent.KEYCODE_DPAD_RIGHT else KeyEvent.KEYCODE_DPAD_LEFT, dx)
         if (dy != 0) press(if (dy > 0) KeyEvent.KEYCODE_DPAD_DOWN else KeyEvent.KEYCODE_DPAD_UP, dy)

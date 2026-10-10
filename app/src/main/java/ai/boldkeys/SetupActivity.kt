@@ -51,6 +51,7 @@ import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -118,7 +119,7 @@ private fun writeDictionary(c: Context, edit: (MutableMap<String, Int>) -> Unit)
 }
 
 private enum class Screen(val title: String) {
-    HOME("Bold Keys"), TYPING("Typing"), LOOK("Appearance"), FEEL("Key feel"), SYMBOLS("Symbols & emoji"), DICTIONARY("Personal dictionary"), ABOUT("About"),
+    HOME("Bold Keys"), TYPING("Typing"), LOOK("Appearance"), FEEL("Key feel"), SYMBOLS("Symbols & emoji"), DICTIONARY("Personal dictionary"), CONTEXT("Context model"), ABOUT("About"),
 }
 
 @Composable
@@ -151,6 +152,7 @@ private fun SettingsApp() {
                 Screen.FEEL -> feelItems(context)
                 Screen.SYMBOLS -> symbolItems(context)
                 Screen.DICTIONARY -> dictionaryItems(context)
+                Screen.CONTEXT -> contextItems(context)
                 Screen.ABOUT -> aboutItems(context)
             }
         }
@@ -170,6 +172,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.homeItems(context: Co
                 NavRow("Key feel", "How hard each key press buzzes") { open(Screen.FEEL) }
                 NavRow("Symbols & emoji", "What the sym key offers") { open(Screen.SYMBOLS) }
                 NavRow("Personal dictionary", "${readDictionary(context).size} words you have taught it") { open(Screen.DICTIONARY) }
+                NavRow("Context model", if (Prefs.contextModel(context)) "On: judges words by the sentence around them" else "Off: optional, needs a download") { open(Screen.CONTEXT) }
                 NavRow("About", "Privacy and credits") { open(Screen.ABOUT) }
             }
         }
@@ -481,9 +484,89 @@ private fun androidx.compose.foundation.lazy.LazyListScope.aboutItems(context: C
     item(key = "about") {
         val version = remember { runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "" }
         Section("Version $version") {
-            Note("Everything happens on this phone. The keyboard has no internet permission, sends nothing anywhere, and keeps what it learns only in this app's private storage.")
+            Note("Everything happens on this phone. Typing, learning and the optional context model never use the network and send nothing anywhere; what the keyboard learns stays in this app's private storage. The only thing that touches the internet is the Download button for a context model, and only when you tap it.")
             Note("Word frequencies come from the OpenSubtitles-based FrequencyWords list (CC BY-SA 4.0). The key legends use the Nunito typeface (SIL Open Font License).")
             Note("Inspired by the classic BlackBerry Bold 9900 keyboard. BlackBerry is a trademark of its owner; this app is independent and is not affiliated with or endorsed by BlackBerry.")
+        }
+    }
+}
+
+
+// ---------------------------------------------------------------- context model
+
+private fun androidx.compose.foundation.lazy.LazyListScope.contextItems(context: Context) {
+    item(key = "context") { ContextContent(context) }
+}
+
+private fun human(bytes: Long) = if (bytes >= 1_000_000_000) "%.1f GB".format(bytes / 1e9) else "${bytes / 1_000_000} MB"
+
+@Composable
+private fun ContextContent(context: Context) {
+    ContextModels.init(context)
+    var on by remember { mutableStateOf(Prefs.contextModel(context)) }
+    var wifiOnly by remember { mutableStateOf(Prefs.bool(context, "modelWifiOnly", true)) }
+    var tick by remember { mutableStateOf(0) }
+    var importing by remember { mutableStateOf(false) }
+    var note by remember { mutableStateOf<String?>(null) }
+    val picker = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            val name = context.contentResolver.query(uri, null, null, null, null)?.use { c -> if (c.moveToFirst()) c.getString(c.getColumnIndexOrThrow(android.provider.OpenableColumns.DISPLAY_NAME)) else null } ?: "model.gguf"
+            importing = true
+            Thread {
+                note = if (name.endsWith(".gguf", true)) runCatching { ContextModels.import(uri, name); null }.getOrElse { "Could not import that file: ${it.message}" } else "Pick a .gguf model file."
+                importing = false; tick++
+            }.start()
+        }
+    }
+    @Suppress("UNUSED_EXPRESSION") tick
+    val chosen = ContextModels.selected()
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Section("Smarter corrections") {
+            SwitchRow("Use a context model", "Checks each word against the sentence around it: picks the right fix for a misspelling, and catches real words used for another (their/there, your/you're).", on) {
+                on = it; Prefs.put(context, "contextModel", it)
+            }
+            Note("A small language model on this phone scores the words the dictionary suggests. It never writes text and nothing leaves the phone. Switch it off any time to go back to dictionary-only correction.")
+            if (on && chosen == null) Note("Download or import a model below to start using it.")
+        }
+        Section("Models") {
+            ContextModels.entries().forEach { e ->
+                val installed = ContextModels.installed(e)
+                val st = ContextModels.status[e.id]
+                ListItem(
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    leadingContent = { RadioButton(selected = chosen?.id == e.id, enabled = installed, onClick = { ContextModels.select(e); tick++ }) },
+                    headlineContent = { Text(e.name) },
+                    supportingContent = {
+                        Column {
+                            Text(if (e.custom) "Imported from a file." else "${e.note} ${human(e.bytes)}.")
+                            when (st) {
+                                is Transfer.Downloading -> {
+                                    androidx.compose.material3.LinearProgressIndicator(progress = { if (st.total > 0) st.done.toFloat() / st.total else 0f }, modifier = Modifier.fillMaxWidth().padding(top = 6.dp))
+                                    Text("${human(st.done)} of ${human(st.total)}", style = MaterialTheme.typography.bodySmall)
+                                }
+                                Transfer.Verifying -> Text("Checking the download…", style = MaterialTheme.typography.bodySmall)
+                                is Transfer.Failed -> Text(st.reason, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                                null -> Unit
+                            }
+                        }
+                    },
+                    trailingContent = {
+                        when {
+                            ContextModels.active(e) -> OutlinedButton(onClick = { ContextModels.cancel(e) }) { Text("Cancel") }
+                            installed -> IconButton(onClick = { ContextModels.delete(e); tick++ }) { Icon(Icons.Default.Close, contentDescription = "Delete ${e.name}") }
+                            else -> FilledTonalButton(onClick = { ContextModels.download(e, wifiOnly) { tick++ } }) { Text("Download") }
+                        }
+                    },
+                )
+            }
+            Row(Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
+                OutlinedButton(enabled = !importing, onClick = { picker.launch(arrayOf("*/*")) }) { Text(if (importing) "Importing…" else "Import a .gguf file") }
+            }
+            note?.let { Note(it) }
+        }
+        Section("Downloads") {
+            SwitchRow("Wi-Fi only", "Models are a few hundred megabytes. Downloads are checked against a fixed checksum, and a file that does not match is thrown away.", wifiOnly) { wifiOnly = it; Prefs.put(context, "modelWifiOnly", it) }
+            Note("Downloading is the only thing in this app that uses the internet, and only when you tap Download.")
         }
     }
 }
