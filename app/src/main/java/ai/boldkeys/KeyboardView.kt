@@ -53,7 +53,9 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
 
     var shift = Shift.OFF
         private set
-    private var altLayer = false
+    /** Alt works like on the real keyboard: tap it and the next key types its small symbol; double-tap to keep it on. */
+    private var altMode = Shift.OFF
+    private var lastAltTap = 0L
     private var lastShiftTap = 0L
     private var cells: List<List<Cell>> = emptyList()
     private val pressed = HashMap<Int, Cell>()
@@ -77,7 +79,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) { faces.clear(); rebuild() }
 
-    private fun rows() = if (altLayer) Layouts.symbolRows else Layouts.letterRows
+    private fun rows() = Layouts.letterRows
 
     /** Vertical drop of the row at horizontal position x: 0 at the ends, [smile] in the middle. */
     private fun curve(x: Float): Float {
@@ -211,7 +213,6 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         val t = RectF(faceX.toFloat(), faceY.toFloat(), (faceX + faceW).toFloat(), (faceY + faceH).toFloat())
         val rad = dp(5f)
         val special = c.key.kind != Kind.CHAR && c.key.kind != Kind.SPACE
-        val leftHalf = r.centerX() < width / 2f
         val hasFacet = c.key.kind != Kind.SPACE
         val tw = t.width()
 
@@ -221,7 +222,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         canvas.drawPath(capPath(r, rad, dp(0.6f)), surf)
         surf.shader = null
 
-        val face = keyFace(faceW.coerceAtLeast(1), faceH.coerceAtLeast(1), !leftHalf, hasFacet, special)
+        val face = keyFace(faceW.coerceAtLeast(1), faceH.coerceAtLeast(1), false, hasFacet, special)
         surf.colorFilter = if (isDown) pressFilter else null
         canvas.drawBitmap(face, t.left, t.top, surf)
         surf.colorFilter = null
@@ -238,24 +239,38 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
             Kind.ENTER -> { clearShadow(); drawEnter(canvas, acx, cy) }
             Kind.DELETE -> fitWord(canvas, "del", acx, cy, dp(13f), aw - dp(5f))
             Kind.SPACE -> fitWord(canvas, "space", acx, cy - dp(2f), dp(13f), aw)
-            Kind.LAYER -> fitWord(canvas, "alt", acx, cy, dp(13.5f), aw - dp(5f), if (altLayer) 0xFFffb259.toInt() else WHITE)
+            Kind.LAYER -> {
+                fitWord(canvas, "alt", acx, cy, dp(13.5f), aw - dp(5f), if (altMode != Shift.OFF) 0xFFffb259.toInt() else WHITE)
+                if (altMode == Shift.CAPS) { // locked: a small bar under the word
+                    clearShadow(); line.shader = null; line.strokeWidth = dp(1.5f); line.color = 0xFFffb259.toInt()
+                    canvas.drawLine(acx - dp(7f), cy + dp(10f), acx + dp(7f), cy + dp(10f), line)
+                }
+            }
             Kind.CHAR -> {
                 val isLetter = c.key.label.length == 1 && c.key.label[0].isLetter()
-                if (isLetter && !altLayer) {
+                val sym = if (isLetter) secondaryFor(c.row, c.col) else null
+                val alt = altMode != Shift.OFF && sym != null
+                if (alt) {
+                    // Alt is on: the small symbol becomes the big one, and the letter steps back into the corner
+                    legend.textSize = dp(19f)
+                    legend.color = 0xFFffb259.toInt()
+                    while (legend.measureText(sym!!) > aw - dp(10f) && legend.textSize > dp(9f)) legend.textSize -= dp(0.5f)
+                    drawInk(canvas, sym, acx, cy)
+                    clearShadow()
+                    small.textSize = dp(11f); small.color = 0xFF8f959c.toInt(); small.textAlign = Paint.Align.LEFT
+                    canvas.drawText(c.key.label, areaL + dp(6f), t.top + dp(14f), small)
+                } else if (isLetter) {
                     legend.textSize = dp(17.5f)
                     drawInk(canvas, c.key.label, acx, cy + dp(3f), -0.24f)
+                    clearShadow()
+                    if (sym != null) {
+                        small.textSize = dp(11.5f); small.color = WHITE; small.textAlign = Paint.Align.LEFT
+                        canvas.drawText(sym, areaL + dp(6f), t.top + dp(14f), small)
+                    }
                 } else {
-                    // numbers and symbols (the alt page): kept inside the key, never wider than the space beside the slope
                     legend.textSize = dp(17f)
                     while (legend.measureText(c.key.label) > aw - dp(10f) && legend.textSize > dp(9f)) legend.textSize -= dp(0.5f)
                     drawInk(canvas, c.key.label, acx, cy)
-                }
-                clearShadow()
-                if (!altLayer && isLetter) secondaryFor(c.row, c.col)?.let { sym ->
-                    small.textSize = dp(12f)
-                    small.color = WHITE
-                    small.textAlign = if (leftHalf) Paint.Align.LEFT else Paint.Align.RIGHT
-                    canvas.drawText(sym, if (leftHalf) areaL + dp(5.5f) else areaR - dp(5.5f), t.top + dp(14f), small)
                 }
             }
         }
@@ -332,6 +347,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                 hit(e.getX(i), e.getY(i))?.let { c ->
                     pressed[e.getPointerId(i)] = c
                     feedback.key(c.key.kind == Kind.SPACE)
+                    pressedRow = c.row; pressedCol = c.col
                     fire(c.key)
                     if (c.key.kind == Kind.DELETE) ui.postDelayed(repeatDelete, 380)
                     invalidate()
@@ -346,13 +362,22 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         return true
     }
 
+    private var pressedRow = 0
+    private var pressedCol = 0
+
     private fun fire(key: Key) {
         when (key.kind) {
             Kind.CHAR, Kind.SPACE -> {
                 var t = key.text
-                val isLetter = key.kind == Kind.CHAR && !altLayer && t.length == 1 && t[0].isLetter()
-                if (isLetter && shift != Shift.OFF) t = t.uppercase()
-                if (isLetter && shift == Shift.ONCE) shift = Shift.OFF
+                val isLetter = key.kind == Kind.CHAR && t.length == 1 && t[0].isLetter()
+                val sym = if (isLetter) secondaryFor(pressedRow, pressedCol) else null
+                if (altMode != Shift.OFF && sym != null) {
+                    t = sym
+                    if (altMode == Shift.ONCE) altMode = Shift.OFF
+                } else {
+                    if (isLetter && shift != Shift.OFF) t = t.uppercase()
+                    if (isLetter && shift == Shift.ONCE) shift = Shift.OFF
+                }
                 listener.onText(t)
             }
             Kind.SHIFT -> {
@@ -366,7 +391,15 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
             }
             Kind.DELETE -> listener.onDelete()
             Kind.ENTER -> listener.onEnter()
-            Kind.LAYER -> { altLayer = !altLayer; rebuild() }
+            Kind.LAYER -> {
+                val now = SystemClock.uptimeMillis()
+                altMode = when {
+                    now - lastAltTap < 400 && altMode == Shift.ONCE -> Shift.CAPS
+                    altMode == Shift.OFF -> Shift.ONCE
+                    else -> Shift.OFF
+                }
+                lastAltTap = now
+            }
         }
         invalidate()
     }

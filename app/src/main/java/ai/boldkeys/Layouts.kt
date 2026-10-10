@@ -16,22 +16,12 @@ object Layouts {
         listOf(Key("shift", "", 1.5f, Kind.SHIFT)) + letters("ZXCVBNM") + Key("enter", "", 1.5f, Kind.ENTER),
         listOf(Key("alt", "", 1.5f, Kind.LAYER), Key(","), Key("space", " ", 4.5f, Kind.SPACE), Key("."), Key("?"), Key("!")),
     )
-
-    val symbolRows: List<List<Key>> = listOf(
-        symbols("1234567890"),
-        symbols("@#\$%&-+()") + Key("del", "", 1f, Kind.DELETE),
-        listOf(Key("=", "=", 1.5f)) + symbols("*\"':;/_") + Key("enter", "", 1.5f, Kind.ENTER),
-        listOf(Key("alt", "", 1.5f, Kind.LAYER), Key(",", ","), Key("space", " ", 4.5f, Kind.SPACE), Key(".", "."), Key("?", "?"), Key("!", "!")),
-    )
 }
 
-/** The symbol printed small in a letter key's top-right corner: what Alt types, as on the real keys. */
-fun secondaryFor(row: Int, col: Int): String? {
-    val sym = Layouts.symbolRows
-    return when (row) {
-        0 -> sym[0].getOrNull(col)?.label
-        1 -> sym[1].getOrNull(col)?.takeIf { it.kind == Kind.CHAR }?.label
-        2 -> sym[2].getOrNull(col)?.takeIf { it.kind == Kind.CHAR }?.label // ZXCVBNM sit one key in, like the symbols beside them
-        else -> null
-    }
+/** The symbol printed small on a letter key: what it types when Alt is held. Rows follow the letter rows; row 2 starts one key in because Shift sits first. */
+fun secondaryFor(row: Int, col: Int): String? = when (row) {
+    0 -> "1234567890".getOrNull(col)?.toString()
+    1 -> "@#$%&-+()".getOrNull(col)?.toString()
+    2 -> "*\"':;/_".getOrNull(col - 1)?.toString()
+    else -> null
 }
