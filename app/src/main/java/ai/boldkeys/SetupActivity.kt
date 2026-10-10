@@ -42,8 +42,6 @@ import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -191,8 +189,6 @@ private fun TryCard(modifier: Modifier = Modifier) {
 @Composable
 private fun FeelCard(fb: Feedback, modifier: Modifier = Modifier) {
     var pattern by remember { mutableStateOf(fb.pattern) }
-    var sound by remember { mutableStateOf(fb.soundOn) }
-    var volume by remember { mutableStateOf(fb.volume) }
     val amplitude = remember { fb.vibrator.hasAmplitudeControl() }
     Card(modifier = modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp)) {
         Column(Modifier.padding(16.dp)) {
@@ -207,13 +203,7 @@ private fun FeelCard(fb: Feedback, modifier: Modifier = Modifier) {
                     ToggleButton(checked = pattern == key, onCheckedChange = { pattern = key; fb.pattern = key; fb.buzz(key) }) { Text(name) }
                 }
             }
-            Spacer(Modifier.height(8.dp))
-            ListItem(
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                headlineContent = { Text("Key sound") },
-                trailingContent = { Switch(checked = sound, onCheckedChange = { sound = it; fb.soundOn = it; if (it) fb.sound() }) },
-            )
-            Slider(value = volume, onValueChange = { volume = it; fb.volume = it }, onValueChangeFinished = { fb.sound() }, enabled = sound)
+            Spacer(Modifier.height(12.dp))
             FilledTonalButton(onClick = { fb.key() }, modifier = Modifier.fillMaxWidth()) { Text("Try the click") }
         }
     }

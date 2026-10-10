@@ -382,7 +382,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                 if (symPage >= 0) { symTouch(e.getX(i), e.getY(i)); return true }
                 hit(e.getX(i), e.getY(i))?.let { c ->
                     pressed[e.getPointerId(i)] = c
-                    feedback.key(c.key.kind == Kind.SPACE)
+                    feedback.key()
                     pressedRow = c.row; pressedCol = c.col
                     if (c.key.kind == Kind.LAYER) { altHeld = true; altUsedWhileHeld = false }
                     fire(c.key)
@@ -414,8 +414,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                 val isLetter = key.kind == Kind.CHAR && t.length == 1 && t[0].isLetter()
                 val sym = if (isLetter) secondaryFor(pressedRow, pressedCol) else null
                 if (altMode != Shift.OFF && key.label == "$") {
-                    // Alt + $ is the speaker: it switches the key click on and off
-                    feedback.soundOn = !feedback.soundOn
+                    // Alt + $ is the speaker on the real phone; with no sound to switch it does nothing, but it still uses up the Alt
                     if (altHeld) altUsedWhileHeld = true else if (altMode == Shift.ONCE) altMode = Shift.OFF
                     invalidate(); return
                 } else if (altMode != Shift.OFF && sym != null) {
