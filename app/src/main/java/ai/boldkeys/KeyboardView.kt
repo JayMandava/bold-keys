@@ -30,6 +30,8 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
 
     enum class Shift { OFF, ONCE, CAPS }
 
+    private companion object { const val WHITE = 0xFFF4F6F8.toInt() }
+
     private class Cell(val key: Key, val row: Int, val col: Int, val rect: RectF)
 
     private val d = resources.displayMetrics.density
@@ -54,10 +56,12 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
     private val line = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND }
     // Nunito (rounded humanist sans), semibold: the closest open font to the Bold's key legends.
     private val face: Typeface = runCatching {
-        Typeface.Builder(context.assets, "Nunito.ttf").setFontVariationSettings("'wght' 650").build()
+        Typeface.Builder(context.assets, "Nunito.ttf").setFontVariationSettings("'wght' 700").build()
     }.getOrNull() ?: Typeface.create("sans-serif-medium", Typeface.NORMAL)
     private val legend = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER; typeface = face }
-    private val small = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.LEFT; typeface = face }
+    private val small = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = face }
+    private val leafFill = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val leafLine = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
     private val icon = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = dp(1.8f); strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -131,57 +135,95 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         close()
     }
 
+    /** The crescent facet printed on each key: on the right of the keys left of centre and on the left of the others, so they all lean toward the middle. */
+    private fun leafPath(r: RectF, onRight: Boolean): Path {
+        fun x(f: Float) = if (onRight) r.left + r.width() * f else r.right - r.width() * f
+        val w = r.height()
+        return Path().apply {
+            moveTo(x(0.80f), r.top + w * 0.16f)
+            quadTo(x(0.99f), r.top + w * 0.36f, x(0.93f), r.top + w * 0.86f)
+            quadTo(x(0.87f), r.top + w * 0.50f, x(0.80f), r.top + w * 0.16f)
+            close()
+        }
+    }
+
     private fun drawKey(canvas: Canvas, c: Cell, isDown: Boolean) {
         val r = RectF(c.rect)
         if (isDown) r.offset(0f, dp(1.3f))
-        val rad = dp(7f)
+        val rad = dp(5f)
         val special = c.key.kind != Kind.CHAR && c.key.kind != Kind.SPACE
-        val path = capPath(r, rad, dp(1.1f))
+        val path = capPath(r, rad, dp(0.9f))
+        val leftHalf = r.centerX() < width / 2f
 
-        // body: a dark plate, a little lighter at the top, darker at the base
-        val top = if (isDown) 0xFF18191b.toInt() else if (special) 0xFF34363a.toInt() else 0xFF3a3c41.toInt()
-        val bottom = if (isDown) 0xFF222427.toInt() else if (special) 0xFF161719.toInt() else 0xFF1a1b1e.toInt()
+        // the thin dark rim that lifts the key off the plate (its depth)
+        if (!isDown) {
+            fill.shader = null; fill.color = 0xFF000000.toInt()
+            canvas.save(); canvas.translate(0f, dp(1.4f)); canvas.drawPath(path, fill); canvas.restore()
+        }
+        // body: cool blue-black, lighter at the top edge, darker at the base
+        val top = if (isDown) 0xFF171c22.toInt() else if (special) 0xFF2a3037.toInt() else 0xFF2f363f.toInt()
+        val bottom = if (isDown) 0xFF1d232a.toInt() else if (special) 0xFF11151a.toInt() else 0xFF13171d.toInt()
         fill.shader = LinearGradient(0f, r.top, 0f, r.bottom, top, bottom, Shader.TileMode.CLAMP)
         canvas.drawPath(path, fill)
+        fill.shader = null
         if (!isDown) {
-            // the soft sheen on the dome
-            fill.shader = RadialGradient(r.centerX(), r.top + r.height() * 0.2f, r.width() * 0.7f, 0x26FFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP)
-            canvas.drawPath(path, fill)
-            // a bright lip along the top edge
+            // bevel: a bright edge on the top-left, a dark one on the bottom-right
             line.strokeWidth = dp(1f)
-            line.shader = LinearGradient(r.left, 0f, r.right, 0f, intArrayOf(0x00FFFFFF, 0x66FFFFFF, 0x00FFFFFF), null, Shader.TileMode.CLAMP)
-            canvas.drawPath(Path().apply {
-                moveTo(r.left + rad, r.top + dp(0.8f)); quadTo(r.centerX(), r.top - dp(1.2f), r.right - rad, r.top + dp(0.8f))
-            }, line)
+            line.shader = LinearGradient(r.left, r.top, r.right, r.bottom, intArrayOf(0x66FFFFFF, 0x10FFFFFF, 0x00000000, 0x99000000.toInt()), floatArrayOf(0f, 0.35f, 0.6f, 1f), Shader.TileMode.CLAMP)
+            canvas.drawPath(path, line)
             line.shader = null
         }
-        fill.shader = null
+        // the curved facet
+        if (c.key.kind != Kind.SPACE) {
+            val leaf = leafPath(r, leftHalf)
+            leafFill.shader = LinearGradient(r.left, r.top, r.right, r.bottom, if (isDown) 0x08FFFFFF else 0x1CFFFFFF, 0x04FFFFFF, Shader.TileMode.CLAMP)
+            canvas.drawPath(leaf, leafFill)
+            leafLine.strokeWidth = dp(0.7f)
+            leafLine.color = if (isDown) 0x40FFFFFF else 0x88FFFFFF.toInt()
+            canvas.drawPath(leaf, leafLine)
+        } else if (!isDown) {
+            // the space bar's chrome lip: a thin bright crescent along its lower edge
+            leafLine.strokeWidth = dp(1.3f)
+            leafLine.shader = LinearGradient(r.left, 0f, r.right, 0f, intArrayOf(0x00FFFFFF, 0xDDFFFFFF.toInt(), 0x00FFFFFF), null, Shader.TileMode.CLAMP)
+            canvas.drawPath(Path().apply { moveTo(r.left + dp(10f), r.bottom - dp(5f)); quadTo(r.centerX(), r.bottom - dp(1f), r.right - dp(10f), r.bottom - dp(5f)) }, leafLine)
+            leafLine.shader = null
+        }
 
         val cx = r.centerX()
-        val cy = r.centerY() + dp(2f)
+        val cy = r.centerY() + dp(1.5f)
+        // the legends all share one white; letters lean (bold italic), the small symbols stand upright
         when (c.key.kind) {
-            Kind.SHIFT -> drawShift(canvas, cx, cy)
-            Kind.DELETE -> drawWord(canvas, "del", cx, cy, dp(13f))
-            Kind.ENTER -> drawEnter(canvas, cx, cy)
-            Kind.SPACE -> drawWord(canvas, "space", cx, cy, dp(13f), 0xFFcfd2d6.toInt())
-            Kind.LAYER -> drawWord(canvas, "alt", cx, cy, dp(14f), if (altLayer) 0xFFffb259.toInt() else 0xFFdadde0.toInt())
+            Kind.SHIFT -> drawShift(canvas, cx + (if (leftHalf) -dp(3f) else dp(3f)), cy)
+            Kind.DELETE -> drawWord(canvas, "del", cx + dp(-3f), cy, dp(13f))
+            Kind.ENTER -> drawEnter(canvas, cx + dp(3f), cy)
+            Kind.SPACE -> drawWord(canvas, "space", cx, cy - dp(2f), dp(13f))
+            Kind.LAYER -> drawWord(canvas, "alt", cx - dp(5f), cy, dp(13.5f), if (altLayer) 0xFFffb259.toInt() else WHITE)
             Kind.CHAR -> {
                 val isLetter = c.key.label.length == 1 && c.key.label[0].isLetter()
-                legend.textSize = dp(if (altLayer) 20f else 18f)
-                legend.color = 0xFFdadde0.toInt()
-                legend.setShadowLayer(dp(0.8f), 0f, dp(0.8f), 0xCC000000.toInt())
-                canvas.drawText(c.key.label, cx, cy - (legend.ascent() + legend.descent()) / 2 + dp(1.5f), legend)
+                val away = if (leftHalf) -1f else 1f // the side away from the facet
+                legend.color = WHITE
+                legend.setShadowLayer(dp(0.6f), 0f, dp(0.7f), 0xAA000000.toInt())
+                if (isLetter && !altLayer) {
+                    legend.textSkewX = -0.24f
+                    legend.textSize = dp(16.5f)
+                    canvas.drawText(c.key.label, cx + away * dp(5f), cy - (legend.ascent() + legend.descent()) / 2 + dp(3f), legend)
+                    legend.textSkewX = 0f
+                } else {
+                    legend.textSize = dp(19f)
+                    canvas.drawText(c.key.label, cx + away * dp(4f), cy - (legend.ascent() + legend.descent()) / 2, legend)
+                }
                 legend.clearShadowLayer()
-                if (!altLayer && isLetter) secondaryFor(c.row, c.col)?.let { s ->
-                    small.textSize = dp(11f)
-                    small.color = 0xFFb4b8be.toInt()
-                    canvas.drawText(s, r.left + dp(6.5f), r.top + dp(14f), small)
+                if (!altLayer && isLetter) secondaryFor(c.row, c.col)?.let { sym ->
+                    small.textSize = dp(11.5f)
+                    small.color = WHITE
+                    small.textAlign = if (leftHalf) Paint.Align.LEFT else Paint.Align.RIGHT
+                    canvas.drawText(sym, if (leftHalf) r.left + dp(7f) else r.right - dp(7f), r.top + dp(14.5f), small)
                 }
             }
         }
     }
 
-    private fun drawWord(canvas: Canvas, w: String, cx: Float, cy: Float, size: Float, color: Int = 0xFFe3e5e8.toInt()) {
+    private fun drawWord(canvas: Canvas, w: String, cx: Float, cy: Float, size: Float, color: Int = WHITE) {
         legend.textSize = size
         legend.color = color
         legend.setShadowLayer(dp(1f), 0f, dp(0.8f), 0xCC000000.toInt())
@@ -195,7 +237,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
             moveTo(cx, cy - s); lineTo(cx + s, cy); lineTo(cx + s * 0.45f, cy); lineTo(cx + s * 0.45f, cy + s * 0.85f)
             lineTo(cx - s * 0.45f, cy + s * 0.85f); lineTo(cx - s * 0.45f, cy); lineTo(cx - s, cy); close()
         }
-        icon.color = if (shift == Shift.OFF) 0xFFe3e5e8.toInt() else 0xFFffb259.toInt()
+        icon.color = if (shift == Shift.OFF) WHITE else 0xFFffb259.toInt()
         icon.style = if (shift == Shift.OFF) Paint.Style.STROKE else Paint.Style.FILL_AND_STROKE
         canvas.drawPath(p, icon)
         if (shift == Shift.CAPS) canvas.drawLine(cx - s * 0.7f, cy + s * 1.25f, cx + s * 0.7f, cy + s * 1.25f, icon)
@@ -204,7 +246,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
 
     private fun drawEnter(canvas: Canvas, cx: Float, cy: Float) {
         val w = dp(10f); val h = dp(7f)
-        icon.color = 0xFFe3e5e8.toInt()
+        icon.color = WHITE
         val p = Path().apply {
             moveTo(cx + w, cy - h); lineTo(cx + w, cy + h * 0.4f); lineTo(cx - w, cy + h * 0.4f)
             moveTo(cx - w + dp(5f), cy + h * 0.4f - dp(5f)); lineTo(cx - w, cy + h * 0.4f); lineTo(cx - w + dp(5f), cy + h * 0.4f + dp(5f))
