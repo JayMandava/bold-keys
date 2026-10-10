@@ -269,9 +269,11 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                 val sym = secondaryFor(c.row, c.col)
                 val rightSide = r.centerX() > width / 2f // from Y, H and B onward the small symbol sits in the right corner, as printed on the phone
                 if (sym != null && isLetter) {
-                    small.textSize = dp(11.5f); small.color = WHITE
-                    small.textAlign = if (rightSide) Paint.Align.RIGHT else Paint.Align.LEFT
-                    canvas.drawText(sym, if (rightSide) t.right - dp(6f) else t.left + dp(6f), t.top + dp(14f), small)
+                    small.textSize = dp(11.5f); small.color = WHITE; small.textAlign = Paint.Align.LEFT
+                    small.getTextBounds(sym, 0, sym.length, ink)
+                    val gapEdge = dp(8f) // the same distance from either edge, measured to the glyph itself
+                    val x = if (rightSide) t.right - gapEdge - ink.right else t.left + gapEdge - ink.left
+                    canvas.drawText(sym, x, t.top + dp(14f), small)
                 } else if (c.key.label == "$") {
                     drawSpeaker(canvas, t.right - dp(15f), t.top + dp(9f))
                 }
@@ -314,7 +316,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         clearShadow()
         // the arrow over the outer letter
         val s = dp(4.6f)
-        val ax = if (left) cx - tw / 2f + s * 0.9f else cx + tw / 2f - s * 0.9f
+        val ax = cx - tw / 2f + legend.measureText("a") / 2f // always over the small a, which is the first letter of "aA"
         val ay = cy - dp(5.5f)
         icon.color = WHITE; icon.style = Paint.Style.STROKE; icon.strokeWidth = dp(1.2f)
         canvas.drawPath(Path().apply {
