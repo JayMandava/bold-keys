@@ -35,12 +35,12 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
     private val d = resources.displayMetrics.density
     private fun dp(v: Float) = v * d
 
-    private val keyH get() = dp(49f)
-    private val gap get() = dp(3f)
-    private val rowGap get() = dp(6f)
+    private val keyH get() = dp(46f)
+    private val gap get() = dp(3.5f)
+    private val rowGap get() = dp(11f) // wide enough for the silver ridge to sit between the rows without touching a key
     private val padX get() = dp(5f)
-    private val padY get() = dp(8f)
-    private val smile get() = dp(4.5f) // how much lower the middle of a row sits than its ends
+    private val padTop get() = rowGap / 2 + dp(3f)
+    private val smile get() = dp(5f) // how much lower the middle of a row sits than its ends
 
     var shift = Shift.OFF
         private set
@@ -52,12 +52,16 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
 
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
     private val line = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND }
-    private val legend = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER; typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL) }
-    private val small = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.RIGHT; typeface = Typeface.create("sans-serif", Typeface.NORMAL) }
+    // Nunito (rounded humanist sans), semibold: the closest open font to the Bold's key legends.
+    private val face: Typeface = runCatching {
+        Typeface.Builder(context.assets, "Nunito.ttf").setFontVariationSettings("'wght' 650").build()
+    }.getOrNull() ?: Typeface.create("sans-serif-medium", Typeface.NORMAL)
+    private val legend = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER; typeface = face }
+    private val small = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.LEFT; typeface = face }
     private val icon = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = dp(1.8f); strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        val h = (padY * 2 + smile + keyH * 4 + rowGap * 3).toInt()
+        val h = (padTop + keyH * 4 + rowGap * 3 + rowGap / 2 + dp(3f) + smile).toInt()
         setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), h)
     }
 
@@ -76,7 +80,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         val unit = (width - padX * 2) / 10f
         cells = rows().mapIndexed { r, row ->
             var x = padX
-            val top = padY + r * (keyH + rowGap)
+            val top = padTop + r * (keyH + rowGap)
             row.mapIndexed { c, k ->
                 val w = unit * k.weight
                 val cx = x + w / 2
@@ -90,24 +94,24 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
     }
 
     override fun onDraw(canvas: Canvas) {
-        canvas.drawColor(0xFF08090a.toInt())
-        // the silver ridges between the rows, following the same smile as the keys
-        for (r in 0 until cells.size - 1) drawRidge(canvas, padY + (r + 1) * (keyH + rowGap) - rowGap / 2)
+        canvas.drawColor(0xFF0a0a0b.toInt())
+        // the silver ridges above, between and below the rows, following the same smile as the keys
+        for (r in 0..cells.size) drawRidge(canvas, padTop + r * (keyH + rowGap) - rowGap / 2)
         val down = pressed.values.toSet()
         for (row in cells) for (c in row) drawKey(canvas, c, c in down)
     }
 
     private fun drawRidge(canvas: Canvas, y: Float) {
-        val th = dp(2.4f)
         val p = Path().apply {
-            moveTo(padX, y)
-            quadTo(width / 2f, y + smile * 2f, width - padX, y)
+            moveTo(0f, y)
+            quadTo(width / 2f, y + smile * 2f, width.toFloat(), y)
         }
-        line.strokeWidth = th
-        // a dark groove under a bright chrome line
-        line.shader = null; line.color = 0xFF000000.toInt()
-        canvas.save(); canvas.translate(0f, dp(1.4f)); canvas.drawPath(p, line); canvas.restore()
-        line.shader = LinearGradient(0f, y - th, 0f, y + th + smile, intArrayOf(0xFFf4f6f8.toInt(), 0xFFa9adb3.toInt(), 0xFF5b5f66.toInt()), null, Shader.TileMode.CLAMP)
+        // a dark groove just under a thin bright chrome line
+        line.shader = null
+        line.strokeWidth = dp(1.6f); line.color = 0xFF000000.toInt()
+        canvas.save(); canvas.translate(0f, dp(1.5f)); canvas.drawPath(p, line); canvas.restore()
+        line.strokeWidth = dp(1.5f)
+        line.shader = LinearGradient(0f, 0f, width.toFloat(), 0f, intArrayOf(0xFF8d9197.toInt(), 0xFFf2f4f6.toInt(), 0xFFa9adb3.toInt(), 0xFFf2f4f6.toInt(), 0xFF8d9197.toInt()), null, Shader.TileMode.CLAMP)
         canvas.drawPath(p, line)
         line.shader = null
     }
@@ -132,52 +136,46 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         if (isDown) r.offset(0f, dp(1.3f))
         val rad = dp(7f)
         val special = c.key.kind != Kind.CHAR && c.key.kind != Kind.SPACE
-        val path = capPath(r, rad, dp(2.2f))
+        val path = capPath(r, rad, dp(1.1f))
 
-        // the shadow the key casts on the plate under it
-        if (!isDown) {
-            fill.shader = null; fill.color = 0xFF000000.toInt()
-            canvas.save(); canvas.translate(0f, dp(2.2f)); canvas.drawPath(path, fill); canvas.restore()
-        }
-        // body: near-black gunmetal, a little lighter at the top, darker at the base
-        val top = if (isDown) 0xFF1a1b1d.toInt() else if (special) 0xFF35373b.toInt() else 0xFF3c3e43.toInt()
-        val bottom = if (isDown) 0xFF26282b.toInt() else if (special) 0xFF141517.toInt() else 0xFF17181a.toInt()
+        // body: a dark plate, a little lighter at the top, darker at the base
+        val top = if (isDown) 0xFF18191b.toInt() else if (special) 0xFF34363a.toInt() else 0xFF3a3c41.toInt()
+        val bottom = if (isDown) 0xFF222427.toInt() else if (special) 0xFF161719.toInt() else 0xFF1a1b1e.toInt()
         fill.shader = LinearGradient(0f, r.top, 0f, r.bottom, top, bottom, Shader.TileMode.CLAMP)
         canvas.drawPath(path, fill)
         if (!isDown) {
             // the soft sheen on the dome
-            fill.shader = RadialGradient(r.centerX(), r.top + r.height() * 0.28f, r.width() * 0.75f, 0x4DFFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP)
+            fill.shader = RadialGradient(r.centerX(), r.top + r.height() * 0.2f, r.width() * 0.7f, 0x26FFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP)
             canvas.drawPath(path, fill)
             // a bright lip along the top edge
             line.strokeWidth = dp(1f)
-            line.shader = LinearGradient(r.left, 0f, r.right, 0f, intArrayOf(0x00FFFFFF, 0xAAFFFFFF.toInt(), 0x00FFFFFF), null, Shader.TileMode.CLAMP)
+            line.shader = LinearGradient(r.left, 0f, r.right, 0f, intArrayOf(0x00FFFFFF, 0x66FFFFFF, 0x00FFFFFF), null, Shader.TileMode.CLAMP)
             canvas.drawPath(Path().apply {
-                moveTo(r.left + rad, r.top + dp(0.9f)); quadTo(r.centerX(), r.top - dp(2.6f), r.right - rad, r.top + dp(0.9f))
+                moveTo(r.left + rad, r.top + dp(0.8f)); quadTo(r.centerX(), r.top - dp(1.2f), r.right - rad, r.top + dp(0.8f))
             }, line)
             line.shader = null
         }
         fill.shader = null
 
         val cx = r.centerX()
-        val cy = r.centerY() + dp(0.5f)
+        val cy = r.centerY() + dp(2f)
         when (c.key.kind) {
             Kind.SHIFT -> drawShift(canvas, cx, cy)
-            Kind.DELETE -> drawWord(canvas, "del", cx, cy, dp(14f))
+            Kind.DELETE -> drawWord(canvas, "del", cx, cy, dp(13f))
             Kind.ENTER -> drawEnter(canvas, cx, cy)
-            Kind.SPACE -> drawWord(canvas, "space", cx, cy, dp(14f), 0xFFc9ccd1.toInt())
-            Kind.LAYER -> drawWord(canvas, "alt", cx, cy, dp(15f), if (altLayer) 0xFFffb259.toInt() else 0xFFe3e5e8.toInt())
+            Kind.SPACE -> drawWord(canvas, "space", cx, cy, dp(13f), 0xFFcfd2d6.toInt())
+            Kind.LAYER -> drawWord(canvas, "alt", cx, cy, dp(14f), if (altLayer) 0xFFffb259.toInt() else 0xFFdadde0.toInt())
             Kind.CHAR -> {
                 val isLetter = c.key.label.length == 1 && c.key.label[0].isLetter()
-                legend.textSize = dp(22f)
-                legend.color = if (altLayer) 0xFFf4f5f6.toInt() else 0xFFeceef0.toInt()
-                legend.setShadowLayer(dp(1.2f), 0f, dp(1f), 0xCC000000.toInt())
-                val label = if (isLetter && !altLayer && shift == Shift.OFF && false) c.key.label.lowercase() else c.key.label
-                canvas.drawText(label, cx, cy - (legend.ascent() + legend.descent()) / 2, legend)
+                legend.textSize = dp(if (altLayer) 20f else 18f)
+                legend.color = 0xFFdadde0.toInt()
+                legend.setShadowLayer(dp(0.8f), 0f, dp(0.8f), 0xCC000000.toInt())
+                canvas.drawText(c.key.label, cx, cy - (legend.ascent() + legend.descent()) / 2 + dp(1.5f), legend)
                 legend.clearShadowLayer()
                 if (!altLayer && isLetter) secondaryFor(c.row, c.col)?.let { s ->
-                    small.textSize = dp(10.5f)
-                    small.color = 0xFF9a9ea5.toInt()
-                    canvas.drawText(s, r.right - dp(5.5f), r.top + dp(13f), small)
+                    small.textSize = dp(11f)
+                    small.color = 0xFFb4b8be.toInt()
+                    canvas.drawText(s, r.left + dp(6.5f), r.top + dp(14f), small)
                 }
             }
         }
@@ -218,7 +216,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
 
     private fun hit(x: Float, y: Float): Cell? {
         if (cells.isEmpty()) return null
-        val r = ((y - padY) / (keyH + rowGap)).toInt().coerceIn(0, cells.size - 1)
+        val r = ((y - padTop + rowGap / 2) / (keyH + rowGap)).toInt().coerceIn(0, cells.size - 1)
         // nearest key in the row by horizontal distance: there are no dead zones between keys
         return cells[r].minByOrNull { c -> if (x in c.rect.left - gap / 2..c.rect.right + gap / 2) 0f else minOf(abs(x - c.rect.left), abs(x - c.rect.right)) }
     }

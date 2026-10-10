@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -34,7 +35,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialShapes
@@ -56,7 +57,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -94,36 +94,36 @@ private fun SetupScreen() {
         owner.lifecycle.addObserver(o); onDispose { owner.lifecycle.removeObserver(o) }
     }
     val (enabled, current) = remember(tick) { imeState(context) }
-    val scroll = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     Scaffold(
-        modifier = Modifier.nestedScroll(scroll.nestedScrollConnection).imePadding(),
         topBar = {
-            LargeFlexibleTopAppBar(
+            // One plain title bar: the app's name appears once, and nothing collapses while the list scrolls.
+            TopAppBar(
                 title = { Text("Bold Keys", fontWeight = FontWeight.SemiBold) },
-                subtitle = { Text("A keyboard with real keys") },
-                scrollBehavior = scroll,
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
             )
         },
+        containerColor = MaterialTheme.colorScheme.surface,
     ) { padding ->
         LazyColumn(
-            Modifier.fillMaxSize().padding(padding),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            // The keyboard's height is applied once: the navigation-bar part the Scaffold already handled is not counted twice.
+            Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding(),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            item { Hero(enabled, current) }
-            item { StepsCard(enabled, current) { tick++ } }
-            item { TryCard() }
-            item { FeelCard(fb) }
+            item(key = "hero") { Hero(enabled, current, Modifier.animateItem()) }
+            item(key = "steps") { StepsCard(enabled, current, Modifier.animateItem()) { tick++ } }
+            item(key = "try") { TryCard(Modifier.animateItem()) }
+            item(key = "feel") { FeelCard(fb, Modifier.animateItem()) }
         }
     }
 }
 
 @Composable
-private fun Hero(enabled: Boolean, current: Boolean) {
+private fun Hero(enabled: Boolean, current: Boolean, modifier: Modifier = Modifier) {
     val ready = enabled && current
     val bg by animateColorAsState(if (ready) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.tertiaryContainer, label = "hero")
-    Card(shape = RoundedCornerShape(32.dp), colors = CardDefaults.cardColors(containerColor = bg)) {
+    Card(modifier = modifier.fillMaxWidth(), shape = RoundedCornerShape(32.dp), colors = CardDefaults.cardColors(containerColor = bg)) {
         Row(Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(
                 Modifier.size(64.dp).background(MaterialTheme.colorScheme.primary, MaterialShapes.Cookie9Sided.toShape()),
@@ -131,9 +131,9 @@ private fun Hero(enabled: Boolean, current: Boolean) {
             ) { Text(if (ready) "✓" else "⌨", fontSize = 26.sp, color = MaterialTheme.colorScheme.onPrimary) }
             Spacer(Modifier.width(16.dp))
             Column {
-                Text(if (ready) "You're typing with Bold Keys" else "Almost there", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                Text(if (ready) "All set" else "Almost there", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
                 Text(
-                    when { ready -> "Open any text box and type."; !enabled -> "Turn the keyboard on, then switch to it."; else -> "Switch to it to start typing." },
+                    when { ready -> "Bold Keys is your keyboard. Open any text box and type."; !enabled -> "Turn the keyboard on, then switch to it."; else -> "Switch to it to start typing." },
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
@@ -142,9 +142,9 @@ private fun Hero(enabled: Boolean, current: Boolean) {
 }
 
 @Composable
-private fun StepsCard(enabled: Boolean, current: Boolean, changed: () -> Unit) {
+private fun StepsCard(enabled: Boolean, current: Boolean, modifier: Modifier = Modifier, changed: () -> Unit) {
     val context = LocalContext.current
-    Card(shape = RoundedCornerShape(28.dp)) {
+    Card(modifier = modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp)) {
         Column(Modifier.padding(8.dp)) {
             ListItem(
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
@@ -172,9 +172,9 @@ private fun StepsCard(enabled: Boolean, current: Boolean, changed: () -> Unit) {
 }
 
 @Composable
-private fun TryCard() {
+private fun TryCard(modifier: Modifier = Modifier) {
     var text by remember { mutableStateOf("") }
-    Card(shape = RoundedCornerShape(28.dp)) {
+    Card(modifier = modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp)) {
         Column(Modifier.padding(16.dp)) {
             Text("Try it", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(8.dp))
@@ -189,12 +189,12 @@ private fun TryCard() {
 }
 
 @Composable
-private fun FeelCard(fb: Feedback) {
+private fun FeelCard(fb: Feedback, modifier: Modifier = Modifier) {
     var pattern by remember { mutableStateOf(fb.pattern) }
     var sound by remember { mutableStateOf(fb.soundOn) }
     var volume by remember { mutableStateOf(fb.volume) }
     val amplitude = remember { fb.vibrator.hasAmplitudeControl() }
-    Card(shape = RoundedCornerShape(28.dp)) {
+    Card(modifier = modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp)) {
         Column(Modifier.padding(16.dp)) {
             Text("The click", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Text(
