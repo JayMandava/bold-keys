@@ -209,7 +209,7 @@ private fun StatusCards() {
                 Column {
                     Text(if (ready) "All set" else "Almost there", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
                     Text(
-                        when { ready -> "Bold Keys is your keyboard. Open any text box and type."; !enabled -> "Turn the keyboard on, then switch to it."; else -> "Switch to it to start typing." },
+                        when { ready -> "This is your keyboard now. Open any text box and type."; !enabled -> "Turn the keyboard on, then switch to it."; else -> "Switch to it to start typing." },
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }
@@ -229,7 +229,7 @@ private fun StatusCards() {
                 ListItem(
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                     overlineContent = { Text("Step 2") },
-                    headlineContent = { Text(if (current) "Bold Keys is selected" else "Switch to Bold Keys") },
+                    headlineContent = { Text(if (current) "This keyboard is selected" else "Switch to this keyboard") },
                     trailingContent = {
                         if (current) Text("✓", color = MaterialTheme.colorScheme.primary, fontSize = 20.sp)
                         else FilledTonalButton(enabled = enabled, onClick = { (context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).showInputMethodPicker(); tick++ }) { Text("Switch") }
@@ -337,7 +337,7 @@ private fun AppearanceContent(context: Context) {
                     ) { Text(name) }
                 }
             }
-            Note("The black keys are the 9900 as most remember it. The white ones are the white edition.")
+            Note("Match phone follows the system's light or dark setting.")
         }
         Section("Backlight") {
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
@@ -368,7 +368,7 @@ private fun AppearanceContent(context: Context) {
             Note(
                 when {
                     !dark -> "The backlight glows on the black keys. Switch to Black to see it."
-                    mode == "auto" -> "Glows in the dark and fades in bright light, using the phone's light sensor, as the original did."
+                    mode == "auto" -> "Glows in the dark and fades in bright light, using the phone's light sensor."
                     mode == "on" -> "Glows all the time."
                     else -> "The letters and the gaps between keys stay unlit."
                 },
@@ -466,9 +466,10 @@ private fun DictionaryContent(context: Context) {
 private fun androidx.compose.foundation.lazy.LazyListScope.aboutItems(context: Context) {
     item(key = "about") {
         val version = remember { runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "" }
-        Section("Bold Keys $version") {
+        Section("Version $version") {
             Note("Everything happens on this phone. The keyboard has no internet permission, sends nothing anywhere, and keeps what it learns only in this app's private storage.")
-            Note("It looks and behaves after the BlackBerry Bold 9900. Word frequencies come from the OpenSubtitles-based FrequencyWords list (CC BY-SA 4.0); the key legends use the Nunito typeface (SIL Open Font License).")
+            Note("Word frequencies come from the OpenSubtitles-based FrequencyWords list (CC BY-SA 4.0). The key legends use the Nunito typeface (SIL Open Font License).")
+            Note("Inspired by the classic BlackBerry Bold 9900 keyboard. BlackBerry is a trademark of its owner; this app is independent and is not affiliated with or endorsed by BlackBerry.")
         }
     }
 }
