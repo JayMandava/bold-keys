@@ -503,8 +503,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
             lay.close.contains(x, y) -> symPage = -1
             else -> {
                 val i = lay.cells.indexOfFirst { it.contains(x, y) }
-                if (i >= 0 && i < page.size) listener.onText(page[i])
-                symPage = -1
+                if (i >= 0 && i < page.size) listener.onText(page[i]) // the picker stays open: only "close" puts the keys back
             }
         }
         invalidate()
