@@ -1,7 +1,9 @@
 package ai.boldkeys
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.LightingColorFilter
 import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
@@ -15,6 +17,11 @@ import android.os.SystemClock
 import android.view.MotionEvent
 import android.view.View
 import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.pow
+import kotlin.math.sin
+import kotlin.math.sqrt
 
 /**
  * The keyboard, drawn by hand to look like the Bold 9900's keys: near-black caps with a domed, glossy top and a soft sheen, rows that
@@ -68,7 +75,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), h)
     }
 
-    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) = rebuild()
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) { faces.clear(); rebuild() }
 
     private fun rows() = if (altLayer) Layouts.symbolRows else Layouts.letterRows
 
@@ -134,81 +141,97 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         close()
     }
 
+    private val faces = HashMap<String, Bitmap>()
+    private val pressFilter = LightingColorFilter(0xFFB4B4B4.toInt(), 0)
+
+    private fun smooth(e0: Float, e1: Float, x: Float): Float { val t = ((x - e0) / (e1 - e0)).coerceIn(0f, 1f); return t * t * (3f - 2f * t) }
+
     /**
-     * A key is a small solid: a dark side wall, and above it the top surface lit from the top-left (a lighter upper edge, a shaded lower-right,
-     * a soft sheen). Near the edge facing the middle of the keyboard the top slopes away in a crescent that catches light on its crest and
-     * falls into shadow at the key's edge. Pressing a key drops the top onto the wall.
+     * The top of a key, worked out as a real surface and lit from the top-left, pixel by pixel: a rounded edge, a gently domed top, and a smooth
+     * slope toward the middle of the keyboard (the Bold's sculpted facet). The light and shade on that shape is what makes it look solid; nothing
+     * is drawn on top of it. Rendered once per key size and kept.
      */
+    private fun keyFace(w: Int, h: Int, mirror: Boolean, facet: Boolean, special: Boolean): Bitmap = faces.getOrPut("$w,$h,$mirror,$facet,$special") {
+        val rad = dp(5f); val bevel = dp(3.6f); val hk = dp(4.6f); val hd = dp(2.6f); val af = dp(7.5f)
+        val z = FloatArray(w * h); val alpha = FloatArray(w * h); val dist = FloatArray(w * h)
+        val hw = w / 2f; val hh = h / 2f
+        for (y in 0 until h) for (x in 0 until w) {
+            val px = x + 0.5f - hw; val py = y + 0.5f - hh
+            val qx = abs(px) - (hw - rad); val qy = abs(py) - (hh - rad)
+            val outside = sqrt(max(qx, 0f) * max(qx, 0f) + max(qy, 0f) * max(qy, 0f))
+            val d = -(outside + min(max(qx, qy), 0f) - rad)
+            val i = y * w + x
+            dist[i] = d
+            alpha[i] = (d + 0.5f).coerceIn(0f, 1f)
+            val u = (x + 0.5f) / w; val v = (y + 0.5f) / h
+            val edge = sin((Math.PI / 2).toFloat() * (d / bevel).coerceIn(0f, 1f))
+            val dome = hd * (1f - ((2f * u - 1f).pow(2) + (2f * v - 1f).pow(2)) / 2f)
+            var zz = hk * edge + dome
+            if (facet) {
+                val uu = if (mirror) 1f - u else u
+                val c = 0.86f - 0.16f * v // the slope starts further out at the top and reaches inward lower down, like a leaf
+                val f = smooth(c, c + 0.20f, uu) * smooth(0f, 0.34f, v) // it runs to the bottom edge, where the rounded edge takes over
+                zz -= af * f
+            }
+            z[i] = zz
+        }
+        val base = if (special) floatArrayOf(31f, 38f, 47f) else floatArrayOf(36f, 44f, 54f)
+        val lx = -0.12f; val ly = -0.70f; val lz = 0.72f // light from nearly overhead, a little from the left, so both halves of the board match
+        val ll = sqrt(lx * lx + ly * ly + lz * lz)
+        val hx = lx / ll; val hy = ly / ll; val hz = lz / ll + 1f
+        val hl = sqrt(hx * hx + hy * hy + hz * hz)
+        val out = IntArray(w * h)
+        for (y in 0 until h) for (x in 0 until w) {
+            val i = y * w + x
+            if (alpha[i] <= 0f) continue
+            val xm = max(x - 1, 0); val xp = min(x + 1, w - 1); val ym = max(y - 1, 0); val yp = min(y + 1, h - 1)
+            val dzx = (z[y * w + xp] - z[y * w + xm]) / (xp - xm).coerceAtLeast(1)
+            val dzy = (z[yp * w + x] - z[ym * w + x]) / (yp - ym).coerceAtLeast(1)
+            val nl = sqrt(dzx * dzx + dzy * dzy + 1f)
+            val nx = -dzx / nl; val ny = -dzy / nl; val nz = 1f / nl
+            val diff = max(0f, nx * lx / ll + ny * ly / ll + nz * lz / ll)
+            val spec = max(0f, nx * hx / hl + ny * hy / hl + nz * hz / hl).pow(26f) * 0.5f
+            val ao = 0.80f + 0.20f * smooth(0f, bevel * 1.4f, dist[i])
+            val k = (0.24f + 1.30f * diff) * ao
+            val r = (base[0] * k + spec * 255f).coerceIn(0f, 255f).toInt()
+            val g = (base[1] * k + spec * 255f).coerceIn(0f, 255f).toInt()
+            val b = (base[2] * k + spec * 255f).coerceIn(0f, 255f).toInt()
+            out[i] = ((alpha[i] * 255f).toInt() shl 24) or (r shl 16) or (g shl 8) or b
+        }
+        Bitmap.createBitmap(out, w, h, Bitmap.Config.ARGB_8888)
+    }
+
+    /** A key: a soft shadow, the dark wall it stands on, and its lit top. Pressing drops the top onto the wall. */
     private fun drawKey(canvas: Canvas, c: Cell, isDown: Boolean) {
         val r = c.rect
         val wall = dp(3f)
         val drop = if (isDown) wall * 0.8f else 0f
-        val t = RectF(r.left, r.top + drop, r.right, r.bottom - wall + drop)
+        val faceW = Math.round(r.width()); val faceH = Math.round(r.height() - wall)
+        val faceX = Math.round(r.left); val faceY = Math.round(r.top + drop)
+        val t = RectF(faceX.toFloat(), faceY.toFloat(), (faceX + faceW).toFloat(), (faceY + faceH).toFloat())
         val rad = dp(5f)
         val special = c.key.kind != Kind.CHAR && c.key.kind != Kind.SPACE
         val leftHalf = r.centerX() < width / 2f
         val hasFacet = c.key.kind != Kind.SPACE
-        val tw = t.width(); val th = t.height()
+        val tw = t.width()
 
-        // soft shadow on the plate, then the side wall
         surf.shader = null; surf.color = 0x99000000.toInt()
         canvas.drawPath(capPath(RectF(r).apply { offset(0f, dp(1.2f)) }, rad, dp(0.6f)), surf)
         surf.shader = LinearGradient(0f, r.top, 0f, r.bottom, 0xFF2d343d.toInt(), 0xFF040608.toInt(), Shader.TileMode.CLAMP)
         canvas.drawPath(capPath(r, rad, dp(0.6f)), surf)
-
-        // top surface
-        val top = capPath(t, rad, dp(1f))
-        val hi = if (special) 0xFF2b323b.toInt() else 0xFF343c46.toInt()
-        val lo = if (special) 0xFF0c0f13.toInt() else 0xFF0f1318.toInt()
-        surf.shader = LinearGradient(0f, t.top, 0f, t.bottom, hi, lo, Shader.TileMode.CLAMP)
-        canvas.drawPath(top, surf)
-        // light falls from the top-left: a soft sheen there, shade to the lower right
-        surf.shader = RadialGradient(t.left + tw * 0.28f, t.top + th * 0.18f, tw * 0.95f, 0x3DFFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP)
-        canvas.drawPath(top, surf)
-        surf.shader = LinearGradient(t.left, t.top, t.right, t.bottom, 0x00000000, 0x66000000, Shader.TileMode.CLAMP)
-        canvas.drawPath(top, surf)
-        if (isDown) { surf.shader = null; surf.color = 0x33000000; canvas.drawPath(top, surf) }
         surf.shader = null
-        // a thin bright edge along the top and the lit corner, a dark one on the far side
-        line.strokeWidth = dp(0.9f)
-        line.shader = LinearGradient(t.left, t.top, t.right, t.bottom, intArrayOf(0x88FFFFFF.toInt(), 0x22FFFFFF, 0x00000000, 0x88000000.toInt()), floatArrayOf(0f, 0.3f, 0.6f, 1f), Shader.TileMode.CLAMP)
-        canvas.drawPath(top, line)
-        line.shader = null
 
-        // where the legends may go: the part of the top beside the facet
+        val face = keyFace(faceW.coerceAtLeast(1), faceH.coerceAtLeast(1), !leftHalf, hasFacet, special)
+        surf.colorFilter = if (isDown) pressFilter else null
+        canvas.drawBitmap(face, t.left, t.top, surf)
+        surf.colorFilter = null
+
+        // where the legends may go: the part of the top beside the slope
         var areaL = t.left; var areaR = t.right
         if (hasFacet) {
-            fun fx(f: Float) = if (leftHalf) t.left + tw * f else t.right - tw * f
-            val tipX = fx(0.64f); val tipY = t.top + th * 0.10f
-            val botX = fx(0.97f); val botY = t.top + th * 0.90f
-            val facet = Path().apply {
-                moveTo(tipX, tipY)
-                quadTo(fx(1.04f), t.top + th * 0.24f, botX, botY)
-                quadTo(fx(0.78f), t.top + th * 0.55f, tipX, tipY)
-                close()
-            }
-            // the slope: light on the crest (toward the key's middle), shadow at the edge
-            surf.shader = LinearGradient(tipX, 0f, botX, 0f, 0x66FFFFFF, 0xAA000000.toInt(), Shader.TileMode.CLAMP)
-            canvas.drawPath(facet, surf)
-            surf.shader = null
-            // the crest: a fine highlight that fades out toward both ends
-            val crest = Path().apply { moveTo(tipX, tipY); quadTo(fx(0.78f), t.top + th * 0.55f, botX, botY) }
-            // a dark line just inside the crest gives the step its depth, the bright line on it is the lit edge
-            line.strokeWidth = dp(1.1f); line.shader = null; line.color = 0x88000000.toInt()
-            canvas.save(); canvas.translate(if (leftHalf) -dp(1.2f) else dp(1.2f), 0f); canvas.drawPath(crest, line); canvas.restore()
-            line.strokeWidth = dp(1.1f)
-            line.shader = LinearGradient(0f, tipY, 0f, botY, intArrayOf(0x22FFFFFF, 0xEEFFFFFF.toInt(), 0x66FFFFFF), floatArrayOf(0f, 0.55f, 1f), Shader.TileMode.CLAMP)
-            canvas.drawPath(crest, line)
-            line.shader = null
-            if (leftHalf) areaR = tipX - dp(1f) else areaL = tipX + dp(1f)
-        } else if (!isDown) {
-            // the space bar's chrome lip
-            line.strokeWidth = dp(1.2f)
-            line.shader = LinearGradient(t.left, 0f, t.right, 0f, intArrayOf(0x00FFFFFF, 0xCCFFFFFF.toInt(), 0x00FFFFFF), null, Shader.TileMode.CLAMP)
-            canvas.drawPath(Path().apply { moveTo(t.left + dp(10f), t.bottom - dp(5f)); quadTo(t.centerX(), t.bottom - dp(1f), t.right - dp(10f), t.bottom - dp(5f)) }, line)
-            line.shader = null
+            val edgeX = if (leftHalf) t.left + tw * 0.68f else t.right - tw * 0.68f
+            if (leftHalf) areaR = edgeX else areaL = edgeX
         }
-
         val acx = (areaL + areaR) / 2f
         val aw = areaR - areaL
         val cy = t.centerY() + dp(1f)
@@ -228,7 +251,9 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                     canvas.drawText(c.key.label, acx, cy - (legend.ascent() + legend.descent()) / 2 + dp(3f), legend)
                     legend.textSkewX = 0f
                 } else {
-                    legend.textSize = dp(19f)
+                    // numbers and symbols (the alt page): kept inside the key, never wider than the space beside the slope
+                    legend.textSize = dp(17f)
+                    while (legend.measureText(c.key.label) > aw - dp(10f) && legend.textSize > dp(9f)) legend.textSize -= dp(0.5f)
                     canvas.drawText(c.key.label, acx, cy - (legend.ascent() + legend.descent()) / 2, legend)
                 }
                 clearShadow()
