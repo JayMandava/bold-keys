@@ -56,6 +56,8 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
     /** Alt works like on the real keyboard: tap it and the next key types its small symbol; double-tap to keep it on. */
     private var altMode = Shift.OFF
     private var lastAltTap = 0L
+    private var altHeld = false // a finger is on Alt right now: keys type their symbols for as long as it stays there (the other thumb types)
+    private var altUsedWhileHeld = false
     private var lastShiftTap = 0L
     /** The SYM picker: -1 when closed, otherwise the page showing. Pressing SYM again moves to the next page. */
     private var symPage = -1
@@ -382,13 +384,19 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                     pressed[e.getPointerId(i)] = c
                     feedback.key(c.key.kind == Kind.SPACE)
                     pressedRow = c.row; pressedCol = c.col
+                    if (c.key.kind == Kind.LAYER) { altHeld = true; altUsedWhileHeld = false }
                     fire(c.key)
                     if (c.key.kind == Kind.DELETE) ui.postDelayed(repeatDelete, 380)
                     invalidate()
                 }
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP, MotionEvent.ACTION_CANCEL -> {
-                pressed.remove(e.getPointerId(e.actionIndex))
+                val up = pressed.remove(e.getPointerId(e.actionIndex))
+                if (up?.key?.kind == Kind.LAYER) {
+                    altHeld = false
+                    if (altUsedWhileHeld && altMode == Shift.ONCE) altMode = Shift.OFF // held and used: it ends with the finger; a plain tap stays armed for the next key
+                    altUsedWhileHeld = false
+                }
                 if (pressed.values.none { it.key.kind == Kind.DELETE }) ui.removeCallbacks(repeatDelete)
                 invalidate()
             }
@@ -408,11 +416,11 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                 if (altMode != Shift.OFF && key.label == "$") {
                     // Alt + $ is the speaker: it switches the key click on and off
                     feedback.soundOn = !feedback.soundOn
-                    if (altMode == Shift.ONCE) altMode = Shift.OFF
+                    if (altHeld) altUsedWhileHeld = true else if (altMode == Shift.ONCE) altMode = Shift.OFF
                     invalidate(); return
                 } else if (altMode != Shift.OFF && sym != null) {
                     t = sym
-                    if (altMode == Shift.ONCE) altMode = Shift.OFF
+                    if (altHeld) altUsedWhileHeld = true else if (altMode == Shift.ONCE) altMode = Shift.OFF
                 } else {
                     if (isLetter && shift != Shift.OFF) t = t.uppercase()
                     if (isLetter && shift == Shift.ONCE) shift = Shift.OFF
@@ -502,6 +510,9 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         }
         invalidate()
     }
+
+    /** True while a finger rests on a shift key (the trackpad then selects text). */
+    fun isShiftHeld() = pressed.values.any { it.key.kind == Kind.SHIFT }
 
     /** Called after text changes: capitalise the next letter at the start of a sentence. */
     fun setAutoShift(on: Boolean) {

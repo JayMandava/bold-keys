@@ -1,23 +1,56 @@
 package ai.boldkeys
 
 import android.inputmethodservice.InputMethodService
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import android.text.InputType
 import android.view.KeyEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.LinearLayout
+import java.io.File
+import java.util.concurrent.Executors
 
-/** The keyboard service: turns presses from [KeyboardView] into text in whatever app is typing. */
-class BoldKeysService : InputMethodService(), KeyboardView.Listener {
+/** The keyboard service: turns presses from [KeyboardView] into text, and runs the suggestions, autocorrect and trackpad. */
+class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionBar.Listener {
     private lateinit var kb: KeyboardView
+    private lateinit var bar: SuggestionBar
+    private lateinit var feedback: Feedback
+
+    private val ui = Handler(Looper.getMainLooper())
+    private val worker = Executors.newSingleThreadExecutor()
+    @Volatile private var engine: SpellEngine? = null
+    private var smart = false // suggestions and autocorrect are off in password, email, web-address and "no suggestions" fields
+    private var shown: List<String> = emptyList()
+
+    /** The last autocorrect, kept so Backspace right after it can put back what was typed. */
+    private class Undo(val typed: String, val fixed: String, val sep: String)
+    private var undo: Undo? = null
+
+    override fun onCreate() {
+        super.onCreate()
+        worker.execute {
+            val e = SpellEngine.fromTsv(assets.open("words.tsv").bufferedReader().use { it.readText() })
+            e.loadLearned(readLearned())
+            e.onLearnedChanged = { saveLearned() }
+            engine = e
+            ui.post { refreshStrip() }
+        }
+    }
+
+    override fun onDestroy() { saveLearned(); super.onDestroy() }
 
     override fun onCreateInputView(): View {
-        kb = KeyboardView(this, Feedback(this), this)
+        feedback = Feedback(this)
+        kb = KeyboardView(this, feedback, this)
+        bar = SuggestionBar(this, feedback, this) { kb.isShiftHeld() }
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(0xFF08090a.toInt())
+            setBackgroundColor(0xFF0a0a0b.toInt())
+            addView(bar, LinearLayout.LayoutParams(-1, -2))
             addView(kb, LinearLayout.LayoutParams(-1, -2))
-            // The keyboard is drawn edge to edge: keep the keys clear of the system's navigation bar, which has its own keyboard-switch button.
+            // The keyboard is drawn edge to edge: keep the keys clear of the system's navigation bar.
             setOnApplyWindowInsetsListener { v, insets ->
                 val bars = insets.getInsets(android.view.WindowInsets.Type.systemBars())
                 v.setPadding(bars.left, 0, bars.right, bars.bottom)
@@ -30,30 +63,142 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener {
 
     override fun onStartInputView(info: EditorInfo, restarting: Boolean) {
         super.onStartInputView(info, restarting)
+        val cls = info.inputType and InputType.TYPE_MASK_CLASS
+        val variation = info.inputType and InputType.TYPE_MASK_VARIATION
+        smart = cls == InputType.TYPE_CLASS_TEXT &&
+            info.inputType and InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS == 0 &&
+            variation !in PRIVATE_VARIATIONS
+        undo = null
         refreshAutoCaps()
+        refreshStrip()
     }
 
+    override fun onFinishInput() { super.onFinishInput(); saveLearned() }
+
+    override fun onUpdateSelection(oldSelStart: Int, oldSelEnd: Int, newSelStart: Int, newSelEnd: Int, candidatesStart: Int, candidatesEnd: Int) {
+        super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
+        if (::bar.isInitialized) refreshStrip()
+    }
+
+    // ---- typing
+
     override fun onText(text: String) {
-        currentInputConnection?.commitText(text, 1)
+        val ic = currentInputConnection ?: return
+        val e = engine
+        if (smart && e != null && text.length == 1 && text[0] in SEPARATORS) {
+            val word = currentWord()
+            if (word.isNotEmpty()) {
+                val fix = if (word == "i") "I" else e.autocorrect(word)?.let { matchCase(word, it) }
+                if (fix != null && fix != word) {
+                    ic.deleteSurroundingText(word.length, 0)
+                    ic.commitText(fix + text, 1)
+                    undo = Undo(word, fix, text)
+                    refreshAutoCaps(); refreshStrip()
+                    return
+                }
+                e.noteTyped(word)
+            }
+        }
+        undo = null
+        ic.commitText(text, 1)
         refreshAutoCaps()
+        refreshStrip()
     }
 
     override fun onDelete() {
         val ic = currentInputConnection ?: return
+        val u = undo
+        if (u != null) {
+            val tail = u.fixed + u.sep
+            if (ic.getTextBeforeCursor(tail.length, 0)?.toString() == tail) {
+                // take the correction back: what was typed returns, and the word is learned so it is not "fixed" again
+                ic.deleteSurroundingText(tail.length, 0)
+                ic.commitText(u.typed + u.sep, 1)
+                engine?.teach(u.typed)
+                undo = null
+                refreshAutoCaps(); refreshStrip()
+                return
+            }
+        }
+        undo = null
         if (ic.getSelectedText(0).isNullOrEmpty()) ic.deleteSurroundingText(1, 0) else ic.commitText("", 1)
         refreshAutoCaps()
+        refreshStrip()
     }
 
     override fun onEnter() {
         val info = currentInputEditorInfo
         val action = info?.imeOptions?.and(EditorInfo.IME_MASK_ACTION) ?: EditorInfo.IME_ACTION_NONE
         val noAction = info != null && info.imeOptions and EditorInfo.IME_FLAG_NO_ENTER_ACTION != 0
+        val word = currentWord()
+        if (smart && word.isNotEmpty()) engine?.noteTyped(word)
+        undo = null
         if (!noAction && action != EditorInfo.IME_ACTION_NONE && action != EditorInfo.IME_ACTION_UNSPECIFIED) {
             currentInputConnection?.performEditorAction(action)
         } else {
             sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
         }
         refreshAutoCaps()
+        refreshStrip()
+    }
+
+    // ---- suggestions
+
+    /** The letters just before the cursor, if the cursor is at the end of a word. */
+    private fun currentWord(): String {
+        val ic = currentInputConnection ?: return ""
+        val before = ic.getTextBeforeCursor(40, 0)?.toString() ?: return ""
+        var i = before.length
+        while (i > 0 && (before[i - 1].isLetter() || before[i - 1] == '\'')) i--
+        var w = before.substring(i)
+        w = w.trimStart('\'')
+        return w
+    }
+
+    private fun refreshStrip() {
+        if (!::bar.isInitialized) return
+        val e = engine
+        val ic = currentInputConnection
+        val word = if (smart && e != null && ic != null && ic.getSelectedText(0).isNullOrEmpty()) currentWord() else ""
+        val out = if (word.isEmpty() || e == null) emptyList() else e.suggest(word, 2).map { matchCase(word, it.word) }
+        shown = out
+        bar.setSuggestions(out)
+    }
+
+    override fun onPick(index: Int) {
+        val ic = currentInputConnection ?: return
+        val pick = shown.getOrNull(index) ?: return
+        val word = currentWord()
+        if (word.isEmpty()) return
+        ic.beginBatchEdit()
+        ic.deleteSurroundingText(word.length, 0)
+        ic.commitText("$pick ", 1)
+        ic.endBatchEdit()
+        undo = null
+        refreshAutoCaps(); refreshStrip()
+    }
+
+    /** Gives [cand] the capitals [typed] had: ALL CAPS stays all caps, a first capital stays a first capital. */
+    private fun matchCase(typed: String, cand: String): String = when {
+        typed.length > 1 && typed.all { !it.isLetter() || it.isUpperCase() } -> cand.uppercase()
+        typed.isNotEmpty() && typed[0].isUpperCase() -> cand.replaceFirstChar { it.uppercase() }
+        else -> cand
+    }
+
+    // ---- trackpad
+
+    override fun onMove(dx: Int, dy: Int, select: Boolean) {
+        val meta = if (select) KeyEvent.META_SHIFT_ON or KeyEvent.META_SHIFT_LEFT_ON else 0
+        fun press(code: Int, times: Int) {
+            repeat(kotlin.math.abs(times)) {
+                val t = SystemClock.uptimeMillis()
+                currentInputConnection?.sendKeyEvent(KeyEvent(t, t, KeyEvent.ACTION_DOWN, code, 0, meta))
+                currentInputConnection?.sendKeyEvent(KeyEvent(t, t, KeyEvent.ACTION_UP, code, 0, meta))
+            }
+        }
+        if (dx != 0) press(if (dx > 0) KeyEvent.KEYCODE_DPAD_RIGHT else KeyEvent.KEYCODE_DPAD_LEFT, dx)
+        if (dy != 0) press(if (dy > 0) KeyEvent.KEYCODE_DPAD_DOWN else KeyEvent.KEYCODE_DPAD_UP, dy)
+        undo = null
     }
 
     private fun refreshAutoCaps() {
@@ -61,5 +206,27 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener {
         val info = currentInputEditorInfo ?: return
         if (info.inputType and InputType.TYPE_MASK_CLASS != InputType.TYPE_CLASS_TEXT) return
         kb.setAutoShift(ic.getCursorCapsMode(info.inputType) != 0)
+    }
+
+    // ---- what the keyboard has learned (words typed twice that the dictionary did not know), kept on the phone only
+
+    private fun learnedFile() = File(filesDir, "learned.tsv")
+
+    private fun readLearned(): Map<String, Int> = runCatching {
+        learnedFile().takeIf { it.exists() }?.readLines()?.mapNotNull { l -> l.split('\t').takeIf { it.size == 2 }?.let { it[0] to (it[1].toIntOrNull() ?: 0) } }?.toMap()
+    }.getOrNull() ?: emptyMap()
+
+    @Synchronized private fun saveLearned() {
+        val e = engine ?: return
+        runCatching { learnedFile().writeText(e.learnedSnapshot().entries.joinToString("") { "${it.key}\t${it.value}\n" }) }
+    }
+
+    private companion object {
+        const val SEPARATORS = " .,!?;:"
+        val PRIVATE_VARIATIONS = setOf(
+            InputType.TYPE_TEXT_VARIATION_PASSWORD, InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD, InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD,
+            InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS, InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS, InputType.TYPE_TEXT_VARIATION_URI,
+            InputType.TYPE_TEXT_VARIATION_FILTER,
+        )
     }
 }
