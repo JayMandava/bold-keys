@@ -226,12 +226,8 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         canvas.drawBitmap(face, t.left, t.top, surf)
         surf.colorFilter = null
 
-        // where the legends may go: the part of the top beside the slope
-        var areaL = t.left; var areaR = t.right
-        if (hasFacet) {
-            val edgeX = if (leftHalf) t.left + tw * 0.68f else t.right - tw * 0.68f
-            if (leftHalf) areaR = edgeX else areaL = edgeX
-        }
+        // legends are centred on the key itself and fitted to its width (the slope is only shading, so text may sit over it)
+        val areaL = t.left; val areaR = t.right
         val acx = (areaL + areaR) / 2f
         val aw = areaR - areaL
         val cy = t.centerY() + dp(1f)
@@ -246,15 +242,13 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
             Kind.CHAR -> {
                 val isLetter = c.key.label.length == 1 && c.key.label[0].isLetter()
                 if (isLetter && !altLayer) {
-                    legend.textSkewX = -0.24f
                     legend.textSize = dp(17.5f)
-                    canvas.drawText(c.key.label, acx, cy - (legend.ascent() + legend.descent()) / 2 + dp(3f), legend)
-                    legend.textSkewX = 0f
+                    drawInk(canvas, c.key.label, acx, cy + dp(3f), -0.24f)
                 } else {
                     // numbers and symbols (the alt page): kept inside the key, never wider than the space beside the slope
                     legend.textSize = dp(17f)
                     while (legend.measureText(c.key.label) > aw - dp(10f) && legend.textSize > dp(9f)) legend.textSize -= dp(0.5f)
-                    canvas.drawText(c.key.label, acx, cy - (legend.ascent() + legend.descent()) / 2, legend)
+                    drawInk(canvas, c.key.label, acx, cy)
                 }
                 clearShadow()
                 if (!altLayer && isLetter) secondaryFor(c.row, c.col)?.let { sym ->
@@ -270,12 +264,26 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
 
     private fun clearShadow() = legend.clearShadowLayer()
 
+    private val ink = android.graphics.Rect()
+
+    /** Draws [text] so the middle of its actual shape sits at [cx] sideways, on the line through [cy]; [lean] tips it like italics around that middle, so it never shifts sideways. */
+    private fun drawInk(canvas: Canvas, text: String, cx: Float, cy: Float, lean: Float = 0f) {
+        legend.textAlign = Paint.Align.LEFT
+        legend.getTextBounds(text, 0, text.length, ink)
+        canvas.save()
+        canvas.translate(cx, cy)
+        if (lean != 0f) canvas.skew(lean, 0f)
+        canvas.drawText(text, -(ink.left + ink.right) / 2f, -(legend.ascent() + legend.descent()) / 2f, legend) // centred sideways by its shape, but on the normal baseline so punctuation keeps its height
+        canvas.restore()
+        legend.textAlign = Paint.Align.CENTER
+    }
+
     /** Draws a word centred, shrinking it if needed so it never reaches past [maxW]. */
     private fun fitWord(canvas: Canvas, w: String, cx: Float, cy: Float, size: Float, maxW: Float, color: Int = WHITE) {
         legend.color = color
         legend.textSize = size
         while (legend.measureText(w) > maxW && legend.textSize > dp(8f)) legend.textSize -= dp(0.5f)
-        canvas.drawText(w, cx, cy - (legend.ascent() + legend.descent()) / 2, legend)
+        drawInk(canvas, w, cx, cy)
     }
 
     private fun drawShift(canvas: Canvas, cx: Float, cy: Float) {
