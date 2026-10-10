@@ -24,6 +24,11 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
     private val ui = Handler(Looper.getMainLooper())
     private val worker = Executors.newSingleThreadExecutor()
     @Volatile private var engine: SpellEngine? = null
+    private var autocorrectOn = true
+    private var suggestOn = true
+    private var emoticonsOn = true
+    private var autoCapsOn = true
+    private var learnedStamp = 0L
     private var smart = false // suggestions and autocorrect are off in password, email, web-address and "no suggestions" fields
     private var shown: List<String> = emptyList()
 
@@ -103,6 +108,10 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
     override fun onStartInputView(info: EditorInfo, restarting: Boolean) {
         super.onStartInputView(info, restarting)
         ui.removeCallbacks(hideRunnable)
+        // what the user chose in Settings, read afresh each time the keyboard opens
+        autocorrectOn = Prefs.autocorrect(this); suggestOn = Prefs.suggestions(this); emoticonsOn = Prefs.emoticons(this); autoCapsOn = Prefs.autoCapitals(this)
+        kb.applySettings(); bar.applyTheme(Prefs.isDark(this))
+        reloadLearnedIfChanged()
         currentInputConnection?.requestCursorUpdates(android.view.inputmethod.InputConnection.CURSOR_UPDATE_MONITOR or android.view.inputmethod.InputConnection.CURSOR_UPDATE_FILTER_EDITOR_BOUNDS)
         val cls = info.inputType and InputType.TYPE_MASK_CLASS
         val variation = info.inputType and InputType.TYPE_MASK_VARIATION
@@ -135,11 +144,11 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
     override fun onText(text: String) {
         val ic = currentInputConnection ?: return
         val e = engine
-        if (smart && text.length == 1 && convertEmoticon(ic, text)) return
+        if (smart && emoticonsOn && text.length == 1 && convertEmoticon(ic, text)) return
         if (smart && e != null && text.length == 1 && text[0] in SEPARATORS) {
             val word = currentWord()
             if (word.isNotEmpty()) {
-                val fix = if (word == "i") "I" else e.autocorrect(word)?.let { matchCase(word, it) }
+                val fix = if (word == "i") "I" else if (autocorrectOn) e.autocorrect(word)?.let { matchCase(word, it) } else null
                 if (fix != null && fix != word) {
                     ic.deleteSurroundingText(word.length, 0)
                     ic.commitText(fix + text, 1)
@@ -235,7 +244,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         val e = engine
         val ic = currentInputConnection
         val word = if (smart && e != null && ic != null && ic.getSelectedText(0).isNullOrEmpty()) currentWord() else ""
-        val out = if (word.isEmpty() || e == null) emptyList() else e.suggest(word, 2).map { matchCase(word, it.word) }
+        val out = if (word.isEmpty() || e == null || !suggestOn) emptyList() else e.suggest(word, 2).map { matchCase(word, it.word) }
         shown = out
         bar.setSuggestions(out)
     }
@@ -280,7 +289,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         val ic = currentInputConnection ?: return
         val info = currentInputEditorInfo ?: return
         if (info.inputType and InputType.TYPE_MASK_CLASS != InputType.TYPE_CLASS_TEXT) return
-        kb.setAutoShift(ic.getCursorCapsMode(info.inputType) != 0)
+        kb.setAutoShift(autoCapsOn && ic.getCursorCapsMode(info.inputType) != 0)
     }
 
     // ---- what the keyboard has learned (words typed twice that the dictionary did not know), kept on the phone only
@@ -291,9 +300,16 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         learnedFile().takeIf { it.exists() }?.readLines()?.mapNotNull { l -> l.split('\t').takeIf { it.size == 2 }?.let { it[0] to (it[1].toIntOrNull() ?: 0) } }?.toMap()
     }.getOrNull() ?: emptyMap()
 
+    /** The personal dictionary can be edited in Settings: pick up those changes the next time the keyboard opens. */
+    private fun reloadLearnedIfChanged() {
+        val f = learnedFile(); val stamp = if (f.exists()) f.lastModified() else 0L
+        if (stamp != learnedStamp) { learnedStamp = stamp; engine?.loadLearned(readLearned()) }
+    }
+
     @Synchronized private fun saveLearned() {
         val e = engine ?: return
-        runCatching { learnedFile().writeText(e.learnedSnapshot().entries.joinToString("") { "${it.key}\t${it.value}\n" }) }
+        reloadLearnedIfChanged() // never overwrite words that were added or removed in Settings
+        runCatching { learnedFile().writeText(e.learnedSnapshot().entries.joinToString("") { "${it.key}\t${it.value}\n" }); learnedStamp = learnedFile().lastModified() }
     }
 
     private companion object {

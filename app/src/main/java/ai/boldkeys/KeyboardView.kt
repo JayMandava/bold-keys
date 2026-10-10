@@ -39,7 +39,55 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
 
     private class Cell(val key: Key, val row: Int, val col: Int, val rect: RectF)
 
-    private companion object { const val WHITE = 0xFFF4F6F8.toInt() }
+    private var th = KeyTheme(true)
+    private var showEmoji = true
+    private var glowMode = "off"
+    private var glowRgb = 0xFFEAF2FF.toInt()
+    private var glowSetting = 0.6f
+    private var ambient = 1f // 1 in the dark, 0 in bright light (from the phone's light sensor); only used when the backlight is on Auto
+    private var glow = 0f
+
+    private fun symPages() = if (showEmoji) Layouts.symbolPages else Layouts.symbolPages.take(Layouts.SYMBOL_ONLY)
+
+    /** Reads the look and behaviour the user chose; called whenever the keyboard is shown. */
+    fun applySettings() {
+        val c = context
+        th = KeyTheme(Prefs.isDark(c))
+        showEmoji = Prefs.emojiPages(c)
+        glowMode = Prefs.backlightMode(c)
+        glowRgb = Prefs.BACKLIGHT_COLORS[Prefs.backlightColor(c)] ?: 0xFFEAF2FF.toInt()
+        glowSetting = Prefs.backlightLevel(c)
+        updateGlow()
+        faces.clear()
+        if (symPage >= symPages().size) symPage = -1
+        invalidate()
+    }
+
+    private fun updateGlow() {
+        val g = if (!th.dark) 0f else when (glowMode) { "on" -> glowSetting; "auto" -> glowSetting * ambient; else -> 0f }
+        if (g != glow) { glow = g; invalidate() }
+    }
+
+    private fun glowArgb(alpha: Float) = (glowRgb and 0x00FFFFFF) or ((alpha.coerceIn(0f, 1f) * 255f).toInt() shl 24)
+
+    // the phone's light sensor drives the backlight on Auto, as the original's did
+    private val sensors by lazy { context.getSystemService(Context.SENSOR_SERVICE) as android.hardware.SensorManager }
+    private val lightListener = object : android.hardware.SensorEventListener {
+        override fun onSensorChanged(e: android.hardware.SensorEvent) {
+            val lux = e.values[0]
+            val target = 1f - smooth(8f, 160f, lux)
+            if (kotlin.math.abs(target - ambient) > 0.04f) { ambient = target; updateGlow() }
+        }
+        override fun onAccuracyChanged(s: android.hardware.Sensor?, a: Int) = Unit
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        sensors.getDefaultSensor(android.hardware.Sensor.TYPE_LIGHT)?.let { sensors.registerListener(lightListener, it, android.hardware.SensorManager.SENSOR_DELAY_NORMAL) }
+        applySettings()
+    }
+
+    override fun onDetachedFromWindow() { sensors.unregisterListener(lightListener); super.onDetachedFromWindow() }
 
     private val d = resources.displayMetrics.density
     private fun dp(v: Float) = v * d
@@ -110,7 +158,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
     }
 
     override fun onDraw(canvas: Canvas) {
-        canvas.drawColor(0xFF0a0a0b.toInt())
+        canvas.drawColor(th.bg)
         // the silver ridges above, between and below the rows, following the same smile as the keys
         for (r in 0..cells.size) drawRidge(canvas, padTop + r * (keyH + rowGap) - rowGap / 2)
         val down = pressed.values.toSet()
@@ -161,7 +209,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
      * slope toward the middle of the keyboard (the Bold's sculpted facet). The light and shade on that shape is what makes it look solid; nothing
      * is drawn on top of it. Rendered once per key size and kept.
      */
-    private fun keyFace(w: Int, h: Int, mirror: Boolean, facet: Boolean, special: Boolean): Bitmap = faces.getOrPut("$w,$h,$mirror,$facet,$special") {
+    private fun keyFace(w: Int, h: Int, mirror: Boolean, facet: Boolean, special: Boolean): Bitmap = faces.getOrPut("$w,$h,$mirror,$facet,$special,${th.dark}") {
         val rad = dp(5f); val bevel = dp(3.6f); val hk = dp(4.6f); val hd = dp(2.6f); val af = dp(7.5f)
         val z = FloatArray(w * h); val alpha = FloatArray(w * h); val dist = FloatArray(w * h)
         val hw = w / 2f; val hh = h / 2f
@@ -185,7 +233,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
             }
             z[i] = zz
         }
-        val base = if (special) floatArrayOf(31f, 38f, 47f) else floatArrayOf(36f, 44f, 54f)
+        val base = if (special) th.baseSpecial else th.base
         val lx = -0.12f; val ly = -0.70f; val lz = 0.72f // light from nearly overhead, a little from the left, so both halves of the board match
         val ll = sqrt(lx * lx + ly * ly + lz * lz)
         val hx = lx / ll; val hy = ly / ll; val hz = lz / ll + 1f
@@ -200,9 +248,9 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
             val nl = sqrt(dzx * dzx + dzy * dzy + 1f)
             val nx = -dzx / nl; val ny = -dzy / nl; val nz = 1f / nl
             val diff = max(0f, nx * lx / ll + ny * ly / ll + nz * lz / ll)
-            val spec = max(0f, nx * hx / hl + ny * hy / hl + nz * hz / hl).pow(26f) * 0.5f
+            val spec = max(0f, nx * hx / hl + ny * hy / hl + nz * hz / hl).pow(26f) * th.specular
             val ao = 0.80f + 0.20f * smooth(0f, bevel * 1.4f, dist[i])
-            val k = (0.24f + 1.30f * diff) * ao
+            val k = (th.ambient + th.diffuse * diff) * ao
             val r = (base[0] * k + spec * 255f).coerceIn(0f, 255f).toInt()
             val g = (base[1] * k + spec * 255f).coerceIn(0f, 255f).toInt()
             val b = (base[2] * k + spec * 255f).coerceIn(0f, 255f).toInt()
@@ -224,9 +272,18 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         val hasFacet = c.key.kind != Kind.SPACE
         val tw = t.width()
 
-        surf.shader = null; surf.color = 0x99000000.toInt()
+        if (glow > 0.01f) {
+            // light leaking out from under the key: a few widening, fading outlines, strongest right at the key's edge
+            surf.shader = null
+            for (i in 4 downTo 1) {
+                val grow = dp(1.5f) * i
+                surf.color = glowArgb(glow * 0.20f / i)
+                canvas.drawRoundRect(RectF(r.left - grow, r.top - grow, r.right + grow, r.bottom + grow), rad + grow, rad + grow, surf)
+            }
+        }
+        surf.shader = null; surf.color = th.cast
         canvas.drawPath(capPath(RectF(r).apply { offset(0f, dp(1.2f)) }, rad, dp(0.6f)), surf)
-        surf.shader = LinearGradient(0f, r.top, 0f, r.bottom, 0xFF2d343d.toInt(), 0xFF040608.toInt(), Shader.TileMode.CLAMP)
+        surf.shader = LinearGradient(0f, r.top, 0f, r.bottom, th.wallTop, th.wallBottom, Shader.TileMode.CLAMP)
         canvas.drawPath(capPath(r, rad, dp(0.6f)), surf)
         surf.shader = null
 
@@ -240,8 +297,8 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         val acx = if (flat) t.left + tw * 0.44f else t.centerX()
         val maxW = if (flat) tw * 0.70f - dp(3f) else tw - dp(12f)
         val cy = t.centerY() + dp(1f)
-        legend.color = WHITE
-        legend.setShadowLayer(dp(0.6f), 0f, dp(0.7f), 0xAA000000.toInt())
+        legend.color = th.legend
+        legendShadow()
         when (c.key.kind) {
             Kind.SHIFT -> { clearShadow(); drawShiftKey(canvas, acx, cy, c.col == 0, maxW) }
             Kind.ENTER -> { clearShadow(); drawEnter(canvas, acx, cy) }
@@ -254,7 +311,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
             Kind.LAYER -> {
                 fitWord(canvas, "alt", acx, cy, dp(13f), maxW)
                 if (altMode == Shift.CAPS) { // locked: a thin bar under the word, same white
-                    clearShadow(); line.shader = null; line.strokeWidth = dp(1.2f); line.color = WHITE
+                    clearShadow(); line.shader = null; line.strokeWidth = dp(1.2f); line.color = th.legend
                     canvas.drawLine(acx - dp(7f), cy + dp(10f), acx + dp(7f), cy + dp(10f), line)
                 }
             }
@@ -271,7 +328,8 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                 val sym = secondaryFor(c.row, c.col)
                 val rightSide = r.centerX() > width / 2f // from Y, H and B onward the small symbol sits in the right corner, as printed on the phone
                 if (sym != null && isLetter) {
-                    small.textSize = dp(11.5f); small.color = WHITE; small.textAlign = Paint.Align.LEFT
+                    small.textSize = dp(11.5f); small.color = th.legend; small.textAlign = Paint.Align.LEFT
+                    if (glow > 0.01f) small.setShadowLayer(dp(3.5f), 0f, 0f, glowArgb(glow * 0.8f)) else small.clearShadowLayer()
                     small.getTextBounds(sym, 0, sym.length, ink)
                     val gapEdge = dp(8f) // the same distance from either edge, measured to the glyph itself
                     val x = if (rightSide) t.right - gapEdge - ink.right else t.left + gapEdge - ink.left
@@ -285,6 +343,12 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
     }
 
     private fun clearShadow() = legend.clearShadowLayer()
+
+    /** The letters' shadow: a plain drop shadow, or with the backlight on a soft glow of the chosen colour around them. */
+    private fun legendShadow() {
+        if (glow > 0.01f) legend.setShadowLayer(dp(5f), 0f, 0f, glowArgb(glow * 0.95f))
+        else legend.setShadowLayer(dp(0.6f), 0f, dp(0.7f), th.legendShadow)
+    }
 
     private val ink = android.graphics.Rect()
 
@@ -301,7 +365,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
     }
 
     /** Draws a word centred, shrinking it if needed so it never reaches past [maxW]. */
-    private fun fitWord(canvas: Canvas, w: String, cx: Float, cy: Float, size: Float, maxW: Float, color: Int = WHITE) {
+    private fun fitWord(canvas: Canvas, w: String, cx: Float, cy: Float, size: Float, maxW: Float, color: Int = th.legend) {
         legend.color = color
         legend.textSize = size
         while (legend.measureText(w) > maxW && legend.textSize > dp(8f)) legend.textSize -= dp(0.5f)
@@ -310,17 +374,17 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
 
     /** The Bold's shift key: "aA" with a small outlined arrow standing over the "a" (left key) or the "A" (right key). Caps lock adds a bar; the colour never changes. */
     private fun drawShiftKey(canvas: Canvas, cx: Float, cy: Float, left: Boolean, maxW: Float) {
-        legend.textSize = dp(13f); legend.color = WHITE
+        legend.textSize = dp(13f); legend.color = th.legend
         while (legend.measureText("aA") > maxW && legend.textSize > dp(8f)) legend.textSize -= dp(0.5f)
         val tw = legend.measureText("aA")
-        legend.setShadowLayer(dp(0.6f), 0f, dp(0.7f), 0xAA000000.toInt())
+        legendShadow()
         drawInk(canvas, "aA", cx, cy + dp(5f))
         clearShadow()
         // the arrow over the outer letter
         val s = dp(4.6f)
         val ax = cx - tw / 2f + legend.measureText("a") / 2f // always over the small a, which is the first letter of "aA"
         val ay = cy - dp(5.5f)
-        icon.color = WHITE; icon.style = Paint.Style.STROKE; icon.strokeWidth = dp(1.2f)
+        icon.color = th.legend; icon.style = Paint.Style.STROKE; icon.strokeWidth = dp(1.2f)
         canvas.drawPath(Path().apply {
             moveTo(ax, ay - s); lineTo(ax + s, ay); lineTo(ax + s * 0.45f, ay); lineTo(ax + s * 0.45f, ay + s * 0.85f)
             lineTo(ax - s * 0.45f, ay + s * 0.85f); lineTo(ax - s * 0.45f, ay); lineTo(ax - s, ay); close()
@@ -331,7 +395,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
 
     private fun drawBackArrow(canvas: Canvas, cx: Float, cy: Float) {
         val w = dp(6f); val h = dp(2.5f)
-        icon.color = WHITE; icon.strokeWidth = dp(1.1f)
+        icon.color = th.legend; icon.strokeWidth = dp(1.1f)
         canvas.drawPath(Path().apply { moveTo(cx + w, cy); lineTo(cx - w, cy); moveTo(cx - w + h, cy - h); lineTo(cx - w, cy); lineTo(cx - w + h, cy + h) }, icon)
         icon.strokeWidth = dp(1.8f)
     }
@@ -339,7 +403,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
     /** The little speaker printed on the $ key. */
     private fun drawSpeaker(canvas: Canvas, x: Float, y: Float) {
         val s = dp(2.9f)
-        icon.color = WHITE; icon.strokeWidth = dp(0.9f)
+        icon.color = th.legend; icon.strokeWidth = dp(0.9f)
         canvas.drawPath(Path().apply {
             moveTo(x, y - s * 0.5f); lineTo(x + s * 0.7f, y - s * 0.5f); lineTo(x + s * 1.5f, y - s); lineTo(x + s * 1.5f, y + s); lineTo(x + s * 0.7f, y + s * 0.5f); lineTo(x, y + s * 0.5f); close()
             moveTo(x + s * 2.1f, y - s * 0.6f); quadTo(x + s * 2.7f, y, x + s * 2.1f, y + s * 0.6f)
@@ -350,7 +414,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
 
     private fun drawEnter(canvas: Canvas, cx: Float, cy: Float) {
         val w = dp(7.5f); val h = dp(5.5f)
-        icon.color = WHITE; icon.strokeWidth = dp(1.5f)
+        icon.color = th.legend; icon.strokeWidth = dp(1.5f)
         val p = Path().apply {
             moveTo(cx + w, cy - h); lineTo(cx + w, cy + h * 0.4f); lineTo(cx - w, cy + h * 0.4f)
             moveTo(cx - w + dp(4f), cy + h * 0.4f - dp(4f)); lineTo(cx - w, cy + h * 0.4f); lineTo(cx - w + dp(4f), cy + h * 0.4f + dp(4f))
@@ -474,19 +538,19 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
 
     private fun drawSymPanel(canvas: Canvas) {
         val lay = symLayout()
-        fill.shader = null; fill.color = 0xF4090a0c.toInt()
+        fill.shader = null; fill.color = th.panel
         canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), fill)
-        val page = Layouts.symbolPages[symPage % Layouts.symbolPages.size]
-        legend.color = WHITE
+        val page = symPages()[symPage % symPages().size]
+        legend.color = th.legend
         for ((i, r) in lay.cells.withIndex()) {
-            fill.shader = LinearGradient(0f, r.top, 0f, r.bottom, 0xFF343c46.toInt(), 0xFF171c22.toInt(), Shader.TileMode.CLAMP)
+            fill.shader = LinearGradient(0f, r.top, 0f, r.bottom, th.padTop, th.padBottom, Shader.TileMode.CLAMP)
             canvas.drawRoundRect(r, dp(7f), dp(7f), fill)
             fill.shader = null
             legend.textSize = dp(21f)
             drawInk(canvas, page.getOrNull(i) ?: "", r.centerX(), r.centerY())
         }
         for ((r, label) in listOf(lay.more to "more", lay.close to "close")) {
-            fill.shader = LinearGradient(0f, r.top, 0f, r.bottom, 0xFF2b323b.toInt(), 0xFF12161b.toInt(), Shader.TileMode.CLAMP)
+            fill.shader = LinearGradient(0f, r.top, 0f, r.bottom, th.pillTop, th.pillBottom, Shader.TileMode.CLAMP)
             canvas.drawRoundRect(r, dp(17f), dp(17f), fill)
             fill.shader = null
             legend.textSize = dp(13f)
@@ -496,10 +560,10 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
 
     private fun symTouch(x: Float, y: Float) {
         val lay = symLayout()
-        val page = Layouts.symbolPages[symPage % Layouts.symbolPages.size]
+        val page = symPages()[symPage % symPages().size]
         feedback.key()
         when {
-            lay.more.contains(x, y) -> symPage = (symPage + 1) % Layouts.symbolPages.size
+            lay.more.contains(x, y) -> symPage = (symPage + 1) % symPages().size
             lay.close.contains(x, y) -> symPage = -1
             else -> {
                 val i = lay.cells.indexOfFirst { it.contains(x, y) }

@@ -25,6 +25,9 @@ class SuggestionBar(context: Context, private val feedback: Feedback, private va
     private val d = resources.displayMetrics.density
     private fun dp(v: Float) = v * d
 
+    private var th = KeyTheme(true)
+    fun applyTheme(dark: Boolean) { th = KeyTheme(dark); invalidate() }
+
     private var words: List<String> = emptyList()
     fun setSuggestions(w: List<String>) { if (w != words) { words = w; invalidate() } }
 
@@ -85,14 +88,14 @@ class SuggestionBar(context: Context, private val feedback: Feedback, private va
     }
 
     override fun onDraw(canvas: Canvas) {
-        canvas.drawColor(0xFF0a0a0b.toInt())
+        canvas.drawColor(th.bg)
         val p = padRect()
         // the words
         val slotW = p.left - dp(8f)
         for (i in 0 until 2) {
             val w = words.getOrNull(i) ?: continue
             text.typeface = if (i == 0) face else Typeface.create(face, Typeface.NORMAL)
-            text.color = if (i == 0) 0xFFF4F6F8.toInt() else 0xFFB4B8BE.toInt()
+            text.color = if (i == 0) th.barText else th.barText2
             text.textSize = dp(17f)
             while (text.measureText(w) > slotW - dp(16f) && text.textSize > dp(10f)) text.textSize -= dp(0.5f)
             val cx = if (i == 0) slotW / 2f + dp(2f) else p.right + (width - p.right) / 2f - dp(2f) + dp(4f)
@@ -111,7 +114,7 @@ class SuggestionBar(context: Context, private val feedback: Feedback, private va
         line.strokeWidth = dp(1f); line.color = 0x99000000.toInt()
         canvas.drawRoundRect(inner, dp(6.5f), dp(6.5f), line)
         // faint dividers either side of the pad
-        line.strokeWidth = dp(1f); line.color = 0x22FFFFFF
+        line.strokeWidth = dp(1f); line.color = th.divider
         canvas.drawLine(p.left - dp(6f), dp(12f), p.left - dp(6f), height - dp(12f), line)
         canvas.drawLine(p.right + dp(6f), dp(12f), p.right + dp(6f), height - dp(12f), line)
     }

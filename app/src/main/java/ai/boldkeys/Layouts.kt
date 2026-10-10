@@ -19,6 +19,9 @@ object Layouts {
         ),
     )
 
+    /** How many of the picker's first pages are symbols; the rest are emoji, which the user can switch off. */
+    const val SYMBOL_ONLY = 3
+
     /** The pages of the SYM picker. */
     val symbolPages: List<List<String>> = listOf(
         listOf("!", "?", ".", ",", ";", ":", "'", "\"", "(", ")", "-", "_", "/", "\\", "@", "#", "$", "%", "&", "*"),
