@@ -6,7 +6,10 @@ import android.os.Looper
 import android.os.SystemClock
 import android.text.InputType
 import android.view.KeyEvent
+import android.view.MotionEvent
 import android.view.View
+import android.view.Window
+import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
 import android.widget.LinearLayout
 import java.io.File
@@ -41,7 +44,37 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
 
     override fun onDestroy() { saveLearned(); super.onDestroy() }
 
+    // ---- closing when the user taps outside the keyboard
+
+    private val hideRunnable = Runnable { requestHideSelf(0) }
+    private var watchingOutside = false
+
+    /**
+     * Asks Android to report touches that land outside the keyboard (the touch still goes on to the app underneath). A tap in the text field
+     * you are typing in moves the cursor or restarts input, and that cancels the hide, so tapping back into the field keeps the keyboard up.
+     */
+    private fun watchOutsideTouches() {
+        if (watchingOutside) return
+        val w = window?.window ?: return
+        w.addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH)
+        val inner = w.callback
+        w.callback = object : Window.Callback by inner {
+            override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+                if (event.actionMasked == MotionEvent.ACTION_OUTSIDE) { ui.removeCallbacks(hideRunnable); ui.postDelayed(hideRunnable, 330) }
+                return inner.dispatchTouchEvent(event)
+            }
+        }
+        watchingOutside = true
+    }
+
+    /** Tapping the text field you are already typing in makes the app ask for the keyboard: that cancels a pending close, even if the cursor does not move. */
+    override fun onShowInputRequested(flags: Int, configChange: Boolean): Boolean {
+        ui.removeCallbacks(hideRunnable)
+        return super.onShowInputRequested(flags, configChange)
+    }
+
     override fun onCreateInputView(): View {
+        watchOutsideTouches()
         feedback = Feedback(this)
         kb = KeyboardView(this, feedback, this)
         bar = SuggestionBar(this, feedback, this) { kb.isShiftHeld() }
@@ -63,6 +96,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
 
     override fun onStartInputView(info: EditorInfo, restarting: Boolean) {
         super.onStartInputView(info, restarting)
+        ui.removeCallbacks(hideRunnable)
         val cls = info.inputType and InputType.TYPE_MASK_CLASS
         val variation = info.inputType and InputType.TYPE_MASK_VARIATION
         smart = cls == InputType.TYPE_CLASS_TEXT &&
@@ -77,6 +111,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
 
     override fun onUpdateSelection(oldSelStart: Int, oldSelEnd: Int, newSelStart: Int, newSelEnd: Int, candidatesStart: Int, candidatesEnd: Int) {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
+        ui.removeCallbacks(hideRunnable) // the cursor moved: the tap was in the field, not away from it
         if (::bar.isInitialized) refreshStrip()
     }
 
