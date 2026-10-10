@@ -35,6 +35,13 @@ class EvalActivity : Activity() {
         val text = assets.open("words.tsv").bufferedReader().use { it.readText() }
         val all = text.lineSequence().filter { it.contains('\t') }.map { it.substringBefore('\t') to it.substringAfter('\t').toInt() }.toList()
         val full = SpellEngine(all)
+        full.loadFollowers(assets.open("pairs.tsv").bufferedReader().use { it.readText() })
+        full.british = false
+        Log.i("BKEval", "S american: colour->${full.autocorrect("colour")} realise->${full.autocorrect("realise")} centre->${full.autocorrect("centre")} travelling->${full.autocorrect("travelling")} grey->${full.autocorrect("grey")} program->${full.autocorrect("program")} suggest(colo)=${full.suggest("colo", 3).map { it.word }}")
+        full.british = true
+        Log.i("BKEval", "S british: color->${full.autocorrect("color")} realize->${full.autocorrect("realize")} center->${full.autocorrect("center")} traveling->${full.autocorrect("traveling")} gray->${full.autocorrect("gray")} program->${full.autocorrect("program")} suggest(colo)=${full.suggest("colo", 3).map { it.word }} next(thank)=${full.nextWords("thank", 2)} next(i'm)=${full.nextWords("i'm", 2)}")
+        full.british = false
+        Log.i("BKEval", "S next words: the=${full.nextWords("the", 3)} of=${full.nextWords("of", 3)} you=${full.nextWords("you", 3)} how=${full.nextWords("how", 3)} dictionary=${full.size} words")
         val rnd = Random(7)
         val total = all.sumOf { it.second.toLong() }
         fun pick(list: List<Pair<String, Int>>): String { var r = rnd.nextLong(list.sumOf { it.second.toLong() }); for ((w, c) in list) { r -= c; if (r < 0) return w }; return list.last().first }
@@ -55,14 +62,12 @@ class EvalActivity : Activity() {
         // real words the dictionary does not know (rare words, names): how often would autocorrect wrongly change them?
         val small = SpellEngine(all.take(30000))
         val rare = all.drop(30000).filter { it.first.length >= 4 && it.first.all { c -> c in col } }.shuffled(rnd).take(6000)
-        for (cost in listOf(0.6f, 0.75f, 1.0f, 1.25f)) for (minLog in listOf(0f, 8f, 9.5f, 11f)) {
-            SpellEngine.AC_COST = cost; SpellEngine.AC_MIN_LOG = minLog
-            var fixed = 0; var wrong = 0
-            for ((t, w) in typos) { val a = full.autocorrect(t); if (a == w) fixed++ else if (a != null) wrong++ }
-            var changed = 0
-            for ((w, _) in rare) if (small.autocorrect(w) != null) changed++
-            Log.i("BKEval", "B cost<=$cost minlog>=$minLog : typos fixed ${pct(fixed, typos.size)}, made worse ${pct(wrong, typos.size)}; rare real words wrongly changed ${pct(changed, rare.size)}")
-        }
+        SpellEngine.AC_COST = 1.25f; SpellEngine.AC_MIN_LOG = 9.5f
+        var fixed = 0; var wrong = 0
+        for ((t, w) in typos) { val a = full.autocorrect(t); if (a == w) fixed++ else if (a != null) wrong++ }
+        var changed = 0
+        for ((w, _) in rare) if (small.autocorrect(w) != null) changed++
+        Log.i("BKEval", "B chosen setting: typos fixed ${pct(fixed, typos.size)}, made worse ${pct(wrong, typos.size)}; rare real words wrongly changed ${pct(changed, rare.size)}")
 
         // C: speed
         val words = common.map { it.first }

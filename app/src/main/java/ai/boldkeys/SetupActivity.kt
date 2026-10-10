@@ -290,10 +290,24 @@ private fun androidx.compose.foundation.lazy.LazyListScope.typingItems(context: 
         var correct by remember { mutableStateOf(Prefs.autocorrect(context)) }
         var suggest by remember { mutableStateOf(Prefs.suggestions(context)) }
         var caps by remember { mutableStateOf(Prefs.autoCapitals(context)) }
+        var dbl by remember { mutableStateOf(Prefs.doubleSpace(context)) }
+        var nextW by remember { mutableStateOf(Prefs.nextWord(context)) }
+        var spelling by remember { mutableStateOf(Prefs.spelling(context)) }
         Section("While you type") {
             SwitchRow("Autocorrect", "Fixes a misspelt word when you press space or punctuation. Backspace right after brings your word back.", correct) { correct = it; Prefs.put(context, "autocorrect", it) }
             SwitchRow("Suggestions", "Shows the likely words beside the trackpad.", suggest) { suggest = it; Prefs.put(context, "suggestions", it) }
+            SwitchRow("Next-word suggestions", "Offers the likely next word as soon as you finish one. A quick tap on the trackpad takes the first suggestion.", nextW) { nextW = it; Prefs.put(context, "nextWord", it) }
             SwitchRow("Capitalise sentences", "Starts the next letter in capitals after a full stop, and at the start of a field.", caps) { caps = it; Prefs.put(context, "autocaps", it) }
+            SwitchRow("Double space for a full stop", "Pressing space twice after a word ends the sentence with a full stop.", dbl) { dbl = it; Prefs.put(context, "doubleSpace", it) }
+        }
+        Section("English spelling") {
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
+                val options = listOf("us" to "American", "uk" to "British")
+                options.forEachIndexed { i, (key, name) ->
+                    SegmentedButton(selected = spelling == key, onClick = { spelling = key; Prefs.put(context, "spelling", key) }, shape = SegmentedButtonDefaults.itemShape(i, options.size)) { Text(name) }
+                }
+            }
+            Note("Words like colour/color, realise/realize and centre/center are corrected to the one you choose, and only that one is suggested.")
         }
     }
     item(key = "typing-note") { Note("Passwords, email addresses and web addresses are never corrected or suggested, whatever you choose here.") }

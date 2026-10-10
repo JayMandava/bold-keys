@@ -28,6 +28,9 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
     private var suggestOn = true
     private var emoticonsOn = true
     private var autoCapsOn = true
+    private var doubleSpaceOn = true
+    private var nextWordOn = true
+    private var lastSpaceAt = 0L
     private var learnedStamp = 0L
     private var smart = false // suggestions and autocorrect are off in password, email, web-address and "no suggestions" fields
     private var shown: List<String> = emptyList()
@@ -41,6 +44,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         worker.execute {
             val e = SpellEngine.fromTsv(assets.open("words.tsv").bufferedReader().use { it.readText() })
             e.loadLearned(readLearned())
+            runCatching { e.loadFollowers(assets.open("pairs.tsv").bufferedReader().use { it.readText() }) }
             e.onLearnedChanged = { saveLearned() }
             engine = e
             ui.post { refreshStrip() }
@@ -110,6 +114,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         ui.removeCallbacks(hideRunnable)
         // what the user chose in Settings, read afresh each time the keyboard opens
         autocorrectOn = Prefs.autocorrect(this); suggestOn = Prefs.suggestions(this); emoticonsOn = Prefs.emoticons(this); autoCapsOn = Prefs.autoCapitals(this)
+        doubleSpaceOn = Prefs.doubleSpace(this); nextWordOn = Prefs.nextWord(this); engine?.british = Prefs.spelling(this) == "uk"
         kb.applySettings(); bar.applyTheme(Prefs.isDark(this))
         reloadLearnedIfChanged()
         currentInputConnection?.requestCursorUpdates(android.view.inputmethod.InputConnection.CURSOR_UPDATE_MONITOR or android.view.inputmethod.InputConnection.CURSOR_UPDATE_FILTER_EDITOR_BOUNDS)
@@ -144,6 +149,19 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
     override fun onText(text: String) {
         val ic = currentInputConnection ?: return
         val e = engine
+        if (smart && doubleSpaceOn && text == " ") {
+            // two spaces in quick succession after a word end the sentence: ". " in place of the first space, as on the original
+            val before = ic.getTextBeforeCursor(2, 0)?.toString() ?: ""
+            val now = SystemClock.uptimeMillis()
+            if (before.length == 2 && before[1] == ' ' && (before[0].isLetterOrDigit() || before[0] in ")\"'") && now - lastSpaceAt < 700) {
+                ic.deleteSurroundingText(1, 0)
+                ic.commitText(". ", 1)
+                lastSpaceAt = 0; undo = null
+                refreshAutoCaps(); refreshStrip()
+                return
+            }
+            lastSpaceAt = now
+        }
         if (smart && emoticonsOn && text.length == 1 && convertEmoticon(ic, text)) return
         if (smart && e != null && text.length == 1 && text[0] in SEPARATORS) {
             val word = currentWord()
@@ -244,16 +262,39 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         val e = engine
         val ic = currentInputConnection
         val word = if (smart && e != null && ic != null && ic.getSelectedText(0).isNullOrEmpty()) currentWord() else ""
-        val out = if (word.isEmpty() || e == null || !suggestOn) emptyList() else e.suggest(word, 2).map { matchCase(word, it.word) }
+        val out = when {
+            e == null || !suggestOn || !smart || ic == null -> emptyList()
+            word.isNotEmpty() -> e.suggest(word, 2).map { matchCase(word, it.word) }
+            nextWordOn && ic.getSelectedText(0).isNullOrEmpty() -> nextWordSuggestions(e, ic)
+            else -> emptyList()
+        }
         shown = out
         bar.setSuggestions(out)
+    }
+
+    /** With no word being typed: the words that most often follow the one just finished, or the usual ways to start a sentence. */
+    private fun nextWordSuggestions(e: SpellEngine, ic: android.view.inputmethod.InputConnection): List<String> {
+        val before = ic.getTextBeforeCursor(60, 0)?.toString() ?: return emptyList()
+        if (before.isNotEmpty() && !before.last().isWhitespace()) return emptyList() // right after punctuation or a symbol: nothing sensible to offer
+        val trimmed = before.trimEnd()
+        val sentenceStart = trimmed.isEmpty() || trimmed.last() in ".!?" || before.endsWith("\n")
+        val list = if (sentenceStart) listOf("I", "The") else {
+            val prev = Regex("[A-Za-z']+$").find(trimmed)?.value ?: return emptyList()
+            e.nextWords(prev, 2)
+        }
+        return list.map { w -> if (sentenceStart) w.replaceFirstChar { it.uppercase() } else w }
     }
 
     override fun onPick(index: Int) {
         val ic = currentInputConnection ?: return
         val pick = shown.getOrNull(index) ?: return
         val word = currentWord()
-        if (word.isEmpty()) return
+        if (word.isEmpty()) { // a next-word suggestion: just add it
+            ic.commitText("$pick ", 1)
+            undo = null
+            refreshAutoCaps(); refreshStrip()
+            return
+        }
         ic.beginBatchEdit()
         ic.deleteSurroundingText(word.length, 0)
         ic.commitText("$pick ", 1)

@@ -8,12 +8,18 @@ import kotlin.math.min
  * Suggestions and autocorrect without any model: a frequency dictionary, a typo model that knows where the keys really are (a letter hit
  * next to the right one costs less than a random one), and the words the user has taught it. Fast enough to answer on every key press.
  */
-class SpellEngine(entries: List<Pair<String, Int>>) {
+class SpellEngine(entries0: List<Pair<String, Int>>) {
     class Cand(val word: String, val score: Float, val cost: Float, val completion: Boolean)
+
+    /** American -> British and back, for the pairs that exist. */
+    private val usToUk = HashMap<String, String>()
+    private val ukToUs = HashMap<String, String>()
+    /** Which English the user writes: the other spelling is corrected to this one and left out of the suggestions. */
+    var british = false
 
     private val words: Array<String>
     private val logf: FloatArray
-    private val index = HashMap<String, Int>(entries.size * 2)
+    private val index = HashMap<String, Int>(entries0.size * 2 + 2000)
     private val byLen: Array<IntArray>
     private val alpha: IntArray // word indices in alphabetical order, for prefix lookups
     private val deletes: LongArray // (hash of the word with one letter left out, or of the word itself) << 32 | word index, sorted
@@ -23,6 +29,13 @@ class SpellEngine(entries: List<Pair<String, Int>>) {
     var onLearnedChanged: (() -> Unit)? = null
 
     init {
+        val byWord = entries0.toMap()
+        val extra = ArrayList<Pair<String, Int>>()
+        for ((us, uk) in Spelling.pairs(byWord.keys)) {
+            usToUk[us] = uk; ukToUs[uk] = us
+            if (uk !in byWord) extra.add(uk to maxOf(1, ((byWord[us] ?: 1) * 0.9).toInt()))
+        }
+        val entries = entries0 + extra
         val sorted = entries.sortedByDescending { it.second }
         words = Array(sorted.size) { sorted[it].first }
         logf = FloatArray(sorted.size) { ln(sorted[it].second.toFloat() + 1f) }
@@ -55,6 +68,22 @@ class SpellEngine(entries: List<Pair<String, Int>>) {
     }
 
     val size get() = words.size
+
+    /** False for the spelling the user did not choose (it is not offered, and typing it gets changed to the chosen one). */
+    private fun allowed(w: String) = if (british) !usToUk.containsKey(w) else !ukToUs.containsKey(w)
+
+    private var follow: Map<String, List<String>> = emptyMap()
+
+    /** The next-word table: each line is a word, a tab, and the words that most often come after it. */
+    fun loadFollowers(tsv: String) {
+        follow = tsv.lineSequence().mapNotNull { l -> val t = l.indexOf('\t'); if (t <= 0) null else l.substring(0, t) to l.substring(t + 1).split(',') }.toMap()
+    }
+
+    /** Likely words after [prev], best first (empty when nothing is known). */
+    fun nextWords(prev: String, n: Int): List<String> {
+        val p = prev.lowercase()
+        return (follow[p] ?: return emptyList()).filter { it != p && allowed(it) }.map { w -> if (british) usToUk[w] ?: w else w }.take(n)
+    }
 
     fun loadLearned(map: Map<String, Int>) { learned.clear(); learned.putAll(map) }
     fun learnedSnapshot(): Map<String, Int> = HashMap(learned)
@@ -91,7 +120,7 @@ class SpellEngine(entries: List<Pair<String, Int>>) {
         var i = lo; var scanned = 0
         while (i < alpha.size && words[alpha[i]].startsWith(p) && scanned < 4000) {
             val w = words[alpha[i]]
-            if (w.length > p.length) {
+            if (w.length > p.length && allowed(w)) {
                 val s = logf[alpha[i]] - 0.15f * (w.length - p.length) // a short completion beats a long one of similar frequency
                 insert(best, Cand(w, s, 0f, true), n)
             }
@@ -112,7 +141,7 @@ class SpellEngine(entries: List<Pair<String, Int>>) {
         for (j in t.indices) lookup(t.substring(0, j) + t.substring(j + 1), found)
         for (i in found) {
             val w = words[i]
-            if (w == t) continue
+            if (w == t || !allowed(w)) continue
             val c = cost(t, w, maxCost)
             if (c <= maxCost) insert(best, Cand(w, logf[i] - COST_WEIGHT * c, c, false), n)
         }
@@ -140,6 +169,8 @@ class SpellEngine(entries: List<Pair<String, Int>>) {
      */
     fun autocorrect(typed: String): String? {
         val t = typed.lowercase()
+        // the other English: "colour" for someone who writes American, "color" for someone who writes British
+        (if (british) usToUk[t] else ukToUs[t])?.let { return it }
         if (t.length < 2 || isWord(t)) return null
         if (!t.all { it.isLetter() || it == '\'' }) return null
         val c = correct(t, 2)

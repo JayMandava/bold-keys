@@ -31,6 +31,9 @@ object Prefs {
     fun autocorrect(c: Context) = bool(c, "autocorrect", true)
     fun suggestions(c: Context) = bool(c, "suggestions", true)
     fun autoCapitals(c: Context) = bool(c, "autocaps", true)
+    fun doubleSpace(c: Context) = bool(c, "doubleSpace", true)
+    fun nextWord(c: Context) = bool(c, "nextWord", true)
+    fun spelling(c: Context) = string(c, "spelling", "us") // us or uk
 
     // symbols and emoji
     fun emojiPages(c: Context) = bool(c, "emojiPages", true)

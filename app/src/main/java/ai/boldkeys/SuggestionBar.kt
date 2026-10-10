@@ -53,6 +53,8 @@ class SuggestionBar(context: Context, private val feedback: Feedback, private va
     private var lastX = 0f; private var lastY = 0f
     private var accX = 0f; private var accY = 0f
     private var downSlot = -1
+    private var travel = 0f
+    private var downAt = 0L
 
     private fun slotAt(x: Float, y: Float): Int {
         val p = padRect()
@@ -64,10 +66,10 @@ class SuggestionBar(context: Context, private val feedback: Feedback, private va
         when (e.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 downSlot = slotAt(e.x, e.y)
-                if (downSlot == -2) { dragging = true; pressed = true; lastX = e.x; lastY = e.y; accX = 0f; accY = 0f; feedback.buzz("ms3"); invalidate() }
+                if (downSlot == -2) { dragging = true; pressed = true; lastX = e.x; lastY = e.y; accX = 0f; accY = 0f; travel = 0f; downAt = e.eventTime; feedback.buzz("ms3"); invalidate() }
             }
             MotionEvent.ACTION_MOVE -> if (dragging) {
-                accX += e.x - lastX; accY += e.y - lastY; lastX = e.x; lastY = e.y
+                accX += e.x - lastX; accY += e.y - lastY; travel += abs(e.x - lastX) + abs(e.y - lastY); lastX = e.x; lastY = e.y
                 val stepX = dp(13f); val stepY = dp(26f)
                 var dx = (accX / stepX).toInt(); var dy = (accY / stepY).toInt()
                 // a mostly sideways or mostly vertical swipe stays on its axis
@@ -80,6 +82,8 @@ class SuggestionBar(context: Context, private val feedback: Feedback, private va
             }
             MotionEvent.ACTION_UP -> {
                 if (!dragging && downSlot >= 0 && slotAt(e.x, e.y) == downSlot && downSlot < words.size) { feedback.key(); listener.onPick(downSlot) }
+                // a quick tap on the pad, without dragging, takes the best suggestion (as a click on the original's trackpad did)
+                if (dragging && travel < dp(8f) && e.eventTime - downAt < 350 && words.isNotEmpty()) { feedback.key(); listener.onPick(0) }
                 dragging = false; pressed = false; invalidate()
             }
             MotionEvent.ACTION_CANCEL -> { dragging = false; pressed = false; invalidate() }
