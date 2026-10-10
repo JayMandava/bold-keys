@@ -21,4 +21,12 @@ class KeyTheme(val dark: Boolean) {
     val barText = if (dark) 0xFFF4F6F8.toInt() else 0xFF1b1f24.toInt()
     val barText2 = if (dark) 0xFFB4B8BE.toInt() else 0xFF565c64.toInt()
     val divider = if (dark) 0x22FFFFFF else 0x33000000
+    // the trackpad: a chrome ring around a pad that is dark on the black keyboard and light on the white one
+    val trackTop = if (dark) 0xFF1c2127.toInt() else 0xFFf6f7f9.toInt()
+    val trackBottom = if (dark) 0xFF07080a.toInt() else 0xFFcbcfd5.toInt()
+    val trackPressed = if (dark) 0xFF0c0e10.toInt() else 0xFFdadde2.toInt()
+    val trackSheen = if (dark) 0x33FFFFFF else 0x88FFFFFF.toInt()
+    val trackEdge = if (dark) 0x99000000.toInt() else 0x55000000
+    val ringTop = if (dark) 0xFFf2f4f6.toInt() else 0xFFfdfdfe.toInt()
+    val ringBottom = if (dark) 0xFF70747b.toInt() else 0xFF8b9097.toInt()
 }

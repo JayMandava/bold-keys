@@ -103,15 +103,15 @@ class SuggestionBar(context: Context, private val feedback: Feedback, private va
         }
         // the trackpad: a silver square ring around a dark, slightly domed centre
         val r = RectF(p)
-        fill.shader = LinearGradient(0f, r.top, 0f, r.bottom, 0xFFf2f4f6.toInt(), 0xFF70747b.toInt(), Shader.TileMode.CLAMP)
+        fill.shader = LinearGradient(0f, r.top, 0f, r.bottom, th.ringTop, th.ringBottom, Shader.TileMode.CLAMP)
         canvas.drawRoundRect(r, dp(9f), dp(9f), fill)
         val inner = RectF(r).apply { inset(dp(3.2f), dp(3.2f)) }
-        fill.shader = LinearGradient(0f, inner.top, 0f, inner.bottom, if (pressed) 0xFF0c0e10.toInt() else 0xFF1c2127.toInt(), 0xFF07080a.toInt(), Shader.TileMode.CLAMP)
+        fill.shader = LinearGradient(0f, inner.top, 0f, inner.bottom, if (pressed) th.trackPressed else th.trackTop, th.trackBottom, Shader.TileMode.CLAMP)
         canvas.drawRoundRect(inner, dp(6.5f), dp(6.5f), fill)
-        fill.shader = RadialGradient(inner.centerX() - inner.width() * 0.12f, inner.top + inner.height() * 0.3f, inner.width() * 0.7f, if (pressed) 0x14FFFFFF else 0x33FFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP)
+        fill.shader = RadialGradient(inner.centerX() - inner.width() * 0.12f, inner.top + inner.height() * 0.3f, inner.width() * 0.7f, if (pressed) (th.trackSheen and 0x00FFFFFF) or 0x14000000 else th.trackSheen, 0x00FFFFFF, Shader.TileMode.CLAMP)
         canvas.drawRoundRect(inner, dp(6.5f), dp(6.5f), fill)
         fill.shader = null
-        line.strokeWidth = dp(1f); line.color = 0x99000000.toInt()
+        line.strokeWidth = dp(1f); line.color = th.trackEdge
         canvas.drawRoundRect(inner, dp(6.5f), dp(6.5f), line)
         // faint dividers either side of the pad
         line.strokeWidth = dp(1f); line.color = th.divider
