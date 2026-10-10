@@ -315,30 +315,17 @@ private fun AppearanceContent(context: Context) {
     val dark = Prefs.isDark(context)
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp)) {
-            Column(Modifier.clip(RoundedCornerShape(28.dp))) {
-                // the row with the trackpad, and the keys: exactly what is shown while typing
-                AndroidView(
-                    modifier = Modifier.fillMaxWidth(),
-                    factory = { c ->
-                        SuggestionBar(c, Feedback(c), object : SuggestionBar.Listener {
-                            override fun onPick(index: Int) = Unit
-                            override fun onMove(dx: Int, dy: Int, select: Boolean) = Unit
-                        }) { false }.also { it.setSuggestions(listOf("hello", "help")) }
-                    },
-                    update = { v -> version; v.applyTheme(Prefs.isDark(context)) },
-                )
-                AndroidView(
-                    modifier = Modifier.fillMaxWidth(),
-                    factory = { c ->
-                        KeyboardView(c, Feedback(c), object : KeyboardView.Listener {
-                            override fun onText(text: String) = Unit
-                            override fun onDelete() = Unit
-                            override fun onEnter() = Unit
-                        })
-                    },
-                    update = { v -> version; v.applySettings() },
-                )
-            }
+            AndroidView(
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)),
+                factory = { c ->
+                    KeyboardView(c, Feedback(c), object : KeyboardView.Listener {
+                        override fun onText(text: String) = Unit
+                        override fun onDelete() = Unit
+                        override fun onEnter() = Unit
+                    })
+                },
+                update = { v -> version; v.applySettings() },
+            )
         }
         Section("Keys") {
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
