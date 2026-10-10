@@ -2,31 +2,20 @@ package ai.boldkeys
 
 import android.inputmethodservice.InputMethodService
 import android.text.InputType
-import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.LinearLayout
-import android.widget.TextView
 
 /** The keyboard service: turns presses from [KeyboardView] into text in whatever app is typing. */
 class BoldKeysService : InputMethodService(), KeyboardView.Listener {
     private lateinit var kb: KeyboardView
-    private lateinit var strip: TextView
 
     override fun onCreateInputView(): View {
         kb = KeyboardView(this, Feedback(this), this)
-        strip = TextView(this).apply {
-            text = "Bold Keys"
-            setTextColor(0xFF7d8288.toInt())
-            textSize = 13f
-            gravity = Gravity.CENTER_VERTICAL or Gravity.START
-            setPadding((14 * resources.displayMetrics.density).toInt(), 0, 0, 0)
-        }
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(0xFF0b0b0c.toInt())
-            addView(strip, LinearLayout.LayoutParams(-1, (30 * resources.displayMetrics.density).toInt()))
+            setBackgroundColor(0xFF08090a.toInt())
             addView(kb, LinearLayout.LayoutParams(-1, -2))
             // The keyboard is drawn edge to edge: keep the keys clear of the system's navigation bar, which has its own keyboard-switch button.
             setOnApplyWindowInsetsListener { v, insets ->
