@@ -24,6 +24,18 @@ object Layouts {
         listOf("!", "?", ".", ",", ";", ":", "'", "\"", "(", ")", "-", "_", "/", "\\", "@", "#", "$", "%", "&", "*"),
         listOf("+", "=", "<", ">", "[", "]", "{", "}", "~", "^", "|", "`", "€", "£", "¥", "¢", "°", "±", "×", "÷"),
         listOf("§", "¶", "©", "®", "™", "•", "…", "¿", "¡", "«", "»", "é", "è", "ê", "à", "ç", "ñ", "ü", "ö", "ß"),
+        // emoji live at the end of the cycle: nothing on the keys shows them, as on the original
+        listOf("😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇", "🙂", "😉", "😍", "🥰", "😘", "😋", "😎", "🤔", "😐", "😴"),
+        listOf("😢", "😭", "😡", "😱", "😳", "🤗", "🙄", "😬", "😮", "🥳", "😏", "😔", "😞", "😤", "🤯", "🥺", "😷", "🤒", "😈", "💀"),
+        listOf("👍", "👎", "👏", "🙏", "💪", "👌", "✌️", "🤝", "👋", "🤞", "❤️", "💔", "🔥", "✨", "🎉", "💯", "⭐", "👀", "🎂", "☕"),
+    )
+
+    /** Text emoticons that turn into emoji. Those that cannot be part of a normal word change as soon as they are typed; the rest wait for a space or punctuation. */
+    val emoticonsNow = mapOf(
+        ":)" to "🙂", ":-)" to "🙂", ":(" to "🙁", ":-(" to "🙁", ";)" to "😉", ";-)" to "😉", "<3" to "❤️", ":*" to "😘", ":'(" to "😢", "^_^" to "😊",
+    )
+    val emoticonsOnSpace = mapOf(
+        ":D" to "😀", ":-D" to "😀", ":P" to "😛", ":p" to "😛", ":-P" to "😛", ":O" to "😮", ":o" to "😮", ":/" to "😕", ":|" to "😐", "xD" to "😆", "XD" to "😆",
     )
 }
 

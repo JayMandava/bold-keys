@@ -135,6 +135,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
     override fun onText(text: String) {
         val ic = currentInputConnection ?: return
         val e = engine
+        if (smart && text.length == 1 && convertEmoticon(ic, text)) return
         if (smart && e != null && text.length == 1 && text[0] in SEPARATORS) {
             val word = currentWord()
             if (word.isNotEmpty()) {
@@ -155,6 +156,30 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         refreshStrip()
     }
 
+    /** Turns a text emoticon just completed by [typed] into its emoji; the undo list remembers it so Backspace gives the text back. */
+    private fun convertEmoticon(ic: android.view.inputmethod.InputConnection, typed: String): Boolean {
+        val before = ic.getTextBeforeCursor(6, 0)?.toString() ?: return false
+        fun boundary(len: Int, k: String) = len == k.length || before[len - k.length - 1].isWhitespace()
+        val now = before + typed
+        for ((k, emoji) in Layouts.emoticonsNow) if (now.endsWith(k) && boundary(now.length, k)) {
+            ic.deleteSurroundingText(k.length - 1, 0)
+            ic.commitText(emoji, 1)
+            undo = Undo(k, emoji, "")
+            refreshAutoCaps(); refreshStrip()
+            return true
+        }
+        if (typed.length == 1 && typed[0] in SEPARATORS) {
+            for ((k, emoji) in Layouts.emoticonsOnSpace) if (before.endsWith(k) && boundary(before.length, k)) {
+                ic.deleteSurroundingText(k.length, 0)
+                ic.commitText(emoji + typed, 1)
+                undo = Undo(k, emoji, typed)
+                refreshAutoCaps(); refreshStrip()
+                return true
+            }
+        }
+        return false
+    }
+
     override fun onDelete() {
         val ic = currentInputConnection ?: return
         val u = undo
@@ -164,7 +189,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
                 // take the correction back: what was typed returns, and the word is learned so it is not "fixed" again
                 ic.deleteSurroundingText(tail.length, 0)
                 ic.commitText(u.typed + u.sep, 1)
-                engine?.teach(u.typed)
+                if (u.typed.all { it.isLetter() || it == '\'' }) engine?.teach(u.typed)
                 undo = null
                 refreshAutoCaps(); refreshStrip()
                 return
