@@ -60,7 +60,13 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         val inner = w.callback
         w.callback = object : Window.Callback by inner {
             override fun dispatchTouchEvent(event: MotionEvent): Boolean {
-                if (event.actionMasked == MotionEvent.ACTION_OUTSIDE) { ui.removeCallbacks(hideRunnable); ui.postDelayed(hideRunnable, 330) }
+                if (event.actionMasked == MotionEvent.ACTION_OUTSIDE) {
+                    val field = editorOnScreen
+                    val slop = 12 * resources.displayMetrics.density // the field's position lags a few pixels while the page shifts
+                    val inField = field != null && event.rawX in field.left - slop..field.right + slop && event.rawY in field.top - slop..field.bottom + slop
+                    ui.removeCallbacks(hideRunnable)
+                    if (!inField) ui.postDelayed(hideRunnable, 330) // a tap in the text field you are typing in keeps the keyboard up
+                }
                 return inner.dispatchTouchEvent(event)
             }
         }
@@ -97,6 +103,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
     override fun onStartInputView(info: EditorInfo, restarting: Boolean) {
         super.onStartInputView(info, restarting)
         ui.removeCallbacks(hideRunnable)
+        currentInputConnection?.requestCursorUpdates(android.view.inputmethod.InputConnection.CURSOR_UPDATE_MONITOR or android.view.inputmethod.InputConnection.CURSOR_UPDATE_FILTER_EDITOR_BOUNDS)
         val cls = info.inputType and InputType.TYPE_MASK_CLASS
         val variation = info.inputType and InputType.TYPE_MASK_VARIATION
         smart = cls == InputType.TYPE_CLASS_TEXT &&
@@ -108,6 +115,14 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
     }
 
     override fun onFinishInput() { super.onFinishInput(); saveLearned() }
+
+    /** Where the text field being typed in is on the screen (kept up to date by the system), so a tap in it is not mistaken for a tap away. */
+    private var editorOnScreen: android.graphics.RectF? = null
+
+    override fun onUpdateCursorAnchorInfo(info: android.view.inputmethod.CursorAnchorInfo) {
+        val b = info.editorBoundsInfo?.editorBounds
+        editorOnScreen = b?.let { android.graphics.RectF(it).also { r -> info.matrix.mapRect(r) } }
+    }
 
     override fun onUpdateSelection(oldSelStart: Int, oldSelEnd: Int, newSelStart: Int, newSelEnd: Int, candidatesStart: Int, candidatesEnd: Int) {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
