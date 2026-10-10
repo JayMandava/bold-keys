@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 3.22)
 project(contextlm CXX C)
 
-# llama.cpp is not vendored: point LLAMA_DIR at a checkout (default: the one next to Nano Search).
+# llama.cpp is a submodule (third_party/llama.cpp). Override with -DLLAMA_DIR to use another checkout.
 if(NOT LLAMA_DIR)
-    set(LLAMA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../nanosearch/llama.cpp)
+    set(LLAMA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../../third_party/llama.cpp)
 endif()
 
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
