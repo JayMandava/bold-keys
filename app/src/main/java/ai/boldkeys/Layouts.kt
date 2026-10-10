@@ -1,27 +1,39 @@
 package ai.boldkeys
 
-enum class Kind { CHAR, SHIFT, DELETE, ENTER, SPACE, LAYER }
+enum class Kind { CHAR, SHIFT, DELETE, ENTER, SPACE, LAYER, SYM }
 
 /** One key: what it shows, what it types, and how wide it is relative to the others in its row (rows add up to 10). */
 class Key(val label: String, val text: String = label.lowercase(), val weight: Float = 1f, val kind: Kind = Kind.CHAR)
 
-/** The Bold-style layouts: four rows, the letter keys all the same size, Alt for numbers and symbols. */
+/** The Bold 9900's keys, row for row as printed on the phone. */
 object Layouts {
     private fun letters(s: String) = s.map { Key(it.toString()) }
-    private fun symbols(s: String) = s.map { Key(it.toString(), it.toString()) }
 
     val letterRows: List<List<Key>> = listOf(
         letters("QWERTYUIOP"),
         letters("ASDFGHJKL") + Key("del", "", 1f, Kind.DELETE),
-        listOf(Key("shift", "", 1.5f, Kind.SHIFT)) + letters("ZXCVBNM") + Key("enter", "", 1.5f, Kind.ENTER),
-        listOf(Key("alt", "", 1.5f, Kind.LAYER), Key(","), Key("space", " ", 4.5f, Kind.SPACE), Key("."), Key("?"), Key("!")),
+        listOf(Key("alt", "", 1f, Kind.LAYER)) + letters("ZXCVBNM") + Key("$", "$") + Key("enter", "", 1f, Kind.ENTER),
+        listOf(
+            Key("shift", "", 1.5f, Kind.SHIFT), Key("0", "0", 1.5f), Key("space", " ", 4f, Kind.SPACE),
+            Key("sym", "", 1.5f, Kind.SYM), Key("shift", "", 1.5f, Kind.SHIFT),
+        ),
+    )
+
+    /** The pages of the SYM picker. */
+    val symbolPages: List<List<String>> = listOf(
+        listOf("!", "?", ".", ",", ";", ":", "'", "\"", "(", ")", "-", "_", "/", "\\", "@", "#", "$", "%", "&", "*"),
+        listOf("+", "=", "<", ">", "[", "]", "{", "}", "~", "^", "|", "`", "€", "£", "¥", "¢", "°", "±", "×", "÷"),
+        listOf("§", "¶", "©", "®", "™", "•", "…", "¿", "¡", "«", "»", "é", "è", "ê", "à", "ç", "ñ", "ü", "ö", "ß"),
     )
 }
 
-/** The symbol printed small on a letter key: what it types when Alt is held. Rows follow the letter rows; row 2 starts one key in because Shift sits first. */
+/**
+ * The small symbol printed on a key: what it types with Alt, exactly as on the phone.
+ * Q # · W 1 · E 2 · R 3 · T ( · Y ) · U _ · I - · O + · P @   /   A * · S 4 · D 5 · F 6 · G / · H : · J ; · K ' · L "   /   Z 7 · X 8 · C 9 · V ? · B ! · N , · M .
+ */
 fun secondaryFor(row: Int, col: Int): String? = when (row) {
-    0 -> "1234567890".getOrNull(col)?.toString()
-    1 -> "@#$%&-+()".getOrNull(col)?.toString()
-    2 -> "*\"':;/_".getOrNull(col - 1)?.toString()
+    0 -> "#123()_-+@".getOrNull(col)?.toString()
+    1 -> "*456/:;'\"".getOrNull(col)?.toString()
+    2 -> "789?!,.".getOrNull(col - 1)?.toString() // Alt sits first in this row
     else -> null
 }

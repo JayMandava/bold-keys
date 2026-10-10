@@ -57,6 +57,8 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
     private var altMode = Shift.OFF
     private var lastAltTap = 0L
     private var lastShiftTap = 0L
+    /** The SYM picker: -1 when closed, otherwise the page showing. Pressing SYM again moves to the next page. */
+    private var symPage = -1
     private var cells: List<List<Cell>> = emptyList()
     private val pressed = HashMap<Int, Cell>()
     private val ui = Handler(Looper.getMainLooper())
@@ -110,8 +112,12 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         // the silver ridges above, between and below the rows, following the same smile as the keys
         for (r in 0..cells.size) drawRidge(canvas, padTop + r * (keyH + rowGap) - rowGap / 2)
         val down = pressed.values.toSet()
-        for (row in cells) for (c in row) drawKey(canvas, c, c in down)
+        for (row in cells) for (c in row) drawKey(canvas, c, c in down || latched(c.key))
+        if (symPage >= 0) drawSymPanel(canvas)
     }
+
+    /** A modifier that is on stays pressed in, like a held key; nothing else about the keyboard changes. */
+    private fun latched(k: Key) = (k.kind == Kind.LAYER && altMode != Shift.OFF) || (k.kind == Kind.SHIFT && shift != Shift.OFF)
 
     private fun drawRidge(canvas: Canvas, y: Float) {
         val p = Path().apply {
@@ -227,50 +233,47 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         canvas.drawBitmap(face, t.left, t.top, surf)
         surf.colorFilter = null
 
-        // legends are centred on the key itself and fitted to its width (the slope is only shading, so text may sit over it)
-        val areaL = t.left; val areaR = t.right
-        val acx = (areaL + areaR) / 2f
-        val aw = areaR - areaL
+        // Legends sit in the middle of the lit face (the sloped part is shading, so the face is the left ~70%), and are fitted so they never overflow it.
+        val flat = c.key.kind != Kind.SPACE
+        val acx = if (flat) t.left + tw * 0.44f else t.centerX()
+        val maxW = if (flat) tw * 0.70f - dp(3f) else tw - dp(12f)
         val cy = t.centerY() + dp(1f)
         legend.color = WHITE
         legend.setShadowLayer(dp(0.6f), 0f, dp(0.7f), 0xAA000000.toInt())
         when (c.key.kind) {
-            Kind.SHIFT -> { clearShadow(); drawShift(canvas, acx, cy) }
+            Kind.SHIFT -> { clearShadow(); drawShiftKey(canvas, acx, cy, c.col == 0, maxW) }
             Kind.ENTER -> { clearShadow(); drawEnter(canvas, acx, cy) }
-            Kind.DELETE -> fitWord(canvas, "del", acx, cy, dp(13f), aw - dp(5f))
-            Kind.SPACE -> fitWord(canvas, "space", acx, cy - dp(2f), dp(13f), aw)
+            Kind.DELETE -> {
+                fitWord(canvas, "del", acx, cy - dp(3.5f), dp(12.5f), maxW)
+                clearShadow(); drawBackArrow(canvas, acx, cy + dp(8f))
+            }
+            Kind.SPACE -> fitWord(canvas, "space", acx, cy - dp(2f), dp(13f), maxW)
+            Kind.SYM -> fitWord(canvas, "sym", acx, cy, dp(13f), maxW)
             Kind.LAYER -> {
-                fitWord(canvas, "alt", acx, cy, dp(13.5f), aw - dp(5f), if (altMode != Shift.OFF) 0xFFffb259.toInt() else WHITE)
-                if (altMode == Shift.CAPS) { // locked: a small bar under the word
-                    clearShadow(); line.shader = null; line.strokeWidth = dp(1.5f); line.color = 0xFFffb259.toInt()
+                fitWord(canvas, "alt", acx, cy, dp(13f), maxW)
+                if (altMode == Shift.CAPS) { // locked: a thin bar under the word, same white
+                    clearShadow(); line.shader = null; line.strokeWidth = dp(1.2f); line.color = WHITE
                     canvas.drawLine(acx - dp(7f), cy + dp(10f), acx + dp(7f), cy + dp(10f), line)
                 }
             }
             Kind.CHAR -> {
                 val isLetter = c.key.label.length == 1 && c.key.label[0].isLetter()
-                val sym = if (isLetter) secondaryFor(c.row, c.col) else null
-                val alt = altMode != Shift.OFF && sym != null
-                if (alt) {
-                    // Alt is on: the small symbol becomes the big one, and the letter steps back into the corner
-                    legend.textSize = dp(19f)
-                    legend.color = 0xFFffb259.toInt()
-                    while (legend.measureText(sym!!) > aw - dp(10f) && legend.textSize > dp(9f)) legend.textSize -= dp(0.5f)
-                    drawInk(canvas, sym, acx, cy)
-                    clearShadow()
-                    small.textSize = dp(11f); small.color = 0xFF8f959c.toInt(); small.textAlign = Paint.Align.LEFT
-                    canvas.drawText(c.key.label, areaL + dp(6f), t.top + dp(14f), small)
-                } else if (isLetter) {
+                if (isLetter) {
                     legend.textSize = dp(17.5f)
                     drawInk(canvas, c.key.label, acx, cy + dp(3f), -0.24f)
-                    clearShadow()
-                    if (sym != null) {
-                        small.textSize = dp(11.5f); small.color = WHITE; small.textAlign = Paint.Align.LEFT
-                        canvas.drawText(sym, areaL + dp(6f), t.top + dp(14f), small)
-                    }
-                } else {
-                    legend.textSize = dp(17f)
-                    while (legend.measureText(c.key.label) > aw - dp(10f) && legend.textSize > dp(9f)) legend.textSize -= dp(0.5f)
-                    drawInk(canvas, c.key.label, acx, cy)
+                } else { // 0 and $ stand upright
+                    legend.textSize = dp(18f)
+                    drawInk(canvas, c.key.label, acx, cy + dp(2f))
+                }
+                clearShadow()
+                val sym = secondaryFor(c.row, c.col)
+                val rightSide = r.centerX() > width / 2f // from Y, H and B onward the small symbol sits in the right corner, as printed on the phone
+                if (sym != null && isLetter) {
+                    small.textSize = dp(11.5f); small.color = WHITE
+                    small.textAlign = if (rightSide) Paint.Align.RIGHT else Paint.Align.LEFT
+                    canvas.drawText(sym, if (rightSide) t.right - dp(6f) else t.left + dp(6f), t.top + dp(14f), small)
+                } else if (c.key.label == "$") {
+                    drawSpeaker(canvas, t.right - dp(15f), t.top + dp(9f))
                 }
             }
         }
@@ -301,27 +304,55 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         drawInk(canvas, w, cx, cy)
     }
 
-    private fun drawShift(canvas: Canvas, cx: Float, cy: Float) {
-        val s = dp(8.5f)
-        val p = Path().apply {
-            moveTo(cx, cy - s); lineTo(cx + s, cy); lineTo(cx + s * 0.45f, cy); lineTo(cx + s * 0.45f, cy + s * 0.85f)
-            lineTo(cx - s * 0.45f, cy + s * 0.85f); lineTo(cx - s * 0.45f, cy); lineTo(cx - s, cy); close()
-        }
-        icon.color = if (shift == Shift.OFF) WHITE else 0xFFffb259.toInt()
-        icon.style = if (shift == Shift.OFF) Paint.Style.STROKE else Paint.Style.FILL_AND_STROKE
-        canvas.drawPath(p, icon)
-        if (shift == Shift.CAPS) canvas.drawLine(cx - s * 0.7f, cy + s * 1.25f, cx + s * 0.7f, cy + s * 1.25f, icon)
-        icon.style = Paint.Style.STROKE
+    /** The Bold's shift key: "aA" with a small outlined arrow standing over the "a" (left key) or the "A" (right key). Caps lock adds a bar; the colour never changes. */
+    private fun drawShiftKey(canvas: Canvas, cx: Float, cy: Float, left: Boolean, maxW: Float) {
+        legend.textSize = dp(13f); legend.color = WHITE
+        while (legend.measureText("aA") > maxW && legend.textSize > dp(8f)) legend.textSize -= dp(0.5f)
+        val tw = legend.measureText("aA")
+        legend.setShadowLayer(dp(0.6f), 0f, dp(0.7f), 0xAA000000.toInt())
+        drawInk(canvas, "aA", cx, cy + dp(5f))
+        clearShadow()
+        // the arrow over the outer letter
+        val s = dp(4.6f)
+        val ax = if (left) cx - tw / 2f + s * 0.9f else cx + tw / 2f - s * 0.9f
+        val ay = cy - dp(5.5f)
+        icon.color = WHITE; icon.style = Paint.Style.STROKE; icon.strokeWidth = dp(1.2f)
+        canvas.drawPath(Path().apply {
+            moveTo(ax, ay - s); lineTo(ax + s, ay); lineTo(ax + s * 0.45f, ay); lineTo(ax + s * 0.45f, ay + s * 0.85f)
+            lineTo(ax - s * 0.45f, ay + s * 0.85f); lineTo(ax - s * 0.45f, ay); lineTo(ax - s, ay); close()
+        }, icon)
+        if (shift == Shift.CAPS) canvas.drawLine(ax - s * 0.7f, ay + s * 1.3f, ax + s * 0.7f, ay + s * 1.3f, icon)
+        icon.strokeWidth = dp(1.8f)
+    }
+
+    private fun drawBackArrow(canvas: Canvas, cx: Float, cy: Float) {
+        val w = dp(6f); val h = dp(2.5f)
+        icon.color = WHITE; icon.strokeWidth = dp(1.1f)
+        canvas.drawPath(Path().apply { moveTo(cx + w, cy); lineTo(cx - w, cy); moveTo(cx - w + h, cy - h); lineTo(cx - w, cy); lineTo(cx - w + h, cy + h) }, icon)
+        icon.strokeWidth = dp(1.8f)
+    }
+
+    /** The little speaker printed on the $ key. */
+    private fun drawSpeaker(canvas: Canvas, x: Float, y: Float) {
+        val s = dp(2.9f)
+        icon.color = WHITE; icon.strokeWidth = dp(0.9f)
+        canvas.drawPath(Path().apply {
+            moveTo(x, y - s * 0.5f); lineTo(x + s * 0.7f, y - s * 0.5f); lineTo(x + s * 1.5f, y - s); lineTo(x + s * 1.5f, y + s); lineTo(x + s * 0.7f, y + s * 0.5f); lineTo(x, y + s * 0.5f); close()
+            moveTo(x + s * 2.1f, y - s * 0.6f); quadTo(x + s * 2.7f, y, x + s * 2.1f, y + s * 0.6f)
+            moveTo(x + s * 2.6f, y - s * 1.1f); quadTo(x + s * 3.5f, y, x + s * 2.6f, y + s * 1.1f)
+        }, icon)
+        icon.strokeWidth = dp(1.8f)
     }
 
     private fun drawEnter(canvas: Canvas, cx: Float, cy: Float) {
-        val w = dp(10f); val h = dp(7f)
-        icon.color = WHITE
+        val w = dp(7.5f); val h = dp(5.5f)
+        icon.color = WHITE; icon.strokeWidth = dp(1.5f)
         val p = Path().apply {
             moveTo(cx + w, cy - h); lineTo(cx + w, cy + h * 0.4f); lineTo(cx - w, cy + h * 0.4f)
-            moveTo(cx - w + dp(5f), cy + h * 0.4f - dp(5f)); lineTo(cx - w, cy + h * 0.4f); lineTo(cx - w + dp(5f), cy + h * 0.4f + dp(5f))
+            moveTo(cx - w + dp(4f), cy + h * 0.4f - dp(4f)); lineTo(cx - w, cy + h * 0.4f); lineTo(cx - w + dp(4f), cy + h * 0.4f + dp(4f))
         }
         canvas.drawPath(p, icon)
+        icon.strokeWidth = dp(1.8f)
     }
 
     // ---- touch: act on press, several fingers at once
@@ -344,6 +375,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         when (e.actionMasked) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
                 val i = e.actionIndex
+                if (symPage >= 0) { symTouch(e.getX(i), e.getY(i)); return true }
                 hit(e.getX(i), e.getY(i))?.let { c ->
                     pressed[e.getPointerId(i)] = c
                     feedback.key(c.key.kind == Kind.SPACE)
@@ -371,7 +403,12 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                 var t = key.text
                 val isLetter = key.kind == Kind.CHAR && t.length == 1 && t[0].isLetter()
                 val sym = if (isLetter) secondaryFor(pressedRow, pressedCol) else null
-                if (altMode != Shift.OFF && sym != null) {
+                if (altMode != Shift.OFF && key.label == "$") {
+                    // Alt + $ is the speaker: it switches the key click on and off
+                    feedback.soundOn = !feedback.soundOn
+                    if (altMode == Shift.ONCE) altMode = Shift.OFF
+                    invalidate(); return
+                } else if (altMode != Shift.OFF && sym != null) {
                     t = sym
                     if (altMode == Shift.ONCE) altMode = Shift.OFF
                 } else {
@@ -389,6 +426,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                 }
                 lastShiftTap = now
             }
+            Kind.SYM -> symPage = 0
             Kind.DELETE -> listener.onDelete()
             Kind.ENTER -> listener.onEnter()
             Kind.LAYER -> {
@@ -399,6 +437,65 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                     else -> Shift.OFF
                 }
                 lastAltTap = now
+            }
+        }
+        invalidate()
+    }
+
+    // ---- the SYM picker: a grid of symbols; SYM cycles the pages
+
+    private class SymLayout(val cells: List<RectF>, val more: RectF, val close: RectF)
+
+    private fun symLayout(): SymLayout {
+        val pad = dp(8f); val gapX = dp(6f); val gapY = dp(6f)
+        val cols = 5; val rowsN = 4
+        val pillH = dp(34f)
+        val gridH = height - pad * 2 - pillH - dp(8f)
+        val cw = (width - pad * 2 - gapX * (cols - 1)) / cols
+        val ch = (gridH - gapY * (rowsN - 1)) / rowsN
+        val cells = ArrayList<RectF>()
+        for (r in 0 until rowsN) for (c in 0 until cols) {
+            val l = pad + c * (cw + gapX); val tp = pad + r * (ch + gapY)
+            cells.add(RectF(l, tp, l + cw, tp + ch))
+        }
+        val y = height - pad - pillH
+        val half = (width - pad * 2 - gapX) / 2
+        return SymLayout(cells, RectF(pad, y, pad + half, y + pillH), RectF(pad + half + gapX, y, width - pad, y + pillH))
+    }
+
+    private fun drawSymPanel(canvas: Canvas) {
+        val lay = symLayout()
+        fill.shader = null; fill.color = 0xF4090a0c.toInt()
+        canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), fill)
+        val page = Layouts.symbolPages[symPage % Layouts.symbolPages.size]
+        legend.color = WHITE
+        for ((i, r) in lay.cells.withIndex()) {
+            fill.shader = LinearGradient(0f, r.top, 0f, r.bottom, 0xFF343c46.toInt(), 0xFF171c22.toInt(), Shader.TileMode.CLAMP)
+            canvas.drawRoundRect(r, dp(7f), dp(7f), fill)
+            fill.shader = null
+            legend.textSize = dp(21f)
+            drawInk(canvas, page.getOrNull(i) ?: "", r.centerX(), r.centerY())
+        }
+        for ((r, label) in listOf(lay.more to "more", lay.close to "close")) {
+            fill.shader = LinearGradient(0f, r.top, 0f, r.bottom, 0xFF2b323b.toInt(), 0xFF12161b.toInt(), Shader.TileMode.CLAMP)
+            canvas.drawRoundRect(r, dp(17f), dp(17f), fill)
+            fill.shader = null
+            legend.textSize = dp(13f)
+            drawInk(canvas, label, r.centerX(), r.centerY())
+        }
+    }
+
+    private fun symTouch(x: Float, y: Float) {
+        val lay = symLayout()
+        val page = Layouts.symbolPages[symPage % Layouts.symbolPages.size]
+        feedback.key()
+        when {
+            lay.more.contains(x, y) -> symPage = (symPage + 1) % Layouts.symbolPages.size
+            lay.close.contains(x, y) -> symPage = -1
+            else -> {
+                val i = lay.cells.indexOfFirst { it.contains(x, y) }
+                if (i >= 0 && i < page.size) listener.onText(page[i])
+                symPage = -1
             }
         }
         invalidate()
