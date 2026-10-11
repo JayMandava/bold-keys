@@ -184,9 +184,11 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         currentInputConnection?.requestCursorUpdates(android.view.inputmethod.InputConnection.CURSOR_UPDATE_MONITOR or android.view.inputmethod.InputConnection.CURSOR_UPDATE_FILTER_EDITOR_BOUNDS)
         val cls = info.inputType and InputType.TYPE_MASK_CLASS
         val variation = info.inputType and InputType.TYPE_MASK_VARIATION
+        // search boxes (e.g. NewPipe) often set "no suggestions" + "filter" because the app shows its own; the user still wants help typing there
+        val search = info.imeOptions and EditorInfo.IME_MASK_ACTION == EditorInfo.IME_ACTION_SEARCH
         smart = cls == InputType.TYPE_CLASS_TEXT &&
-            info.inputType and InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS == 0 &&
-            variation !in PRIVATE_VARIATIONS
+            (search || info.inputType and InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS == 0) &&
+            variation !in (if (search) SECRET_VARIATIONS else PRIVATE_VARIATIONS)
         undo = null
         refreshAutoCaps()
         refreshStrip()
@@ -437,6 +439,10 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
 
     private companion object {
         const val SEPARATORS = " .,!?;:"
+        val SECRET_VARIATIONS = setOf(
+            InputType.TYPE_TEXT_VARIATION_PASSWORD, InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD, InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD,
+            InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS, InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS, InputType.TYPE_TEXT_VARIATION_URI,
+        )
         val PRIVATE_VARIATIONS = setOf(
             InputType.TYPE_TEXT_VARIATION_PASSWORD, InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD, InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD,
             InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS, InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS, InputType.TYPE_TEXT_VARIATION_URI,
