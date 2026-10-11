@@ -307,7 +307,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.typingItems(context: 
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
                 val options = listOf("us" to "American", "uk" to "British")
                 options.forEachIndexed { i, (key, name) ->
-                    SegmentedButton(selected = spelling == key, onClick = { spelling = key; Prefs.put(context, "spelling", key) }, shape = SegmentedButtonDefaults.itemShape(i, options.size)) { Text(name) }
+                    SegmentedButton(selected = spelling == key, onClick = { spelling = key; Prefs.put(context, "spelling", key) }, shape = SegmentedButtonDefaults.itemShape(i, options.size), icon = {}) { Text(name, maxLines = 1, softWrap = false) }
                 }
             }
             Note("Words like colour/color, realise/realize and centre/center are corrected to the one you choose, and only that one is suggested.")
@@ -351,7 +351,8 @@ private fun AppearanceContent(context: Context) {
                     SegmentedButton(
                         selected = theme == key, onClick = { theme = key; Prefs.put(context, "theme", key); version++ },
                         shape = SegmentedButtonDefaults.itemShape(i, options.size),
-                    ) { Text(name) }
+                        icon = {}, // no check mark: the fill shows the choice, and the label needs the room
+                    ) { Text(name, maxLines = 1, softWrap = false) }
                 }
             }
             Note("Match phone follows the system's light or dark setting.")
@@ -363,7 +364,8 @@ private fun AppearanceContent(context: Context) {
                     SegmentedButton(
                         selected = mode == key, onClick = { mode = key; Prefs.put(context, "backlight", key); version++ },
                         shape = SegmentedButtonDefaults.itemShape(i, options.size),
-                    ) { Text(name) }
+                        icon = {}, // no check mark: the fill shows the choice, and the label needs the room
+                    ) { Text(name, maxLines = 1, softWrap = false) }
                 }
             }
             Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
