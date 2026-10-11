@@ -142,18 +142,33 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         kb = KeyboardView(this, feedback, this)
         bar = SuggestionBar(this, feedback, this) { kb.isShiftHeld() }
         return LinearLayout(this).apply {
+            root = this
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(0xFF0a0a0b.toInt())
+            setBackgroundColor(0xFF000000.toInt())
             addView(bar, LinearLayout.LayoutParams(-1, -2))
             addView(kb, LinearLayout.LayoutParams(-1, -2))
             // The keyboard is drawn edge to edge: keep the keys clear of the system's navigation bar.
-            setOnApplyWindowInsetsListener { v, insets ->
-                val bars = insets.getInsets(android.view.WindowInsets.Type.systemBars())
-                v.setPadding(bars.left, 0, bars.right, bars.bottom)
-                insets
-            }
+            setOnApplyWindowInsetsListener { v, insets -> applyBarInsets(v, insets); insets }
         }
     }
+
+    private var root: View? = null
+
+    private fun applyBarInsets(v: View, insets: android.view.WindowInsets) {
+        val bars = insets.getInsets(android.view.WindowInsets.Type.systemBars())
+        // any of these can be the one that carries the bar's height, depending on the navigation mode and when the window was shown
+        val bottom = maxOf(bars.bottom, insets.getInsets(android.view.WindowInsets.Type.navigationBars()).bottom, insets.getInsets(android.view.WindowInsets.Type.tappableElement()).bottom)
+        if (v.paddingBottom != bottom || v.paddingLeft != bars.left || v.paddingRight != bars.right) v.setPadding(bars.left, 0, bars.right, bottom)
+    }
+
+    /** The window can be shown before its insets arrive (or with stale ones), which left the bottom row under the navigation bar until the keyboard was switched. Ask again, and read them directly. */
+    private fun refreshInsets() {
+        val v = root ?: return
+        v.requestApplyInsets()
+        v.rootWindowInsets?.let { applyBarInsets(v, it) }
+    }
+
+    override fun onWindowShown() { super.onWindowShown(); refreshInsets(); root?.postDelayed({ refreshInsets() }, 250) }
 
     override fun onEvaluateFullscreenMode() = false
 
@@ -175,6 +190,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         undo = null
         refreshAutoCaps()
         refreshStrip()
+        refreshInsets()
     }
 
     override fun onFinishInput() { super.onFinishInput(); saveLearned() }
