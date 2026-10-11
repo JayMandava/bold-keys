@@ -2,7 +2,7 @@ package ai.boldkeys
 
 /** The two looks of the keyboard: the black 9900 and the white one. Every colour the keyboard draws with comes from here. */
 class KeyTheme(val dark: Boolean) {
-    val bg = if (dark) 0xFF0a0a0b.toInt() else 0xFFc7cad0.toInt()
+    val bg = if (dark) 0xFF000000.toInt() else 0xFFc7cad0.toInt()
     val base = if (dark) floatArrayOf(36f, 44f, 54f) else floatArrayOf(228f, 231f, 237f)
     val baseSpecial = if (dark) floatArrayOf(31f, 38f, 47f) else floatArrayOf(206f, 210f, 217f)
     val ambient = if (dark) 0.24f else 0.50f

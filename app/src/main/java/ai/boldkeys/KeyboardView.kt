@@ -129,7 +129,26 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), h)
     }
 
-    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) { faces.clear(); rebuild() }
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) { faces.clear(); buildBody(); rebuild() }
+
+    /** The keyboard's body: it ends in the same smile as the rows, with rounded corners, so it meets the black navigation bar as one curved shape. */
+    private val body = Path()
+    private fun ridgeY(y0: Float, x: Float): Float { val t = x / width; return y0 + 4f * smile * t * (1f - t) }
+
+    private fun buildBody() {
+        body.reset()
+        if (width == 0) return
+        val w = width.toFloat()
+        val y0 = padTop + 4 * (keyH + rowGap) - rowGap / 2 + dp(2.5f) // just under the last silver ridge
+        val r = dp(20f)
+        body.moveTo(0f, 0f); body.lineTo(w, 0f)
+        body.lineTo(w, y0 - r)
+        body.quadTo(w, ridgeY(y0, w - r * 0.35f), w - r, ridgeY(y0, w - r))
+        var x = w - r
+        while (x > r) { x -= w / 24f; body.lineTo(x.coerceAtLeast(r), ridgeY(y0, x.coerceAtLeast(r))) }
+        body.quadTo(0f, ridgeY(y0, r * 0.35f), 0f, y0 - r)
+        body.close()
+    }
 
     private fun rows() = Layouts.letterRows
 
@@ -158,9 +177,13 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
     }
 
     override fun onDraw(canvas: Canvas) {
-        canvas.drawColor(th.bg)
+        canvas.drawColor(0xFF000000.toInt()) // below the curve: the same black as the navigation bar
+        fill.shader = null; fill.color = th.bg
+        canvas.drawPath(body, fill)
         // the silver ridges above, between and below the rows, following the same smile as the keys
+        canvas.save(); canvas.clipPath(body)
         for (r in 0..cells.size) drawRidge(canvas, padTop + r * (keyH + rowGap) - rowGap / 2)
+        canvas.restore()
         val down = pressed.values.toSet()
         for (row in cells) for (c in row) drawKey(canvas, c, c in down || latched(c.key))
         if (symPage >= 0) drawSymPanel(canvas)
@@ -539,7 +562,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
     private fun drawSymPanel(canvas: Canvas) {
         val lay = symLayout()
         fill.shader = null; fill.color = th.panel
-        canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), fill)
+        canvas.drawPath(body, fill)
         val page = symPages()[symPage % symPages().size]
         legend.color = th.legend
         for ((i, r) in lay.cells.withIndex()) {
