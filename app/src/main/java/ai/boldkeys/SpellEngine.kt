@@ -167,7 +167,7 @@ class SpellEngine(entries0: List<Pair<String, Int>>) {
      * What to type instead of [typed] when the user presses space after it, or null to leave it alone.
      * Only words the dictionary does not know are changed, and only to something clearly closer than the alternatives.
      */
-    fun autocorrect(typed: String): String? {
+    fun autocorrect(typed: String, maxCost: Float = AC_COST): String? {
         val t = typed.lowercase()
         // the other English: "colour" for someone who writes American, "color" for someone who writes British
         (if (british) usToUk[t] else ukToUs[t])?.let { return it }
@@ -176,7 +176,7 @@ class SpellEngine(entries0: List<Pair<String, Int>>) {
         val c = correct(t, 2)
         if (c.isEmpty()) return null
         val top = c[0]
-        if (top.cost > AC_COST) return null // only fix what is plainly a slip
+        if (top.cost > maxCost) return null // only fix what is plainly a slip
         if (top.score + COST_WEIGHT * top.cost < AC_MIN_LOG) return null // and only to a word people actually use
         if (c.size > 1 && (top.score - c[1].score) < TIE_MARGIN && top.cost >= c[1].cost) return null // not when two words are about equally likely
         return top.word

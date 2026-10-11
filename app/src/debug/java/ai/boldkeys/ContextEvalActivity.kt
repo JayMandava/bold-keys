@@ -22,7 +22,7 @@ class ContextEvalActivity : Activity() {
         val margin = intent.getFloatExtra("margin", ContextJudge.REAL_MARGIN); ContextJudge.REAL_MARGIN = margin; ContextJudge.OPEN_GAP = intent.getFloatExtra("gap", ContextJudge.OPEN_GAP)
         var typoN = 0; var typoDict = 0; var typoCtx = 0; var wrongN = 0; var fixed = 0; var rightN = 0; var changed = 0; var ms = 0L
         for ((kind, left, typed, gold) in rows) {
-            val fix = e.autocorrect(typed)
+            val fix = Autofix.fix(e, typed, left + " ")
             val t0 = System.nanoTime()
             val pick = ContextJudge.judge(lm, e, left, typed, fix)
             ms += (System.nanoTime() - t0) / 1_000_000

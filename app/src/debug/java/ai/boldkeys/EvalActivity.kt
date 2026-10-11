@@ -65,6 +65,9 @@ class EvalActivity : Activity() {
         SpellEngine.AC_COST = 1.25f; SpellEngine.AC_MIN_LOG = 9.5f
         var fixed = 0; var wrong = 0
         for ((t, w) in typos) { val a = full.autocorrect(t); if (a == w) fixed++ else if (a != null) wrong++ }
+        var fixed2 = 0; var wrong2 = 0
+        for ((t, w) in typos) { val a = Autofix.fix(full, t, "i said "); if (a == w) fixed2++ else if (a != null) wrong2++ }
+        Log.i("BKEval", "B2 with the shipped guards: typos fixed ${pct(fixed2, typos.size)}, made worse ${pct(wrong2, typos.size)}")
         var changed = 0
         for ((w, _) in rare) if (small.autocorrect(w) != null) changed++
         Log.i("BKEval", "B chosen setting: typos fixed ${pct(fixed, typos.size)}, made worse ${pct(wrong, typos.size)}; rare real words wrongly changed ${pct(changed, rare.size)}")

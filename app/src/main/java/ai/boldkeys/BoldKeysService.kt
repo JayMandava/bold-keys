@@ -78,14 +78,14 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
      */
     private fun judgeInContext(word: String, fixed: String?, sep: String, before: String) {
         val e = engine ?: return
-        if (!contextOn || lm == null || word.length < 2 || !word.all { it.isLetter() || it == '\'' }) return
+        if (!contextOn || lm == null || !Autofix.eligible(word, before) || !word.all { it.isLetter() || it == '\'' }) return
         val left = ContextJudge.leftContext(before) ?: return
         val shownWord = fixed ?: word
         val job = ++lmJob
         lmWorker.execute {
             val model = lm ?: return@execute
             if (job != lmJob) return@execute // a newer word has been typed: this one is stale
-            val pick = ContextJudge.judge(model, e, left, word, fixed) ?: return@execute
+            val pick = ContextJudge.judge(model, e, left, word, fixed, sep != " ") ?: return@execute
             ui.post {
                 val ic = currentInputConnection ?: return@post
                 val tail = shownWord + sep
@@ -237,18 +237,18 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         if (smart && e != null && text.length == 1 && text[0] in SEPARATORS) {
             val word = currentWord()
             if (word.isNotEmpty()) {
-                val fix = if (word == "i") "I" else if (autocorrectOn) e.autocorrect(word)?.let { matchCase(word, it) } else null
-                val ctx = if (contextOn && lm != null) ic.getTextBeforeCursor(160, 0)?.toString()?.dropLast(word.length) else null
+                val ctx = ic.getTextBeforeCursor(160, 0)?.toString()?.dropLast(word.length) ?: ""
+                val fix = if (word == "i" && !ctx.lastOrNull().let { it != null && (it.isLetterOrDigit() || it in "@#/._-") }) "I" else if (autocorrectOn) Autofix.fix(e, word, ctx)?.let { matchCase(word, it) } else null
                 if (fix != null && fix != word) {
                     ic.deleteSurroundingText(word.length, 0)
                     ic.commitText(fix + text, 1)
                     undo = Undo(word, fix, text)
                     refreshAutoCaps(); refreshStrip()
-                    if (ctx != null) judgeInContext(word, fix, text, ctx)
+                    if (contextOn && lm != null) judgeInContext(word, fix, text, ctx)
                     return
                 }
                 e.noteTyped(word)
-                if (ctx != null) { ic.commitText(text, 1); undo = null; refreshAutoCaps(); refreshStrip(); judgeInContext(word, null, text, ctx); return }
+                if (contextOn && lm != null) { ic.commitText(text, 1); undo = null; refreshAutoCaps(); refreshStrip(); judgeInContext(word, null, text, ctx); return }
             }
         }
         undo = null

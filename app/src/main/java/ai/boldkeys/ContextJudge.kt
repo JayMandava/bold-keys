@@ -11,7 +11,7 @@ object ContextJudge {
     /** A real word is swapped only when the model likes the other one this much more (log-likelihood). */
     var REAL_MARGIN = 4f
     /** For a misspelling the dictionary alone would leave: the context must favour one candidate over the next by this much to correct it. */
-    var OPEN_GAP = 4f
+    var OPEN_GAP = 6f
     const val MIN_CONTEXT_WORDS = 2
 
     private val SETS = listOf(
@@ -20,6 +20,8 @@ object ContextJudge {
         listOf("by", "buy"), listOf("no", "know"), listOf("weather", "whether"), listOf("quiet", "quite"), listOf("accept", "except"),
         listOf("of", "off"), listOf("form", "from"), listOf("right", "write"), listOf("whole", "hole"), listOf("peace", "piece"),
     )
+    /** Pairs where the words before the slip rarely decide it ("it is too hot", "it is to be"; whose/who's), so they need more evidence. Measured per pair. */
+    private val EXTRA = mapOf("to" to 2f, "too" to 2f, "their" to 2f, "there" to 2f, "they're" to 2f, "whose" to 4f, "who's" to 4f, "whole" to 2f, "hole" to 2f)
     private val confusables = HashMap<String, List<String>>().also { m -> SETS.forEach { s -> s.forEach { w -> m[w] = s } } }
 
     /** The text to give the model: the last few words before the one being judged, or null when there is too little to go on. */
@@ -31,18 +33,20 @@ object ContextJudge {
 
     /**
      * The word to use in place of [word], or null to keep what is there. [fixed] is what the dictionary alone would type
-     * (null if it would leave [word] alone). Lower case in, lower case out.
+     * (null if it would leave [word] alone). [endsClause] is true when punctuation follows the word. Lower case in, lower case out.
      */
-    fun judge(lm: ContextLm, engine: SpellEngine, left: String, word: String, fixed: String?): String? {
+    fun judge(lm: ContextLm, engine: SpellEngine, left: String, word: String, fixed: String?, endsClause: Boolean = false): String? {
         val w = word.lowercase()
         confusables[w]?.let { set ->
+            if (endsClause) return null // "me too." "is that yours?": the model only sees what comes before, so a word that ends a clause is left alone
             val cands = listOf(w) + set.filter { it != w }
             val s = lm.score(left, cands)
             var best = 0
             for (i in 1 until cands.size) if (s[i] > s[best]) best = i
-            return if (best != 0 && s[best] - s[0] > REAL_MARGIN) cands[best] else null
+            val margin = REAL_MARGIN + (EXTRA[w] ?: 0f)
+            return if (best != 0 && s[best] - s[0] > margin) cands[best] else null
         }
-        if (engine.isWord(w)) return null // a word the dictionary knows is only swapped for the confusable pairs above
+        if (engine.isWord(w) || Autofix.isKnownForm(engine, w)) return null // a word the dictionary knows is only swapped for the confusable pairs above
         val c = engine.correct(w, 5)
         if (c.isEmpty() || (fixed == null && c.size < 2)) return null
         val s = lm.score(left, c.map { it.word })
