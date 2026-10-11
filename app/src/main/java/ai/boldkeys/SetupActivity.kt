@@ -59,6 +59,7 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -119,7 +120,7 @@ private fun writeDictionary(c: Context, edit: (MutableMap<String, Int>) -> Unit)
 }
 
 private enum class Screen(val title: String) {
-    HOME("Bold Keys"), TYPING("Typing"), LOOK("Appearance"), FEEL("Key feel"), SYMBOLS("Symbols & emoji"), DICTIONARY("Personal dictionary"), CONTEXT("Context model"), ABOUT("About"),
+    HOME("Bold Keys"), TYPING("Typing"), LOOK("Appearance"), FEEL("Key feel"), SYMBOLS("Symbols & emoji"), DICTIONARY("Personal dictionary"), SHORTCUTS("Speed key"), CONTEXT("Context model"), ABOUT("About"),
 }
 
 @Composable
@@ -152,6 +153,7 @@ private fun SettingsApp() {
                 Screen.FEEL -> feelItems(context)
                 Screen.SYMBOLS -> symbolItems(context)
                 Screen.DICTIONARY -> dictionaryItems(context)
+                Screen.SHORTCUTS -> item(key = "shortcuts") { ShortcutsContent(context) }
                 Screen.CONTEXT -> contextItems(context)
                 Screen.ABOUT -> aboutItems(context)
             }
@@ -172,6 +174,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.homeItems(context: Co
                 NavRow("Key feel", "How hard each key press buzzes") { open(Screen.FEEL) }
                 NavRow("Symbols & emoji", "What the sym key offers") { open(Screen.SYMBOLS) }
                 NavRow("Personal dictionary", "${readDictionary(context).size} words you have taught it") { open(Screen.DICTIONARY) }
+                NavRow("Speed key", "${Shortcuts.all(context).size} letters assigned: hold the right aA key, tap a letter") { open(Screen.SHORTCUTS) }
                 NavRow("Context model", if (Prefs.contextModel(context)) "On: judges words by the sentence around them" else "Off: optional, needs a download") { open(Screen.CONTEXT) }
                 NavRow("About", "Privacy and credits") { open(Screen.ABOUT) }
             }
@@ -571,4 +574,89 @@ private fun ContextContent(context: Context) {
             Note("Downloading is the only thing in this app that uses the internet, and only when you tap Download.")
         }
     }
+}
+
+
+// ---------------------------------------------------------------- speed key
+
+@Composable
+private fun ShortcutsContent(context: Context) {
+    var version by remember { mutableIntStateOf(0) }
+    var editing by remember { mutableStateOf<Char?>(null) }
+    val assigned = remember(version) { Shortcuts.all(context) }
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Section("How it works") {
+            Note("Hold the right-hand aA key (bottom right) and tap a letter to run its shortcut. The keys show nothing: it is there for you to remember. Tapping that key on its own still works as Shift.")
+            Note("A shortcut opens an app, opens a link or action (a web page, tel:, mailto:, geo:), or types a piece of text. It only runs while this keyboard is on screen.")
+        }
+        Section("Letters") {
+            ('A'..'Z').forEach { ch ->
+                val sc = assigned[ch]
+                ListItem(
+                    modifier = Modifier.clickable { editing = ch },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    leadingContent = { Text(ch.toString(), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium) },
+                    headlineContent = { Text(sc?.label?.ifBlank { sc.value } ?: "Not set", color = if (sc == null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface) },
+                    supportingContent = sc?.let { { Text(when (it.type) { Shortcut.APP -> "App"; Shortcut.LINK -> "Link: ${it.value}"; else -> "Text" }) } },
+                    trailingContent = if (sc != null) {{ IconButton(onClick = { Shortcuts.set(context, ch, null); version++ }) { Icon(Icons.Default.Close, contentDescription = "Clear $ch") } }} else null,
+                )
+            }
+        }
+    }
+    editing?.let { ch ->
+        ShortcutDialog(context, ch, assigned[ch], onDismiss = { editing = null }) { Shortcuts.set(context, ch, it); version++; editing = null }
+    }
+}
+
+@Composable
+private fun ShortcutDialog(context: Context, letter: Char, current: Shortcut?, onDismiss: () -> Unit, onSave: (Shortcut) -> Unit) {
+    var type by remember { mutableStateOf(current?.type ?: Shortcut.APP) }
+    var query by remember { mutableStateOf("") }
+    var link by remember { mutableStateOf(if (current?.type == Shortcut.LINK) current.value else "") }
+    var text by remember { mutableStateOf(if (current?.type == Shortcut.TEXT) current.value else "") }
+    val apps = remember { Shortcuts.launchableApps(context) }
+    val shown = apps.filter { query.isBlank() || it.first.contains(query, ignoreCase = true) }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Speed key + $letter") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    listOf(Shortcut.APP to "App", Shortcut.LINK to "Link", Shortcut.TEXT to "Text").forEachIndexed { i, (t, l) ->
+                        SegmentedButton(selected = type == t, onClick = { type = t }, shape = SegmentedButtonDefaults.itemShape(i, 3), icon = {}) { Text(l) }
+                    }
+                }
+                when (type) {
+                    Shortcut.APP -> {
+                        OutlinedTextField(value = query, onValueChange = { query = it }, singleLine = true, placeholder = { Text("Search apps") }, modifier = Modifier.fillMaxWidth())
+                        LazyColumn(Modifier.height(260.dp)) {
+                            items(shown, key = { it.second }) { (label, pkg) ->
+                                ListItem(
+                                    modifier = Modifier.clickable { onSave(Shortcut(Shortcut.APP, pkg, label)) },
+                                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                                    headlineContent = { Text(label) },
+                                )
+                            }
+                        }
+                    }
+                    Shortcut.LINK -> {
+                        OutlinedTextField(value = link, onValueChange = { link = it }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Link or action") }, placeholder = { Text("example.com, tel:+1555…, mailto:me@…") },
+                            keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, capitalization = KeyboardCapitalization.None))
+                    }
+                    else -> {
+                        OutlinedTextField(value = text, onValueChange = { text = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Text to type") },
+                            keyboardOptions = KeyboardOptions(autoCorrectEnabled = false))
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            if (type != Shortcut.APP) TextButton(
+                enabled = if (type == Shortcut.LINK) link.isNotBlank() else text.isNotEmpty(),
+                onClick = { onSave(if (type == Shortcut.LINK) Shortcut(Shortcut.LINK, link.trim(), link.trim().removePrefix("https://").take(12)) else Shortcut(Shortcut.TEXT, text, text.take(12))) },
+            ) { Text("Save") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }

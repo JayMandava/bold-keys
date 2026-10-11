@@ -33,6 +33,8 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         fun onText(text: String)
         fun onDelete()
         fun onEnter()
+        /** A letter was tapped while the Speed key is held; true if it had a shortcut and ran it. */
+        fun onShortcut(letter: Char): Boolean = false
     }
 
     enum class Shift { OFF, ONCE, CAPS }
@@ -54,7 +56,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         val c = context
         th = KeyTheme(Prefs.isDark(c))
         showEmoji = Prefs.emojiPages(c)
-        glowMode = Prefs.backlightMode(c)
+                glowMode = Prefs.backlightMode(c)
         glowRgb = Prefs.BACKLIGHT_COLORS[Prefs.backlightColor(c)] ?: 0xFFEAF2FF.toInt()
         glowSetting = Prefs.backlightLevel(c)
         updateGlow()
@@ -107,6 +109,9 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
     private var altHeld = false // a finger is on Alt right now: keys type their symbols for as long as it stays there (the other thumb types)
     private var altUsedWhileHeld = false
     private var lastShiftTap = 0L
+    /** The Speed key (right-hand aA position): hold it and tap a letter to run that letter's shortcut; a plain tap still works as Shift. */
+    private var speedHeld = false
+    private var speedUsed = false
     /** The SYM picker: -1 when closed, otherwise the page showing. Pressing SYM again moves to the next page. */
     private var symPage = -1
     private var cells: List<List<Cell>> = emptyList()
@@ -190,7 +195,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
     }
 
     /** A modifier that is on stays pressed in, like a held key; nothing else about the keyboard changes. */
-    private fun latched(k: Key) = (k.kind == Kind.LAYER && altMode != Shift.OFF) || (k.kind == Kind.SHIFT && shift != Shift.OFF)
+    private fun latched(k: Key) = (k.kind == Kind.LAYER && altMode != Shift.OFF) || ((k.kind == Kind.SHIFT || k.kind == Kind.SPEED) && shift != Shift.OFF)
 
     private fun drawRidge(canvas: Canvas, y: Float) {
         val p = Path().apply {
@@ -330,6 +335,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                 clearShadow(); drawBackArrow(canvas, acx, cy + dp(8f))
             }
             Kind.SPACE -> fitWord(canvas, "space", acx, cy - dp(2f), dp(13f), maxW)
+            Kind.SPEED -> { clearShadow(); drawShiftKey(canvas, acx, cy, false, maxW) }
             Kind.SYM -> fitWord(canvas, "sym", acx, cy, dp(13f), maxW)
             Kind.LAYER -> {
                 fitWord(canvas, "alt", acx, cy, dp(13f), maxW)
@@ -472,7 +478,11 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                     feedback.key()
                     pressedRow = c.row; pressedCol = c.col
                     if (c.key.kind == Kind.LAYER) { altHeld = true; altUsedWhileHeld = false }
-                    fire(c.key)
+                    if (c.key.kind == Kind.SPEED) { speedHeld = true; speedUsed = false }
+                    else if (speedHeld && c.key.kind == Kind.CHAR && c.key.label.length == 1 && c.key.label[0].isLetter()) {
+                        speedUsed = true
+                        listener.onShortcut(c.key.label[0])
+                    } else fire(c.key)
                     if (c.key.kind == Kind.DELETE) ui.postDelayed(repeatDelete, 380)
                     invalidate()
                 }
@@ -483,6 +493,10 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                     altHeld = false
                     if (altUsedWhileHeld && altMode == Shift.ONCE) altMode = Shift.OFF // held and used: it ends with the finger; a plain tap stays armed for the next key
                     altUsedWhileHeld = false
+                }
+                if (up?.key?.kind == Kind.SPEED) {
+                    speedHeld = false
+                    if (!speedUsed) fire(Key("shift", "", 1.5f, Kind.SHIFT)) // let go without using it: it was a plain Shift tap
                 }
                 if (pressed.values.none { it.key.kind == Kind.DELETE }) ui.removeCallbacks(repeatDelete)
                 invalidate()
@@ -522,6 +536,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                 }
                 lastShiftTap = now
             }
+            Kind.SPEED -> {}
             Kind.SYM -> symPage = 0
             Kind.DELETE -> listener.onDelete()
             Kind.ENTER -> listener.onEnter()

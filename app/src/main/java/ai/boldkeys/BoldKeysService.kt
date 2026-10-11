@@ -283,6 +283,13 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         return false
     }
 
+    override fun onShortcut(letter: Char): Boolean {
+        val sc = Shortcuts.get(this, letter) ?: return false
+        val typed = runCatching { Shortcuts.run(this, sc) }.getOrNull()
+        if (typed != null) onText(typed)
+        return true
+    }
+
     override fun onDelete() {
         val ic = currentInputConnection ?: return
         val u = undo

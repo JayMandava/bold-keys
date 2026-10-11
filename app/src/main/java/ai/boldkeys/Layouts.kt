@@ -1,6 +1,6 @@
 package ai.boldkeys
 
-enum class Kind { CHAR, SHIFT, DELETE, ENTER, SPACE, LAYER, SYM }
+enum class Kind { CHAR, SHIFT, DELETE, ENTER, SPACE, LAYER, SYM, SPEED }
 
 /** One key: what it shows, what it types, and how wide it is relative to the others in its row (rows add up to 10). */
 class Key(val label: String, val text: String = label.lowercase(), val weight: Float = 1f, val kind: Kind = Kind.CHAR)
@@ -15,7 +15,7 @@ object Layouts {
         listOf(Key("alt", "", 1f, Kind.LAYER)) + letters("ZXCVBNM") + Key("$", "$") + Key("enter", "", 1f, Kind.ENTER),
         listOf(
             Key("shift", "", 1.5f, Kind.SHIFT), Key("0", "0", 1.5f), Key("space", " ", 4f, Kind.SPACE),
-            Key("sym", "", 1.5f, Kind.SYM), Key("shift", "", 1.5f, Kind.SHIFT),
+            Key("sym", "", 1.5f, Kind.SYM), Key("speed", "", 1.5f, Kind.SPEED),
         ),
     )
 
