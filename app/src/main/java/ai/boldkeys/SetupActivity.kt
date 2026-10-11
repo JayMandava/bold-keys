@@ -299,6 +299,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.typingItems(context: 
         var dbl by remember { mutableStateOf(Prefs.doubleSpace(context)) }
         var nextW by remember { mutableStateOf(Prefs.nextWord(context)) }
         var spelling by remember { mutableStateOf(Prefs.spelling(context)) }
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Section("While you type") {
             SwitchRow("Autocorrect", "Fixes a misspelt word when you press space or punctuation. Backspace right after brings your word back.", correct) { correct = it; Prefs.put(context, "autocorrect", it) }
             SwitchRow("Suggestions", "Shows the likely words beside the trackpad.", suggest) { suggest = it; Prefs.put(context, "suggestions", it) }
@@ -314,6 +315,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.typingItems(context: 
                 }
             }
             Note("Words like colour/color, realise/realize and centre/center are corrected to the one you choose, and only that one is suggested.")
+        }
         }
     }
     item(key = "typing-note") { Note("Passwords, email addresses and web addresses are never corrected or suggested, whatever you choose here.") }
