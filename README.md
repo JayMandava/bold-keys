@@ -31,7 +31,7 @@ Settings > Context model lists the models you can use. Each download is checked 
 | Gemma 3 270M (compact) | 241 MB | Recommended. About 40 ms to judge a word on a mid-range phone. |
 | Gemma 3 270M (precise) | 291 MB | Same model, higher precision. |
 
-On a held-out test of 2,000 cases, with the compact model: typos fixed 80.9% to 89.2%, and real-word slips fixed 89.8% with 0.8% of
+On a held-out test of 2,000 cases, with the compact model: typos fixed 80.7% to 88.5%, and real-word slips fixed 88.0% with 0.6% of
 correct words wrongly changed. Larger models fix more real-word slips but take 0.2-0.4 s a word and 1-3 GB, so they are import-only.
 
 ## Install
