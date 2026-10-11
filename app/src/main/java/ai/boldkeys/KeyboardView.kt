@@ -182,7 +182,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         canvas.drawPath(body, fill)
         // the silver ridges above, between and below the rows, following the same smile as the keys
         canvas.save(); canvas.clipPath(body)
-        for (r in 0..cells.size) drawRidge(canvas, padTop + r * (keyH + rowGap) - rowGap / 2)
+        for (r in 0..cells.size) if (r < cells.size || th.dark) drawRidge(canvas, padTop + r * (keyH + rowGap) - rowGap / 2)
         canvas.restore()
         val down = pressed.values.toSet()
         for (row in cells) for (c in row) drawKey(canvas, c, c in down || latched(c.key))
