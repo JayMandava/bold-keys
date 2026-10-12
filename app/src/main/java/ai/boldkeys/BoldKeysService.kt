@@ -32,6 +32,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
     private var nextWordOn = true
     private var lastSpaceAt = 0L
     private var learnedStamp = 0L
+    private var urlLike = false // a web-address field: suggestions only, nothing is changed for the user
     private var smart = false // suggestions and autocorrect are off in password, email, web-address and "no suggestions" fields
     private var shown: List<String> = emptyList()
 
@@ -186,9 +187,11 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         val variation = info.inputType and InputType.TYPE_MASK_VARIATION
         // search boxes (e.g. NewPipe) often set "no suggestions" + "filter" because the app shows its own; the user still wants help typing there
         val search = info.imeOptions and EditorInfo.IME_MASK_ACTION == EditorInfo.IME_ACTION_SEARCH
+        // address bars (Brave, Chrome) double as search boxes: they get the suggestion strip but are never auto-corrected or rewritten
+        urlLike = variation == InputType.TYPE_TEXT_VARIATION_URI
         smart = cls == InputType.TYPE_CLASS_TEXT &&
-            (search || info.inputType and InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS == 0) &&
-            variation !in (if (search) SECRET_VARIATIONS else PRIVATE_VARIATIONS)
+            (search || urlLike || info.inputType and InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS == 0) &&
+            variation !in (if (search || urlLike) SECRET_VARIATIONS else PRIVATE_VARIATIONS)
         undo = null
         refreshAutoCaps()
         refreshStrip()
@@ -222,7 +225,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
     override fun onText(text: String) {
         val ic = currentInputConnection ?: return
         val e = engine
-        if (smart && doubleSpaceOn && text == " ") {
+        if (smart && !urlLike && doubleSpaceOn && text == " ") {
             // two spaces in quick succession after a word end the sentence: ". " in place of the first space, as on the original
             val before = ic.getTextBeforeCursor(2, 0)?.toString() ?: ""
             val now = SystemClock.uptimeMillis()
@@ -235,12 +238,12 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
             }
             lastSpaceAt = now
         }
-        if (smart && emoticonsOn && text.length == 1 && convertEmoticon(ic, text)) return
+        if (smart && !urlLike && emoticonsOn && text.length == 1 && convertEmoticon(ic, text)) return
         if (smart && e != null && text.length == 1 && text[0] in SEPARATORS) {
             val word = currentWord()
             if (word.isNotEmpty()) {
                 val ctx = ic.getTextBeforeCursor(160, 0)?.toString()?.dropLast(word.length) ?: ""
-                val fix = if (word == "i" && !ctx.lastOrNull().let { it != null && (it.isLetterOrDigit() || it in "@#/._-") }) "I" else if (autocorrectOn) Autofix.fix(e, word, ctx)?.let { matchCase(word, it) } else null
+                val fix = if (word == "i" && !ctx.lastOrNull().let { it != null && (it.isLetterOrDigit() || it in "@#/._-") }) "I" else if (autocorrectOn && !urlLike) Autofix.fix(e, word, ctx)?.let { matchCase(word, it) } else null
                 if (fix != null && fix != word) {
                     ic.deleteSurroundingText(word.length, 0)
                     ic.commitText(fix + text, 1)
@@ -250,7 +253,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
                     return
                 }
                 e.noteTyped(word)
-                if (contextOn && lm != null) { ic.commitText(text, 1); undo = null; refreshAutoCaps(); refreshStrip(); judgeInContext(word, null, text, ctx); return }
+                if (contextOn && lm != null && !urlLike) { ic.commitText(text, 1); undo = null; refreshAutoCaps(); refreshStrip(); judgeInContext(word, null, text, ctx); return }
             }
         }
         undo = null
@@ -448,7 +451,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         const val SEPARATORS = " .,!?;:"
         val SECRET_VARIATIONS = setOf(
             InputType.TYPE_TEXT_VARIATION_PASSWORD, InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD, InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD,
-            InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS, InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS, InputType.TYPE_TEXT_VARIATION_URI,
+            InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS, InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS,
         )
         val PRIVATE_VARIATIONS = setOf(
             InputType.TYPE_TEXT_VARIATION_PASSWORD, InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD, InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD,
