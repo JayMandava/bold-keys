@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -13,7 +15,7 @@ android {
         minSdk = 33
         targetSdk = 35
         versionCode = 1
-        versionName = "0.0.1"
+        versionName = "0.1.0"
         ndk { abiFilters += "arm64-v8a" }
         externalNativeBuild {
             cmake {
@@ -27,8 +29,27 @@ android {
     }
     externalNativeBuild { cmake { path = file("src/main/cpp/CMakeLists.txt") } }
 
+    // Release signing: a keystore.properties file (storeFile, storePassword, keyAlias, keyPassword) kept outside the repository, found through
+    // the BOLD_KEYSTORE_PROPERTIES environment variable or ~/.bold-keys-keystore/keystore.properties. Without one, release builds use the debug key.
+    val keystoreProps = Properties()
+    val keystoreFile = (System.getenv("BOLD_KEYSTORE_PROPERTIES") ?: "${System.getProperty("user.home")}/.bold-keys-keystore/keystore.properties").let { file(it) }
+    if (keystoreFile.exists()) keystoreFile.inputStream().use { stream -> keystoreProps.load(stream) }
+    signingConfigs {
+        if (keystoreProps.containsKey("storeFile")) {
+            create("release") {
+                storeFile = file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
-        release { isMinifyEnabled = false }
+        release {
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

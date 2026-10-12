@@ -3,6 +3,11 @@
 A private, on-device keyboard for Android with a physical-keyboard feel: lit, shaded keys, secondary symbols on every key, a trackpad
 for the cursor, and autocorrect that runs entirely on the phone. Nothing you type leaves it.
 
+## Install
+
+Download the APK from the [latest release](https://github.com/JayMandava/bold-keys/releases/latest), allow installs from your browser or file manager, open it, and
+follow the two steps on screen to turn the keyboard on. Needs Android 13 or newer on an arm64 phone.
+
 ## Features
 
 - **Keys that feel real:** each key is drawn as a lit 3D surface, with a haptic click, black or white themes and an optional backlight
@@ -13,6 +18,8 @@ for the cursor, and autocorrect that runs entirely on the phone. Nothing you typ
 - **Autocorrect and suggestions:** a dictionary tuned to where thumbs land (a miss next to the right key costs less than a random one),
   completions as you type, next-word suggestions, and double space for a full stop. Backspace right after a correction brings your word
   back and teaches it. Words you type twice are learned; you can add, remove and clear them in Settings.
+- **Speed key:** hold the right-hand aA key and tap a letter to open an app, a link or type a snippet you set in Settings. Nothing is
+  shown on the keys; a plain tap on that key is still Shift.
 - **American or British spelling:** colour/color, realise/realize and similar pairs follow the one you choose.
 - **Context model (optional):** a small language model checks each word against the sentence around it. It picks the right fix for a
   misspelling and catches real words used for another (their/there, then/than, to/too). It only scores words the dictionary proposes and
