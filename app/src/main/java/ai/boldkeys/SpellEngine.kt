@@ -193,10 +193,11 @@ class SpellEngine(entries0: List<Pair<String, Int>>) {
 
     // ---- the typo model: Damerau-Levenshtein where a miss next to the right key is cheap and the first letter is trusted
 
-    private val pos = HashMap<Char, Pair<Int, Int>>().also {
-        val rows = listOf("qwertyuiop" to 0, "asdfghjkl" to 0, "zxcvbnm" to 1) // columns line up as on the Bold: Z sits under S
-        rows.forEachIndexed { r, (s, off) -> s.forEachIndexed { c, ch -> it[ch] = (c + off) to r } }
-    }
+    // where the keys sit on the chosen layout; columns line up as on the Bold (Z sits under S), see Layouts.positions
+    private var pos: Map<Char, Pair<Int, Int>> = Layouts.positions("qwerty")
+
+    /** Which wrong keys count as a slip away from the right one follows the layout in use. */
+    fun setLayout(layout: String) { pos = Layouts.positions(layout) }
 
     private val scratch = Array(3) { FloatArray(MAX_LEN + 3) }
 

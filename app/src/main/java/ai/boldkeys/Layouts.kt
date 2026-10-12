@@ -9,14 +9,37 @@ class Key(val label: String, val text: String = label.lowercase(), val weight: F
 object Layouts {
     private fun letters(s: String) = s.map { Key(it.toString()) }
 
-    val letterRows: List<List<Key>> = listOf(
-        letters("QWERTYUIOP"),
-        letters("ASDFGHJKL") + Key("del", "", 1f, Kind.DELETE),
-        listOf(Key("alt", "", 1f, Kind.LAYER)) + letters("ZXCVBNM") + Key("$", "$") + Key("enter", "", 1f, Kind.ENTER),
+    private fun layoutRows(top: String, home: String, bottom: String): List<List<Key>> = listOf(
+        letters(top),
+        letters(home) + Key("del", "", 1f, Kind.DELETE),
+        listOf(Key("alt", "", 1f, Kind.LAYER)) + letters(bottom) + Key("$", "$") + Key("enter", "", 1f, Kind.ENTER),
         listOf(
             Key("shift", "", 1.5f, Kind.SHIFT), Key("0", "0", 1.5f), Key("space", " ", 4f, Kind.SPACE),
             Key("sym", "", 1.5f, Kind.SYM), Key("speed", "", 1.5f, Kind.SPEED),
         ),
+    )
+
+    /** The Bold's own order. */
+    val letterRows: List<List<Key>> = layoutRows("QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM")
+
+    /** AZERTY: A and Z swap places with Q and W, and M moves down beside N, so every row still adds up to ten keys. */
+    private val azertyRows: List<List<Key>> = layoutRows("AZERTYUIOP", "QSDFGHJKL", "WXCVBNM")
+
+    /** The layouts on offer: the id kept in the settings, and its name. */
+    val LAYOUTS = listOf("qwerty" to "QWERTY", "azerty" to "AZERTY")
+
+    fun rows(layout: String): List<List<Key>> = if (layout == "azerty") azertyRows else letterRows
+
+    /** Where each letter sits as (column, row), for judging which wrong keys are a slip away from the right one. Alt takes the first place of the third row, as on the phone. */
+    fun positions(layout: String): Map<Char, Pair<Int, Int>> {
+        val out = HashMap<Char, Pair<Int, Int>>()
+        rows(layout).forEachIndexed { r, row -> row.forEachIndexed { c, k -> if (k.kind == Kind.CHAR && k.label.length == 1 && k.label[0].isLetter()) out[k.label[0].lowercaseChar()] = c to r } }
+        return out
+    }
+
+    /** What press-and-hold on a letter offers, most common first. */
+    val accents: Map<Char, String> = mapOf(
+        'a' to "àâäáãåæ", 'e' to "éèêë", 'i' to "îïíì", 'o' to "ôöòóœõ", 'u' to "ùûüú", 'c' to "ç", 'y' to "ÿý", 'n' to "ñ", 's' to "ß",
     )
 
     /** How many of the picker's first pages are symbols; the rest are emoji, which the user can switch off. */

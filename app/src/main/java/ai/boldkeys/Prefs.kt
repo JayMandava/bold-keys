@@ -35,6 +35,7 @@ object Prefs {
     fun nextWord(c: Context) = bool(c, "nextWord", true)
     fun contextModel(c: Context) = bool(c, "contextModel", false) // needs a downloaded model, so off until the user turns it on
     fun spelling(c: Context) = string(c, "spelling", "us") // us or uk
+    fun layout(c: Context) = string(c, "layout", "qwerty") // qwerty or azerty
 
     // symbols and emoji
     fun emojiPages(c: Context) = bool(c, "emojiPages", true)

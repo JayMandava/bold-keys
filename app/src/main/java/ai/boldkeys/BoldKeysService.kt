@@ -54,6 +54,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
             e.loadLearned(readLearned())
             runCatching { e.loadFollowers(assets.open("pairs.tsv").bufferedReader().use { it.readText() }) }
             e.onLearnedChanged = { saveLearned() }
+            e.setLayout(Prefs.layout(this))
             engine = e
             ui.post { refreshStrip() }
         }
@@ -178,7 +179,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         ui.removeCallbacks(hideRunnable)
         // what the user chose in Settings, read afresh each time the keyboard opens
         autocorrectOn = Prefs.autocorrect(this); suggestOn = Prefs.suggestions(this); emoticonsOn = Prefs.emoticons(this); autoCapsOn = Prefs.autoCapitals(this)
-        doubleSpaceOn = Prefs.doubleSpace(this); nextWordOn = Prefs.nextWord(this); engine?.british = Prefs.spelling(this) == "uk"
+        doubleSpaceOn = Prefs.doubleSpace(this); nextWordOn = Prefs.nextWord(this); engine?.british = Prefs.spelling(this) == "uk"; engine?.setLayout(Prefs.layout(this))
         contextOn = Prefs.contextModel(this); syncContextModel()
         kb.applySettings(); bar.applyTheme(Prefs.isDark(this))
         reloadLearnedIfChanged()
@@ -291,6 +292,16 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         val typed = runCatching { Shortcuts.run(this, sc) }.getOrNull()
         if (typed != null) onText(typed)
         return true
+    }
+
+    /** A letter was held and an accented form chosen: it replaces the plain letter that was typed when the key went down. */
+    override fun onAccent(accent: String) {
+        val ic = currentInputConnection ?: return
+        undo = null
+        ic.deleteSurroundingText(1, 0)
+        ic.commitText(accent, 1)
+        refreshAutoCaps()
+        refreshStrip()
     }
 
     override fun onDelete() {

@@ -35,6 +35,8 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         fun onEnter()
         /** A letter was tapped while the Speed key is held; true if it had a shortcut and ran it. */
         fun onShortcut(letter: Char): Boolean = false
+        /** A letter was held and an accented form chosen: it replaces the plain letter typed when the key went down. */
+        fun onAccent(accent: String) {}
     }
 
     enum class Shift { OFF, ONCE, CAPS }
@@ -59,6 +61,8 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                 glowMode = Prefs.backlightMode(c)
         glowRgb = Prefs.BACKLIGHT_COLORS[Prefs.backlightColor(c)] ?: 0xFFEAF2FF.toInt()
         glowSetting = Prefs.backlightLevel(c)
+        val layout = Prefs.layout(c)
+        if (layout != layoutId) { layoutId = layout; rebuild() }
         updateGlow()
         faces.clear()
         if (symPage >= symPages().size) symPage = -1
@@ -155,7 +159,8 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         body.close()
     }
 
-    private fun rows() = Layouts.letterRows
+    private var layoutId = "qwerty"
+    private fun rows() = Layouts.rows(layoutId)
 
     /** Vertical drop of the row at horizontal position x: 0 at the ends, [smile] in the middle. */
     private fun curve(x: Float): Float {
@@ -192,6 +197,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         val down = pressed.values.toSet()
         for (row in cells) for (c in row) drawKey(canvas, c, c in down || latched(c.key))
         if (symPage >= 0) drawSymPanel(canvas)
+        drawAccents(canvas)
     }
 
     /** A modifier that is on stays pressed in, like a held key; nothing else about the keyboard changes. */
@@ -477,6 +483,8 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                     pressed[e.getPointerId(i)] = c
                     feedback.key()
                     pressedRow = c.row; pressedCol = c.col
+                    val wasUpper = shift != Shift.OFF
+                    val plain = altMode == Shift.OFF && !altHeld && !speedHeld
                     if (c.key.kind == Kind.LAYER) { altHeld = true; altUsedWhileHeld = false }
                     if (c.key.kind == Kind.SPEED) { speedHeld = true; speedUsed = false }
                     else if (speedHeld && c.key.kind == Kind.CHAR && c.key.label.length == 1 && c.key.label[0].isLetter()) {
@@ -484,10 +492,31 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                         listener.onShortcut(c.key.label[0])
                     } else fire(c.key)
                     if (c.key.kind == Kind.DELETE) ui.postDelayed(repeatDelete, 380)
+                    // a letter with accented forms: hold it and they appear (the plain letter is already typed)
+                    val base = c.key.label.takeIf { c.key.kind == Kind.CHAR && it.length == 1 && it[0].isLetter() }?.get(0)?.lowercaseChar()
+                    if (plain && base != null && Layouts.accents.containsKey(base)) {
+                        stopAccents()
+                        accentFor = c; accentPointer = e.getPointerId(i); accentUpper = wasUpper
+                        ui.postDelayed(showAccents, 420)
+                    }
                     invalidate()
                 }
             }
+            MotionEvent.ACTION_MOVE -> {
+                val pi = e.findPointerIndex(accentPointer)
+                if (pi >= 0 && accentRects.isNotEmpty()) {
+                    val idx = accentAt(e.getX(pi), e.getY(pi))
+                    if (idx != accentIndex) { accentIndex = idx; invalidate() }
+                }
+            }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP, MotionEvent.ACTION_CANCEL -> {
+                if (e.getPointerId(e.actionIndex) == accentPointer) {
+                    val chosen = accentChoices.getOrNull(accentIndex)
+                    val lifted = e.actionMasked != MotionEvent.ACTION_CANCEL
+                    stopAccents()
+                    if (lifted && chosen != null) { feedback.key(); listener.onAccent(chosen) }
+                    invalidate()
+                }
                 val up = pressed.remove(e.getPointerId(e.actionIndex))
                 if (up?.key?.kind == Kind.LAYER) {
                     altHeld = false
@@ -507,6 +536,62 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
 
     private var pressedRow = 0
     private var pressedCol = 0
+
+    // ---- press and hold on a letter: a row of accented forms to slide to; the plain letter has already been typed, and the choice replaces it
+    private var accentFor: Cell? = null
+    private var accentPointer = -1
+    private var accentChoices: List<String> = emptyList()
+    private var accentIndex = -1
+    private var accentUpper = false
+    private val accentRects = ArrayList<RectF>()
+    private val accentPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+
+    private val showAccents = Runnable {
+        val cell = accentFor ?: return@Runnable
+        val base = cell.key.label.firstOrNull()?.lowercaseChar() ?: return@Runnable
+        val list = Layouts.accents[base] ?: return@Runnable
+        accentChoices = list.map { if (accentUpper) it.toString().uppercase() else it.toString() }
+        accentIndex = -1
+        val w = dp(40f); val h = dp(46f); val pad = dp(4f)
+        val total = accentChoices.size * w + pad * 2
+        var left = (cell.rect.centerX() - total / 2f).coerceIn(dp(2f), width - total - dp(2f))
+        // above the key, or, on the top row where there is no room, over the row itself (the thumb covers the key anyway)
+        val top = (cell.rect.top - h - dp(10f)).coerceAtLeast(dp(6f))
+        accentRects.clear()
+        accentChoices.forEachIndexed { i, _ -> accentRects.add(RectF(left + pad + i * w, top + pad, left + pad + (i + 1) * w, top + h - pad + pad)) }
+        feedback.key()
+        invalidate()
+    }
+
+    private fun stopAccents() {
+        ui.removeCallbacks(showAccents)
+        accentFor = null; accentPointer = -1; accentChoices = emptyList(); accentIndex = -1; accentRects.clear()
+    }
+
+    private fun accentAt(x: Float, y: Float): Int {
+        if (accentRects.isEmpty()) return -1
+        val top = accentRects.first().top - dp(30f); val bottom = accentRects.first().bottom + dp(70f)
+        if (y < top || y > bottom) return -1
+        // anywhere along the row picks the nearest accent, so a thumb does not have to stay exactly above one
+        return accentRects.indices.minByOrNull { Math.abs(accentRects[it].centerX() - x) } ?: -1
+    }
+
+    private fun drawAccents(canvas: Canvas) {
+        if (accentRects.isEmpty()) return
+        val l = accentRects.first().left - dp(4f); val t = accentRects.first().top - dp(4f)
+        val r = accentRects.last().right + dp(4f); val b = accentRects.first().bottom + dp(4f)
+        accentPaint.shader = null
+        accentPaint.color = 0xAA000000.toInt(); canvas.drawRoundRect(l, t + dp(3f), r, b + dp(3f), dp(10f), dp(10f), accentPaint)
+        accentPaint.shader = LinearGradient(0f, t, 0f, b, th.padTop, th.padBottom, Shader.TileMode.CLAMP)
+        canvas.drawRoundRect(l, t, r, b, dp(10f), dp(10f), accentPaint)
+        accentPaint.shader = null
+        accentRects.forEachIndexed { i, rc ->
+            if (i == accentIndex) { accentPaint.color = 0xFF2f8fe8.toInt(); canvas.drawRoundRect(rc, dp(7f), dp(7f), accentPaint) }
+            legend.color = if (i == accentIndex) 0xFFFFFFFF.toInt() else th.legend
+            legend.textSize = dp(24f)
+            canvas.drawText(accentChoices[i], rc.centerX(), rc.centerY() + dp(8f), legend)
+        }
+    }
 
     private fun fire(key: Key) {
         when (key.kind) {

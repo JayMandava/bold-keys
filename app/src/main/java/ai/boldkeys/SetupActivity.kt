@@ -299,7 +299,30 @@ private fun androidx.compose.foundation.lazy.LazyListScope.typingItems(context: 
         var dbl by remember { mutableStateOf(Prefs.doubleSpace(context)) }
         var nextW by remember { mutableStateOf(Prefs.nextWord(context)) }
         var spelling by remember { mutableStateOf(Prefs.spelling(context)) }
+        var layout by remember { mutableStateOf(Prefs.layout(context)) }
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Section("Layout") {
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
+                Layouts.LAYOUTS.forEachIndexed { i, (key, name) ->
+                    SegmentedButton(
+                        selected = layout == key,
+                        onClick = {
+                            if (key != layout) {
+                                layout = key; Prefs.put(context, "layout", key)
+                                // the dictionary is English: autocorrect is switched off with AZERTY (suggestions stay), and back on with QWERTY if this is what turned it off
+                                if (key == "azerty" && correct) { correct = false; Prefs.put(context, "autocorrect", false); Prefs.put(context, "acByLayout", true) }
+                                else if (key == "qwerty" && Prefs.bool(context, "acByLayout", false)) { correct = true; Prefs.put(context, "autocorrect", true); Prefs.put(context, "acByLayout", false) }
+                            }
+                        },
+                        shape = SegmentedButtonDefaults.itemShape(i, Layouts.LAYOUTS.size), icon = {},
+                    ) { Text(name, maxLines = 1, softWrap = false) }
+                }
+            }
+            Note(
+                if (layout == "azerty") "A, Z, Q and W swap places and M moves beside N. Autocorrect is off because the dictionary is English; suggestions still work, and you can switch autocorrect back on above. Hold a letter (A, E, I, O, U, C, Y, N, S) to pick an accented form."
+                else "The order printed on the Bold. Hold a letter (A, E, I, O, U, C, Y, N, S) to pick an accented form. AZERTY is available too.",
+            )
+        }
         Section("While you type") {
             SwitchRow("Autocorrect", "Fixes a misspelt word when you press space or punctuation. Backspace right after brings your word back.", correct) { correct = it; Prefs.put(context, "autocorrect", it) }
             SwitchRow("Suggestions", "Shows the likely words beside the trackpad.", suggest) { suggest = it; Prefs.put(context, "suggestions", it) }

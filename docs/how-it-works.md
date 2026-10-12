@@ -4,6 +4,7 @@
 
 Candidates come from a symmetric-delete index over about 46,000 words. Each is scored by word frequency minus a weighted edit cost:
 a miss on a neighbouring key, a doubled letter or a swapped pair costs less than an unrelated edit, and the first letter is trusted more.
+Which keys are neighbours comes from the layout in use (`Layouts.positions`), so QWERTY and AZERTY each judge a slip by where the thumb really was.
 A word is only changed when it is not in the dictionary, the best candidate is plainly closest, and it is a word people really use.
 Some words are never touched: names (a capital in mid-sentence), acronyms and camelCase, anything after `@`, `#`, `/`, `.`, `_`, `-` or a digit
 (handles, addresses, versions), words with accented letters, common abbreviations, and possessives, contractions and plurals of known words.
@@ -42,3 +43,11 @@ About 40 ms per word. The thresholds were chosen on a separate set of 6,600 case
 - `app/src/main/java/ai/boldkeys/` - the keyboard service, key drawing, spell engine, settings and model store.
 - `app/src/main/cpp/` - the llama.cpp scoring library (JNI).
 - `app/src/debug/` - measurement screens, debug builds only.
+
+## Layouts and accents
+
+`Layouts.kt` holds each layout as a table of rows (QWERTY, the default, and AZERTY); every row adds up to ten key widths, so AZERTY moves M down beside N rather than adding a key.
+The small Alt symbols belong to key positions, as on a physical keyboard, so they stay put when the letters change. The choice is `Prefs.layout`, read whenever the keyboard opens.
+The dictionary is English, so choosing AZERTY switches autocorrect off once (remembered, so choosing QWERTY again switches it back on); suggestions are unaffected.
+Holding a letter with accented forms (`Layouts.accents`) shows a row of them after about 420 ms. The plain letter was already typed when the key went down, so choosing one replaces it
+(`onAccent` deletes one character and commits the accented one); letting go without choosing keeps the plain letter. On the top row, where there is no room above the keys, the row is drawn over the key row itself.
