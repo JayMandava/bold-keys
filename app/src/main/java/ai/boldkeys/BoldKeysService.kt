@@ -24,6 +24,8 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
     private val ui = Handler(Looper.getMainLooper())
     private val worker = Executors.newSingleThreadExecutor()
     @Volatile private var engine: SpellEngine? = null
+    @Volatile private var engineLang = ""
+    private var lang = "en" // the language of the dictionary in use; follows the setting
     private var autocorrectOn = true
     private var suggestOn = true
     private var emoticonsOn = true
@@ -49,13 +51,22 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
 
     override fun onCreate() {
         super.onCreate()
+        loadEngine(Prefs.language(this))
+    }
+
+    /** Builds the dictionary for [language] behind the typing; until it is ready there are no suggestions. */
+    private fun loadEngine(language: String) {
+        if (language == engineLang) return
+        saveLearned()
+        engineLang = language; lang = language; engine = null
+        learnedStamp = 0L
         worker.execute {
-            val e = SpellEngine.fromTsv(assets.open("words.tsv").bufferedReader().use { it.readText() })
-            e.loadLearned(readLearned())
-            runCatching { e.loadFollowers(assets.open("pairs.tsv").bufferedReader().use { it.readText() }) }
+            val e = SpellEngine.fromTsv(assets.open(Lang.wordsAsset(language)).bufferedReader().use { it.readText() }, Lang.hasAccents(language))
+            e.loadLearned(readLearned(language))
+            runCatching { e.loadFollowers(assets.open(Lang.pairsAsset(language)).bufferedReader().use { it.readText() }) }
             e.onLearnedChanged = { saveLearned() }
             e.setLayout(Prefs.layout(this))
-            engine = e
+            if (engineLang == language) engine = e
             ui.post { refreshStrip() }
         }
     }
@@ -80,7 +91,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
      */
     private fun judgeInContext(word: String, fixed: String?, sep: String, before: String) {
         val e = engine ?: return
-        if (!contextOn || lm == null || !Autofix.eligible(word, before) || !word.all { it.isLetter() || it == '\'' }) return
+        if (!contextOn || lm == null || !Autofix.eligible(word, before, e.accented) || !word.all { it.isLetter() || it == '\'' }) return
         val left = ContextJudge.leftContext(before) ?: return
         val shownWord = fixed ?: word
         val job = ++lmJob
@@ -179,8 +190,9 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         ui.removeCallbacks(hideRunnable)
         // what the user chose in Settings, read afresh each time the keyboard opens
         autocorrectOn = Prefs.autocorrect(this); suggestOn = Prefs.suggestions(this); emoticonsOn = Prefs.emoticons(this); autoCapsOn = Prefs.autoCapitals(this)
-        doubleSpaceOn = Prefs.doubleSpace(this); nextWordOn = Prefs.nextWord(this); engine?.british = Prefs.spelling(this) == "uk"; engine?.setLayout(Prefs.layout(this))
-        contextOn = Prefs.contextModel(this); syncContextModel()
+        doubleSpaceOn = Prefs.doubleSpace(this); nextWordOn = Prefs.nextWord(this); loadEngine(Prefs.language(this))
+        engine?.british = Prefs.spelling(this) == "uk"; engine?.setLayout(Prefs.layout(this))
+        contextOn = Prefs.contextModel(this) && lang == "en"; syncContextModel() // the context model has only been measured on English
         kb.applySettings(); bar.applyTheme(Prefs.isDark(this))
         reloadLearnedIfChanged()
         currentInputConnection?.requestCursorUpdates(android.view.inputmethod.InputConnection.CURSOR_UPDATE_MONITOR or android.view.inputmethod.InputConnection.CURSOR_UPDATE_FILTER_EDITOR_BOUNDS)
@@ -244,7 +256,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
             val word = currentWord()
             if (word.isNotEmpty()) {
                 val ctx = ic.getTextBeforeCursor(160, 0)?.toString()?.dropLast(word.length) ?: ""
-                val fix = if (word == "i" && !ctx.lastOrNull().let { it != null && (it.isLetterOrDigit() || it in "@#/._-") }) "I" else if (autocorrectOn && !urlLike) Autofix.fix(e, word, ctx)?.let { matchCase(word, it) } else null
+                val fix = if (lang == "en" && word == "i" && !ctx.lastOrNull().let { it != null && (it.isLetterOrDigit() || it in "@#/._-") }) "I" else if (autocorrectOn && !urlLike) Autofix.fix(e, word, ctx)?.let { matchCase(word, it) } else null
                 if (fix != null && fix != word) {
                     ic.deleteSurroundingText(word.length, 0)
                     ic.commitText(fix + text, 1)
@@ -351,7 +363,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         while (i > 0 && (before[i - 1].isLetter() || before[i - 1] == '\'')) i--
         var w = before.substring(i)
         w = w.trimStart('\'')
-        return w
+        return Lang.stripElision(w, lang)
     }
 
     private fun refreshStrip() {
@@ -375,9 +387,9 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         if (before.isNotEmpty() && !before.last().isWhitespace()) return emptyList() // right after punctuation or a symbol: nothing sensible to offer
         val trimmed = before.trimEnd()
         val sentenceStart = trimmed.isEmpty() || trimmed.last() in ".!?" || before.endsWith("\n")
-        val list = if (sentenceStart) listOf("I", "The") else {
-            val prev = Regex("[A-Za-z']+$").find(trimmed)?.value ?: return emptyList()
-            e.nextWords(prev, 2)
+        val list = if (sentenceStart) Lang.starters(lang) else {
+            val prev = Regex("[\\p{L}']+$").find(trimmed)?.value ?: return emptyList()
+            e.nextWords(Lang.stripElision(prev, lang), 2)
         }
         return list.map { w -> if (sentenceStart) w.replaceFirstChar { it.uppercase() } else w }
     }
@@ -440,10 +452,10 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
 
     // ---- what the keyboard has learned (words typed twice that the dictionary did not know), kept on the phone only
 
-    private fun learnedFile() = File(filesDir, "learned.tsv")
+    private fun learnedFile() = File(filesDir, Lang.learnedName(lang))
 
-    private fun readLearned(): Map<String, Int> = runCatching {
-        learnedFile().takeIf { it.exists() }?.readLines()?.mapNotNull { l -> l.split('\t').takeIf { it.size == 2 }?.let { it[0] to (it[1].toIntOrNull() ?: 0) } }?.toMap()
+    private fun readLearned(language: String = lang): Map<String, Int> = runCatching {
+        File(filesDir, Lang.learnedName(language)).takeIf { it.exists() }?.readLines()?.mapNotNull { l -> l.split('\t').takeIf { it.size == 2 }?.let { it[0] to (it[1].toIntOrNull() ?: 0) } }?.toMap()
     }.getOrNull() ?: emptyMap()
 
     /** The personal dictionary can be edited in Settings: pick up those changes the next time the keyboard opens. */

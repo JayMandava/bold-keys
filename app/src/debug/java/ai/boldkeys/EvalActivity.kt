@@ -5,7 +5,7 @@ import android.os.Bundle
 import android.util.Log
 import kotlin.random.Random
 
-/** Debug only: measures the suggestion engine on typos made the way thumbs make them. Run with `am start -n ai.boldkeys/.EvalActivity`; results go to logcat (tag BKEval). */
+/** Debug only: measures the suggestion engine on typos made the way thumbs make them. Run with `am start -n ai.boldkeys/.EvalActivity` (add `--es lang fr` for French on AZERTY); results go to logcat (tag BKEval). */
 class EvalActivity : Activity() {
     private companion object { val started = java.util.concurrent.atomic.AtomicBoolean(false) }
 
@@ -14,13 +14,18 @@ class EvalActivity : Activity() {
         if (started.compareAndSet(false, true)) Thread { run(); runOnUiThread { finish() } }.start() else finish()
     }
 
-    private val rows = listOf("qwertyuiop", "asdfghjkl", "zxcvbnm")
-    private val col = HashMap<Char, Int>().also { m -> rows.forEachIndexed { r, s -> s.forEachIndexed { c, ch -> m[ch] = c + (if (r == 2) 1 else 0) } } }
-    private val row = HashMap<Char, Int>().also { m -> rows.forEachIndexed { r, s -> s.forEach { ch -> m[ch] = r } } }
-    private fun neighbours(ch: Char) = col.keys.filter { it != ch && kotlin.math.abs(col[it]!! - col[ch]!!) <= 1 && kotlin.math.abs(row[it]!! - row[ch]!!) <= 1 }
+    private var lang = "en"
+    private val pos by lazy { Layouts.positions(if (lang == "fr") "azerty" else "qwerty") }
+    private val col get() = pos.mapValues { it.value.first }
+    private val row get() = pos.mapValues { it.value.second }
+    private fun neighbours(ch: Char) = pos.keys.filter { it != ch && kotlin.math.abs(pos[it]!!.first - pos[ch]!!.first) <= 1 && kotlin.math.abs(pos[it]!!.second - pos[ch]!!.second) <= 1 }
 
-    private fun typo(w: String, rnd: Random): String? {
-        if (w.length < 3 || !w.all { it in col }) return null
+    private fun typo(word: String, rnd: Random): String? {
+        if (word.length < 3) return null
+        val accented = SpellEngine.unaccent(word) != word
+        val w = SpellEngine.unaccent(word)
+        if (!w.all { it in pos }) return null
+        if (accented && rnd.nextInt(100) < 50) return w // the commonest French slip: the accent left off
         val i = rnd.nextInt(w.length)
         return when (rnd.nextInt(100)) {
             in 0..34 -> w.substring(0, i) + neighbours(w[i]).random(rnd) + w.substring(i + 1) // hit the next key over
@@ -32,20 +37,25 @@ class EvalActivity : Activity() {
     }
 
     private fun run() {
-        val text = assets.open("words.tsv").bufferedReader().use { it.readText() }
+        lang = intent?.getStringExtra("lang") ?: "en"
+        Log.i("BKEval", "language=$lang")
+        val text = assets.open(Lang.wordsAsset(lang)).bufferedReader().use { it.readText() }
         val all = text.lineSequence().filter { it.contains('\t') }.map { it.substringBefore('\t') to it.substringAfter('\t').toInt() }.toList()
-        val full = SpellEngine(all)
-        full.loadFollowers(assets.open("pairs.tsv").bufferedReader().use { it.readText() })
+        val full = SpellEngine(all, Lang.hasAccents(lang))
+        full.setLayout(if (lang == "fr") "azerty" else "qwerty")
+        full.loadFollowers(assets.open(Lang.pairsAsset(lang)).bufferedReader().use { it.readText() })
         full.british = false
         Log.i("BKEval", "S american: colour->${full.autocorrect("colour")} realise->${full.autocorrect("realise")} centre->${full.autocorrect("centre")} travelling->${full.autocorrect("travelling")} grey->${full.autocorrect("grey")} program->${full.autocorrect("program")} suggest(colo)=${full.suggest("colo", 3).map { it.word }}")
         full.british = true
         Log.i("BKEval", "S british: color->${full.autocorrect("color")} realize->${full.autocorrect("realize")} center->${full.autocorrect("center")} traveling->${full.autocorrect("traveling")} gray->${full.autocorrect("gray")} program->${full.autocorrect("program")} suggest(colo)=${full.suggest("colo", 3).map { it.word }} next(thank)=${full.nextWords("thank", 2)} next(i'm)=${full.nextWords("i'm", 2)}")
         full.british = false
         Log.i("BKEval", "S next words: the=${full.nextWords("the", 3)} of=${full.nextWords("of", 3)} you=${full.nextWords("you", 3)} how=${full.nextWords("how", 3)} dictionary=${full.size} words")
+        if (lang == "fr") Log.i("BKEval", "F ete->${full.autocorrect("ete")} ca->${full.autocorrect("ca")} tres->${full.autocorrect("tres")} deja->${full.autocorrect("deja")} etre->${full.autocorrect("etre")} francais->${full.autocorrect("francais")} ou->${full.autocorrect("ou")} a->${full.autocorrect("a")} suggest(ou)=${full.suggest("ou", 3).map { it.word }} suggest(ete)=${full.suggest("ete", 3).map { it.word }} suggest(fran)=${full.suggest("fran", 3).map { it.word }} next(je)=${full.nextWords("je", 3)} next(ne)=${full.nextWords("ne", 3)}")
+        if (lang == "fr") for (t in listOf("ete", "cote", "ou", "mur")) Log.i("BKEval", "D $t: " + full.correct(t, 5).joinToString { "${it.word}/${"%.2f".format(it.score)}/${"%.2f".format(it.cost)}" } + " | complete: " + full.complete(t, 4).joinToString { "${it.word}/${"%.2f".format(it.score)}" })
         val rnd = Random(7)
         val total = all.sumOf { it.second.toLong() }
         fun pick(list: List<Pair<String, Int>>): String { var r = rnd.nextLong(list.sumOf { it.second.toLong() }); for ((w, c) in list) { r -= c; if (r < 0) return w }; return list.last().first }
-        val common = all.take(20000).filter { it.first.length >= 3 && it.first.all { c -> c in col } }
+        val common = all.take(20000).filter { it.first.length >= 3 && SpellEngine.unaccent(it.first).all { c -> c in pos } }
 
         // typos on common words, made once
         val typos = ArrayList<Pair<String, String>>() // (typed, intended)
@@ -60,9 +70,10 @@ class EvalActivity : Activity() {
         Log.i("BKEval", "A strip: right word first ${pct(top1, typos.size)}, among the three ${pct(top3, typos.size)}")
 
         // real words the dictionary does not know (rare words, names): how often would autocorrect wrongly change them?
-        val small = SpellEngine(all.take(30000))
-        val rare = all.drop(30000).filter { it.first.length >= 4 && it.first.all { c -> c in col } }.shuffled(rnd).take(6000)
-        SpellEngine.AC_COST = 1.25f; SpellEngine.AC_MIN_LOG = 9.5f
+        val small = SpellEngine(all.take(30000), Lang.hasAccents(lang)).also { it.setLayout(if (lang == "fr") "azerty" else "qwerty") }
+        val rare = all.drop(30000).filter { it.first.length >= 4 && SpellEngine.unaccent(it.first).all { c -> c in pos } }.shuffled(rnd).take(6000)
+        SpellEngine.AC_COST = intent?.getFloatExtra("accost", 1.25f) ?: 1.25f; SpellEngine.AC_MIN_LOG = intent?.getFloatExtra("acmin", 9.5f) ?: 9.5f
+        Log.i("BKEval", "settings: AC_COST=${SpellEngine.AC_COST} AC_MIN_LOG=${SpellEngine.AC_MIN_LOG}")
         var fixed = 0; var wrong = 0
         for ((t, w) in typos) { val a = full.autocorrect(t); if (a == w) fixed++ else if (a != null) wrong++ }
         var fixed2 = 0; var wrong2 = 0

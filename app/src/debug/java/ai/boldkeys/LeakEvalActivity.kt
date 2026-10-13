@@ -17,10 +17,12 @@ class LeakEvalActivity : Activity() {
     }
 
     private fun run() {
-        val e = SpellEngine(assets.open("words.tsv").bufferedReader().use { it.readText() }.lineSequence().filter { it.contains('\t') }.map { it.substringBefore('\t') to it.substringAfter('\t').toInt() }.toList())
+        val lang = intent.getStringExtra("lang") ?: "en"
+        val e = SpellEngine(assets.open(Lang.wordsAsset(lang)).bufferedReader().use { it.readText() }.lineSequence().filter { it.contains('\t') }.map { it.substringBefore('\t') to it.substringAfter('\t').toInt() }.toList(), Lang.hasAccents(lang))
+        e.setLayout(if (lang == "fr") "azerty" else "qwerty")
         val useLm = intent.getBooleanExtra("lm", false)
         val lm = if (useLm) { ContextModels.init(this); ContextModels.selected()?.let { ContextLm.load(ContextModels.file(it).absolutePath) } } else null
-        val sents = File(filesDir, "leak_sents.txt").readLines().filter { it.isNotBlank() }
+        val sents = File(filesDir, if (lang == "fr") "leak_sents_fr.txt" else "leak_sents.txt").readLines().filter { it.isNotBlank() }
         var words = 0; var oldChanged = 0; var newChanged = 0; var lmChanged = 0
         val oldTop = HashMap<String, Int>(); val newTop = HashMap<String, Int>(); val lmTop = HashMap<String, Int>()
         for (s in sents) {
@@ -28,17 +30,17 @@ class LeakEvalActivity : Activity() {
             val sb = StringBuilder()
             for (t in toks) {
                 val bare = t.trimEnd('.', ',', '!', '?', ';', ':', '"', ')', '”')
-                val word = bare.trimStart('"', '(', '“')
+                val word = Lang.stripElision(bare.trimStart('"', '(', '“'), lang)
                 val before = sb.toString() + bare.dropLast(word.length)
                 sb.append(t).append(' ')
                 if (word.isEmpty() || !word.all { it.isLetter() || it == '\'' }) continue
                 if (!(t.length > bare.length)) { /* a word at the end of the line is committed by enter, not here, but treat alike */ }
                 words++
-                val old = if (word == "i") "I" else e.autocorrect(word)
+                val old = if (lang == "en" && word == "i") "I" else e.autocorrect(word)
                 if (old != null && !old.equals(word, ignoreCase = true)) { oldChanged++; oldTop.merge("$word>$old", 1, Int::plus) }
                 val new = Autofix.fix(e, word, before)
                 if (new != null && !new.equals(word, ignoreCase = true)) { newChanged++; newTop.merge("$word>$new", 1, Int::plus) }
-                if (lm != null && Autofix.eligible(word, before)) {
+                if (lm != null && Autofix.eligible(word, before, e.accented)) {
                     val left = ContextJudge.leftContext(before)
                     if (left != null) {
                         val pick = ContextJudge.judge(lm, e, left, word, new, t.length > bare.length)

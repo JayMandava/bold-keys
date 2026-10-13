@@ -36,6 +36,9 @@ object Prefs {
     fun contextModel(c: Context) = bool(c, "contextModel", false) // needs a downloaded model, so off until the user turns it on
     fun spelling(c: Context) = string(c, "spelling", "us") // us or uk
     fun layout(c: Context) = string(c, "layout", "qwerty") // qwerty or azerty
+    fun languageChoice(c: Context) = string(c, "language", "auto") // auto, en or fr
+    /** The language the dictionary and suggestions use: what the user chose, or (on auto) the one the layout belongs to. */
+    fun language(c: Context) = languageChoice(c).let { if (it == "auto") (if (layout(c) == "azerty") "fr" else "en") else it }
 
     // symbols and emoji
     fun emojiPages(c: Context) = bool(c, "emojiPages", true)

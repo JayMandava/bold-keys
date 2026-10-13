@@ -104,7 +104,7 @@ private fun imeState(context: Context): Pair<Boolean, Boolean> {
 
 // ---- the personal dictionary lives in one small file the keyboard reads: word, a tab, how many times it was typed
 
-private fun dictFile(c: Context) = File(c.filesDir, "learned.tsv")
+private fun dictFile(c: Context) = File(c.filesDir, Lang.learnedName(Prefs.language(c))) // each language keeps its own list
 
 private fun readDictionary(c: Context): List<String> = runCatching {
     dictFile(c).takeIf { it.exists() }?.readLines().orEmpty().mapNotNull { l ->
@@ -300,6 +300,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.typingItems(context: 
         var nextW by remember { mutableStateOf(Prefs.nextWord(context)) }
         var spelling by remember { mutableStateOf(Prefs.spelling(context)) }
         var layout by remember { mutableStateOf(Prefs.layout(context)) }
+        var language by remember { mutableStateOf(Prefs.languageChoice(context)) }
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Section("Layout") {
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
@@ -309,9 +310,9 @@ private fun androidx.compose.foundation.lazy.LazyListScope.typingItems(context: 
                         onClick = {
                             if (key != layout) {
                                 layout = key; Prefs.put(context, "layout", key)
-                                // the dictionary is English: autocorrect is switched off with AZERTY (suggestions stay), and back on with QWERTY if this is what turned it off
-                                if (key == "azerty" && correct) { correct = false; Prefs.put(context, "autocorrect", false); Prefs.put(context, "acByLayout", true) }
-                                else if (key == "qwerty" && Prefs.bool(context, "acByLayout", false)) { correct = true; Prefs.put(context, "autocorrect", true); Prefs.put(context, "acByLayout", false) }
+                                // an earlier version switched autocorrect off with AZERTY because the dictionary was English only: give it back
+                                if (Prefs.bool(context, "acByLayout", false)) { correct = true; Prefs.put(context, "autocorrect", true); Prefs.put(context, "acByLayout", false) }
+                                language = Prefs.languageChoice(context)
                             }
                         },
                         shape = SegmentedButtonDefaults.itemShape(i, Layouts.LAYOUTS.size), icon = {},
@@ -319,9 +320,21 @@ private fun androidx.compose.foundation.lazy.LazyListScope.typingItems(context: 
                 }
             }
             Note(
-                if (layout == "azerty") "A, Z, Q and W swap places and M moves beside N. Autocorrect is off because the dictionary is English; suggestions still work, and you can switch autocorrect back on above. Hold a letter (A, E, I, O, U, C, Y, N, S) to pick an accented form."
+                if (layout == "azerty") "A, Z, Q and W swap places and M moves beside N. Hold a letter (A, E, I, O, U, C, Y, N, S) to pick an accented form."
                 else "The order printed on the Bold. Hold a letter (A, E, I, O, U, C, Y, N, S) to pick an accented form. AZERTY is available too.",
             )
+        }
+        Section("Language") {
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
+                Layouts.LANGUAGES.forEachIndexed { i, (key, name) ->
+                    SegmentedButton(
+                        selected = language == key,
+                        onClick = { language = key; Prefs.put(context, "language", key) },
+                        shape = SegmentedButtonDefaults.itemShape(i, Layouts.LANGUAGES.size), icon = {},
+                    ) { Text(name, maxLines = 1, softWrap = false) }
+                }
+            }
+            Note("Sets the dictionary, suggestions and next-word hints. Automatic follows the layout: French with AZERTY, English with QWERTY. In French, typing \"ete\" offers and corrects to \"été\", and l', j' and qu' are handled. Each language keeps its own personal dictionary.")
         }
         Section("While you type") {
             SwitchRow("Autocorrect", "Fixes a misspelt word when you press space or punctuation. Backspace right after brings your word back.", correct) { correct = it; Prefs.put(context, "autocorrect", it) }
@@ -515,7 +528,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.aboutItems(context: C
         val version = remember { runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "" }
         Section("Version $version") {
             Note("Everything happens on this phone. Typing, learning and the optional context model never use the network and send nothing anywhere; what the keyboard learns stays in this app's private storage. The only thing that touches the internet is the Download button for a context model, and only when you tap it.")
-            Note("Word frequencies come from the OpenSubtitles-based FrequencyWords list (CC BY-SA 4.0). The key legends use the Nunito typeface (SIL Open Font License).")
+            Note("Word frequencies come from the OpenSubtitles-based FrequencyWords lists (CC BY-SA 4.0); French next-word hints are counted from Tatoeba sentences (CC BY 2.0 FR). The key legends use the Nunito typeface (SIL Open Font License).")
             Note("Inspired by the classic BlackBerry Bold 9900 keyboard. BlackBerry is a trademark of its owner; this app is independent and is not affiliated with or endorsed by BlackBerry.")
         }
     }
@@ -555,7 +568,7 @@ private fun ContextContent(context: Context) {
             SwitchRow("Use a context model", "Checks each word against the sentence around it: picks the right fix for a misspelling, and catches real words used for another (their/there, your/you're).", on) {
                 on = it; Prefs.put(context, "contextModel", it)
             }
-            Note("A small language model on this phone scores the words the dictionary suggests. It never writes text and nothing leaves the phone. Switch it off any time to go back to dictionary-only correction.")
+            Note("A small language model on this phone scores the words the dictionary suggests. It never writes text and nothing leaves the phone. Switch it off any time to go back to dictionary-only correction. It has only been measured on English, so it stays off while the language is French.")
             if (on && chosen == null) Note("Download or import a model below to start using it.")
         }
         Section("Models") {

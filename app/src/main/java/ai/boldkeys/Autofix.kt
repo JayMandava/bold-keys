@@ -10,7 +10,7 @@ object Autofix {
 
     /** [before] is everything typed before [word] (any length; only the end is looked at). Returns the replacement in lower case, or null to leave it. */
     fun fix(e: SpellEngine, word: String, before: String): String? {
-        if (!eligible(word, before)) return null
+        if (!eligible(word, before, e.accented)) return null
         if (isKnownForm(e, word)) return e.autocorrect(word, 0f) // leave it, except for the UK/US spelling switch
         // a capital at the start of a sentence may be a name (Fadil, Suni): only fix a plain slip there, never a bigger change
         // two-letter words are often abbreviations (np, ty, rn, fr): only a plain slip counts there (a neighbour key, a swap, a doubled letter)
@@ -36,9 +36,9 @@ object Autofix {
     }
 
     /** False for words that must not be changed by anything, the dictionary or the context model. */
-    fun eligible(word: String, before: String): Boolean {
+    fun eligible(word: String, before: String, accents: Boolean = false): Boolean {
         if (word.length < 2) return false
-        if (word.any { it.code > 127 }) return false // accented or non-English letters: not the dictionary's business
+        if (!accents && word.any { it.code > 127 }) return false // accented or non-English letters: not the English dictionary's business
         val prev = before.lastOrNull()
         if (prev != null && (prev in GLUE || prev.isDigit() || prev.isLetter())) return false
         if (word.any { it.isUpperCase() }) {

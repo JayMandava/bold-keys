@@ -48,6 +48,10 @@ About 40 ms per word. The thresholds were chosen on a separate set of 6,600 case
 
 `Layouts.kt` holds each layout as a table of rows (QWERTY, the default, and AZERTY); every row adds up to ten key widths, so AZERTY moves M down beside N rather than adding a key.
 The small Alt symbols belong to key positions, as on a physical keyboard, so they stay put when the letters change. The choice is `Prefs.layout`, read whenever the keyboard opens.
-The dictionary is English, so choosing AZERTY switches autocorrect off once (remembered, so choosing QWERTY again switches it back on); suggestions are unaffected.
+The language is chosen separately from the layout (`Prefs.language`: Automatic follows the layout, French with AZERTY and English with QWERTY), and each language has its own word list, next-word table and personal dictionary file (`Lang.kt`).
+
+For French, `SpellEngine` is built with `accented = true`: words are indexed by their unaccented form so `ete` finds `été`, a missing or wrong accent costs almost nothing in the typo model, and an unknown word that is just a known word without its accents is offered first.
+`Lang.stripElision` removes a leading `l'`, `j'`, `qu'` and the like before looking a word up. `tools/build_fr.py` builds `words_fr.tsv` (FrequencyWords French, with unaccented spellings dropped where the accented twin is at least four times commoner)
+and `pairs_fr.tsv` (counted from Tatoeba sentences). Measured on the phone: the strip puts the right word first 89.7% of the time, and autocorrect changes 0.07% of the words in 28,000 words of real French text. The context model is switched off for French because it has only been measured on English.
 Holding a letter with accented forms (`Layouts.accents`) shows a row of them after about 420 ms. The plain letter was already typed when the key went down, so choosing one replaces it
 (`onAccent` deletes one character and commits the accented one); letting go without choosing keeps the plain letter. On the top row, where there is no room above the keys, the row is drawn over the key row itself.

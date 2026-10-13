@@ -21,7 +21,8 @@ follow the two steps on screen to turn the keyboard on. Needs Android 13 or newe
 - **Speed key:** hold the right-hand aA key and tap a letter to open an app, a link or type a snippet you set in Settings. Nothing is
   shown on the keys; a plain tap on that key is still Shift.
 - **QWERTY or AZERTY:** choose the layout in Settings > Typing. AZERTY swaps A and Z with Q and W and moves M beside N, and the spelling model follows the layout, so
-  a slip to a neighbouring key still counts as a slip. The dictionary is English, so autocorrect switches off when you choose AZERTY (suggestions stay, and you can switch it back on); it comes back with QWERTY.
+  a slip to a neighbouring key still counts as a slip. Choose the dictionary separately under Language (Automatic gives French with AZERTY, English with QWERTY).
+- **French:** a French dictionary and next-word hints, with accent-aware correction (`ete` becomes `été`, `ca` becomes `ça`) and `l'`, `j'`, `qu'` handled. The optional context model stays English-only for now.
 - **Accents on hold:** hold A, E, I, O, U, C, Y, N or S and slide to an accented form (é è ê ë, à â ä, ç, ñ and more); the plain letter is replaced when you let go.
 - **American or British spelling:** colour/color, realise/realize and similar pairs follow the one you choose.
 - **Context model (optional):** a small language model checks each word against the sentence around it. It picks the right fix for a

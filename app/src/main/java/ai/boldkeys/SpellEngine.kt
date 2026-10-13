@@ -8,7 +8,7 @@ import kotlin.math.min
  * Suggestions and autocorrect without any model: a frequency dictionary, a typo model that knows where the keys really are (a letter hit
  * next to the right one costs less than a random one), and the words the user has taught it. Fast enough to answer on every key press.
  */
-class SpellEngine(entries0: List<Pair<String, Int>>) {
+class SpellEngine(entries0: List<Pair<String, Int>>, val accented: Boolean = false) {
     class Cand(val word: String, val score: Float, val cost: Float, val completion: Boolean)
 
     /** American -> British and back, for the pairs that exist. */
@@ -18,6 +18,8 @@ class SpellEngine(entries0: List<Pair<String, Int>>) {
     var british = false
 
     private val words: Array<String>
+    /** What each word is looked up by: the word itself, or (for a language with accents) the word without them, so "ete" finds "été". */
+    private val key: Array<String>
     private val logf: FloatArray
     private val index = HashMap<String, Int>(entries0.size * 2 + 2000)
     private val byLen: Array<IntArray>
@@ -31,7 +33,7 @@ class SpellEngine(entries0: List<Pair<String, Int>>) {
     init {
         val byWord = entries0.toMap()
         val extra = ArrayList<Pair<String, Int>>()
-        for ((us, uk) in Spelling.pairs(byWord.keys)) {
+        if (!accented) for ((us, uk) in Spelling.pairs(byWord.keys)) {
             usToUk[us] = uk; ukToUs[uk] = us
             if (uk !in byWord) extra.add(uk to maxOf(1, ((byWord[us] ?: 1) * 0.9).toInt()))
         }
@@ -39,15 +41,16 @@ class SpellEngine(entries0: List<Pair<String, Int>>) {
         val sorted = entries.sortedByDescending { it.second }
         words = Array(sorted.size) { sorted[it].first }
         logf = FloatArray(sorted.size) { ln(sorted[it].second.toFloat() + 1f) }
+        key = if (accented) Array(words.size) { fold(words[it]) } else words
         for (i in words.indices) index[words[i]] = i
         val buckets = Array(MAX_LEN + 1) { ArrayList<Int>() }
         for (i in words.indices) if (words[i].length <= MAX_LEN) buckets[words[i].length].add(i)
         byLen = Array(MAX_LEN + 1) { buckets[it].toIntArray() }
-        alpha = words.indices.sortedBy { words[it] }.toIntArray()
+        alpha = words.indices.sortedBy { key[it] }.toIntArray()
         val keys = LongArray(words.sumOf { (if (it.length <= MAX_LEN) it.length + 1 else 0) })
         var k = 0
         for (i in words.indices) {
-            val w = words[i]
+            val w = key[i]
             if (w.length > MAX_LEN) continue
             keys[k++] = pack(w.hashCode(), i)
             for (j in w.indices) keys[k++] = pack((w.substring(0, j) + w.substring(j + 1)).hashCode(), i)
@@ -112,13 +115,13 @@ class SpellEngine(entries0: List<Pair<String, Int>>) {
 
     /** Up to [n] words that start with [prefix], most likely first. */
     fun complete(prefix: String, n: Int): List<Cand> {
-        val p = prefix.lowercase()
+        val p = fold(prefix.lowercase())
         if (p.isEmpty()) return emptyList()
         var lo = 0; var hi = alpha.size
-        while (lo < hi) { val mid = (lo + hi) ushr 1; if (words[alpha[mid]] < p) lo = mid + 1 else hi = mid }
+        while (lo < hi) { val mid = (lo + hi) ushr 1; if (key[alpha[mid]] < p) lo = mid + 1 else hi = mid }
         val best = ArrayList<Cand>()
         var i = lo; var scanned = 0
-        while (i < alpha.size && words[alpha[i]].startsWith(p) && scanned < 4000) {
+        while (i < alpha.size && key[alpha[i]].startsWith(p) && scanned < 4000) {
             val w = words[alpha[i]]
             if (w.length > p.length && allowed(w)) {
                 val s = logf[alpha[i]] - 0.15f * (w.length - p.length) // a short completion beats a long one of similar frequency
@@ -126,7 +129,7 @@ class SpellEngine(entries0: List<Pair<String, Int>>) {
             }
             i++; scanned++
         }
-        for ((w, c) in learned) if (c >= LEARN_AFTER && w.startsWith(p) && w.length > p.length) insert(best, Cand(w, learnedLog(w)!! - 0.15f * (w.length - p.length), 0f, true), n)
+        for ((w, c) in learned) if (c >= LEARN_AFTER && fold(w).startsWith(p) && w.length > p.length) insert(best, Cand(w, learnedLog(w)!! - 0.15f * (w.length - p.length), 0f, true), n)
         return best
     }
 
@@ -137,8 +140,9 @@ class SpellEngine(entries0: List<Pair<String, Int>>) {
         val maxCost = if (t.length <= 3) 1.05f else if (t.length <= 5) 1.55f else 2.05f
         val best = ArrayList<Cand>()
         val found = HashSet<Int>()
-        lookup(t, found)
-        for (j in t.indices) lookup(t.substring(0, j) + t.substring(j + 1), found)
+        val ft = fold(t)
+        lookup(ft, found)
+        for (j in ft.indices) lookup(ft.substring(0, j) + ft.substring(j + 1), found)
         for (i in found) {
             val w = words[i]
             if (w == t || !allowed(w)) continue
@@ -160,6 +164,8 @@ class SpellEngine(entries0: List<Pair<String, Int>>) {
         for (c in correct(typed, 4)) insert(out, c, n + 2)
         // a word the user already typed correctly is not worth offering back to them
         out.removeAll { it.word == typed.lowercase() }
+        // an unknown word that is just a known one without its accents ("ete") should offer that word first
+        if (accented && !isWord(typed)) { val f = fold(typed.lowercase()); out.sortByDescending { fold(it.word) == f } }
         return out.take(n)
     }
 
@@ -202,12 +208,13 @@ class SpellEngine(entries0: List<Pair<String, Int>>) {
     private val scratch = Array(3) { FloatArray(MAX_LEN + 3) }
 
     private fun near(a: Char, b: Char): Boolean {
-        val p = pos[a] ?: return false; val q = pos[b] ?: return false
+        val p = pos[fold(a)] ?: return false; val q = pos[fold(b)] ?: return false
         return abs(p.first - q.first) <= 1 && abs(p.second - q.second) <= 1
     }
 
     private fun subCost(a: Char, b: Char, first: Boolean): Float {
         if (a == b) return 0f
+        if (accented && fold(a) == fold(b)) return ACCENT // the right letter without (or with the wrong) accent: a slip, not a different word
         val base = if (near(a, b)) 0.55f else 1f
         return if (first) base + 0.5f else base
     }
@@ -235,7 +242,17 @@ class SpellEngine(entries0: List<Pair<String, Int>>) {
         return prev[m]
     }
 
+    /** The letter without its accent (only for a language that has them; English text passes through untouched). */
+    private fun fold(c: Char): Char = if (!accented) c else FOLD[c] ?: c
+    private fun fold(s: String): String = if (!accented) s else buildString(s.length) { for (c in s) append(fold(c)) }
+
     companion object {
+        private const val ACCENT = 0.05f
+        private val FOLD: Map<Char, Char> = HashMap<Char, Char>().also { m ->
+            for ((base, accented) in listOf('a' to "àâäæ", 'e' to "éèêë", 'i' to "îï", 'o' to "ôöœ", 'u' to "ùûü", 'y' to "ÿ", 'c' to "ç")) for (c in accented) m[c] = base
+        }
+        /** [s] without its accents (for tests and tools). */
+        fun unaccent(s: String): String = s.map { FOLD[it] ?: it }.joinToString("")
         const val MAX_LEN = 24
         const val LEARN_AFTER = 2
         private const val INS = 1f
@@ -246,8 +263,8 @@ class SpellEngine(entries0: List<Pair<String, Int>>) {
         var AC_COST = 1.25f // measured on the phone: fixes 79% of typos; see EvalActivity
         var AC_MIN_LOG = 9.5f
 
-        fun fromTsv(text: String): SpellEngine = SpellEngine(text.lineSequence().mapNotNull { l ->
+        fun fromTsv(text: String, accented: Boolean = false): SpellEngine = SpellEngine(text.lineSequence().mapNotNull { l ->
             val t = l.indexOf('\t'); if (t <= 0) null else l.substring(0, t) to (l.substring(t + 1).toIntOrNull() ?: 1)
-        }.toList())
+        }.toList(), accented)
     }
 }

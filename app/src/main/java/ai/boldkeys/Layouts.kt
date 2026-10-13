@@ -37,6 +37,9 @@ object Layouts {
         return out
     }
 
+    /** The languages on offer: the id kept in the settings, and its name. */
+    val LANGUAGES = listOf("auto" to "Automatic", "en" to "English", "fr" to "Français")
+
     /** What press-and-hold on a letter offers, most common first. */
     val accents: Map<Char, String> = mapOf(
         'a' to "àâäáãåæ", 'e' to "éèêë", 'i' to "îïíì", 'o' to "ôöòóœõ", 'u' to "ùûüú", 'c' to "ç", 'y' to "ÿý", 'n' to "ñ", 's' to "ß",
