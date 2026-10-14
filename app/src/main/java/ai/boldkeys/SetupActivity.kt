@@ -609,7 +609,7 @@ private fun ContextContent(context: Context) {
         }
         Section("Downloads") {
             SwitchRow("Wi-Fi only", "Models are a few hundred megabytes. Downloads are checked against a fixed checksum, and a file that does not match is thrown away.", wifiOnly) { wifiOnly = it; Prefs.put(context, "modelWifiOnly", it) }
-            Note("Downloading is the only thing in this app that uses the internet, and only when you tap Download.")
+            Note("Downloading is the only thing in this app that uses the internet, and only when you tap Download. Wi-Fi only asks Android whether the connection is metered, which is why the app also holds the permission to see the network state.")
         }
     }
 }
