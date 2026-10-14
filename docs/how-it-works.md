@@ -55,3 +55,13 @@ For French, `SpellEngine` is built with `accented = true`: words are indexed by 
 and `pairs_fr.tsv` (counted from Tatoeba sentences). Measured on the phone: the strip puts the right word first 89.7% of the time, and autocorrect changes 0.07% of the words in 28,000 words of real French text. The context model is switched off for French because it has only been measured on English.
 Holding a letter with accented forms (`Layouts.accents`) shows a row of them after about 420 ms. The plain letter was already typed when the key went down, so choosing one replaces it
 (`onAccent` deletes one character and commits the accented one); letting go without choosing keeps the plain letter. On the top row, where there is no room above the keys, the row is drawn over the key row itself.
+
+## The pickers: symbols and emoji
+
+Both pickers are one scrollable grid (`pickerTouch`, `drawPicker` in `KeyboardView`). The sym key opens three pages of symbols in five columns; the right-hand key opens the emoji, seven columns wide.
+A drag on the grid scrolls it, a tap types, and "more" jumps to the next page or group. While a picker is open the trackpad scrolls it (`pickerScroll`): up and down move the grid, a longer swipe sideways jumps a group.
+
+The emoji come from `assets/emoji.tsv`, built by `tools/build_emoji.py` from Unicode's `emoji-test.txt` (fully-qualified emoji, in Unicode's groups, with the five single-tone variants kept beside the 308 emoji that take a tone).
+`Emoji.groups` drops, at run time, every emoji the phone's font cannot draw as one glyph (`Paint.hasGlyph`), so newer emoji appear as the phone's Android version supports them and there are no empty boxes.
+Holding an emoji that takes a tone offers the plain one and the five tones to slide to (like the accent row); the choice is remembered for that emoji, and Settings holds a default tone for all of them.
+The right-hand key is also the Speed key: a plain tap (under 450 ms, with no letter tapped) opens the emoji picker; holding it and tapping a letter runs that letter's shortcut as before. With the emoji key switched off, a plain tap is a Shift again.

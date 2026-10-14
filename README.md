@@ -12,13 +12,13 @@ follow the two steps on screen to turn the keyboard on. Needs Android 13 or newe
 
 - **Keys that feel real:** each key is drawn as a lit 3D surface, with a haptic click, black or white themes and an optional backlight
   (white, amber, blue or green; on, off or following the light sensor).
-- **Four rows, no number row:** every key has a second symbol, reached by holding or tapping alt. The sym key opens a picker with symbols
-  and emoji; it stays open until you close it.
+- **Four rows, no number row:** every key has a second symbol, reached by holding or tapping alt. The sym key opens a picker of symbols (three pages), and the right-hand key opens the emoji picker; both stay open until you close them, and scroll with the trackpad or your finger.
 - **Trackpad:** drag on the bar to move the cursor. Hold shift and drag to select. A quick tap takes the first suggestion.
 - **Autocorrect and suggestions:** a dictionary tuned to where thumbs land (a miss next to the right key costs less than a random one),
   completions as you type, next-word suggestions, and double space for a full stop. Backspace right after a correction brings your word
   back and teaches it. Words you type twice are learned; you can add, remove and clear them in Settings.
-- **Speed key:** hold the right-hand aA key and tap a letter to open an app, a link or type a snippet you set in Settings. Nothing is
+- **Emoji:** tap the right-hand key (the smiley) for every emoji your phone can show, in Unicode's groups, with skin tones (hold an emoji with a dot and slide to a tone; set a default in Settings). "more" jumps to the next group.
+- **Speed key:** hold the right-hand key and tap a letter to open an app, a link or type a snippet you set in Settings. Nothing is
   shown on the keys; a plain tap on that key is still Shift.
 - **QWERTY or AZERTY:** choose the layout in Settings > Typing. AZERTY swaps A and Z with Q and W and moves M beside N, and the spelling model follows the layout, so
   a slip to a neighbouring key still counts as a slip. Choose the dictionary separately under Language (Automatic gives French with AZERTY, English with QWERTY).

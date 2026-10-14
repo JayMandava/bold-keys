@@ -395,6 +395,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
     }
 
     override fun onPick(index: Int) {
+        if (kb.pickerOpen()) return // a tap on the trackpad must not drop a word into the text while the picker is open
         val ic = currentInputConnection ?: return
         val pick = shown.getOrNull(index) ?: return
         val word = currentWord()
@@ -422,6 +423,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
     // ---- trackpad
 
     override fun onMove(dx: Int, dy: Int, select: Boolean) {
+        if (kb.pickerOpen()) { kb.pickerScroll(dx, dy); return } // with the symbol or emoji picker open the trackpad scrolls it
         val meta = if (select) KeyEvent.META_SHIFT_ON or KeyEvent.META_SHIFT_LEFT_ON else 0
         fun press(code: Int, times: Int) {
             repeat(kotlin.math.abs(times)) {

@@ -45,18 +45,11 @@ object Layouts {
         'a' to "àâäáãåæ", 'e' to "éèêë", 'i' to "îïíì", 'o' to "ôöòóœõ", 'u' to "ùûüú", 'c' to "ç", 'y' to "ÿý", 'n' to "ñ", 's' to "ß",
     )
 
-    /** How many of the picker's first pages are symbols; the rest are emoji, which the user can switch off. */
-    const val SYMBOL_ONLY = 3
-
-    /** The pages of the SYM picker. */
+    /** The pages of the SYM picker (emoji have their own picker, from the emoji key). */
     val symbolPages: List<List<String>> = listOf(
         listOf("!", "?", ".", ",", ";", ":", "'", "\"", "(", ")", "-", "_", "/", "\\", "@", "#", "$", "%", "&", "*"),
         listOf("+", "=", "<", ">", "[", "]", "{", "}", "~", "^", "|", "`", "€", "£", "¥", "¢", "°", "±", "×", "÷"),
         listOf("§", "¶", "©", "®", "™", "•", "…", "¿", "¡", "«", "»", "é", "è", "ê", "à", "ç", "ñ", "ü", "ö", "ß"),
-        // emoji live at the end of the cycle: nothing on the keys shows them, as on the original
-        listOf("😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇", "🙂", "😉", "😍", "🥰", "😘", "😋", "😎", "🤔", "😐", "😴"),
-        listOf("😢", "😭", "😡", "😱", "😳", "🤗", "🙄", "😬", "😮", "🥳", "😏", "😔", "😞", "😤", "🤯", "🥺", "😷", "🤒", "😈", "💀"),
-        listOf("👍", "👎", "👏", "🙏", "💪", "👌", "✌️", "🤝", "👋", "🤞", "❤️", "💔", "🔥", "✨", "🎉", "💯", "⭐", "👀", "🎂", "☕"),
     )
 
     /** Text emoticons that turn into emoji. Those that cannot be part of a normal word change as soon as they are typed; the rest wait for a space or punctuation. */

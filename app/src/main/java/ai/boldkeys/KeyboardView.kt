@@ -44,28 +44,26 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
     private class Cell(val key: Key, val row: Int, val col: Int, val rect: RectF)
 
     private var th = KeyTheme(true)
-    private var showEmoji = true
+    private var emojiKey = true // the right-hand key opens the emoji picker (a tap) or runs the Speed key (held); off, a tap is a Shift
     private var glowMode = "off"
     private var glowRgb = 0xFFEAF2FF.toInt()
     private var glowSetting = 0.6f
     private var ambient = 1f // 1 in the dark, 0 in bright light (from the phone's light sensor); only used when the backlight is on Auto
     private var glow = 0f
 
-    private fun symPages() = if (showEmoji) Layouts.symbolPages else Layouts.symbolPages.take(Layouts.SYMBOL_ONLY)
-
     /** Reads the look and behaviour the user chose; called whenever the keyboard is shown. */
     fun applySettings() {
         val c = context
         th = KeyTheme(Prefs.isDark(c))
-        showEmoji = Prefs.emojiPages(c)
-                glowMode = Prefs.backlightMode(c)
+        emojiKey = Prefs.emojiPages(c)
+        glowMode = Prefs.backlightMode(c)
         glowRgb = Prefs.BACKLIGHT_COLORS[Prefs.backlightColor(c)] ?: 0xFFEAF2FF.toInt()
         glowSetting = Prefs.backlightLevel(c)
         val layout = Prefs.layout(c)
         if (layout != layoutId) { layoutId = layout; rebuild() }
         updateGlow()
         faces.clear()
-        if (symPage >= symPages().size) symPage = -1
+        if (picker == Picker.EMOJI && !emojiKey) closePicker()
         invalidate()
     }
 
@@ -113,11 +111,10 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
     private var altHeld = false // a finger is on Alt right now: keys type their symbols for as long as it stays there (the other thumb types)
     private var altUsedWhileHeld = false
     private var lastShiftTap = 0L
-    /** The Speed key (right-hand aA position): hold it and tap a letter to run that letter's shortcut; a plain tap still works as Shift. */
+    /** The right-hand key: hold it and tap a letter to run that letter's Speed shortcut; a plain tap opens the emoji picker (or, with the emoji key off, works as Shift). */
     private var speedHeld = false
     private var speedUsed = false
-    /** The SYM picker: -1 when closed, otherwise the page showing. Pressing SYM again moves to the next page. */
-    private var symPage = -1
+    private var speedDownAt = 0L
     private var cells: List<List<Cell>> = emptyList()
     private val pressed = HashMap<Int, Cell>()
     private val ui = Handler(Looper.getMainLooper())
@@ -196,12 +193,12 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         canvas.restore()
         val down = pressed.values.toSet()
         for (row in cells) for (c in row) drawKey(canvas, c, c in down || latched(c.key))
-        if (symPage >= 0) drawSymPanel(canvas)
+        if (picker != Picker.NONE) drawPicker(canvas)
         drawAccents(canvas)
     }
 
     /** A modifier that is on stays pressed in, like a held key; nothing else about the keyboard changes. */
-    private fun latched(k: Key) = (k.kind == Kind.LAYER && altMode != Shift.OFF) || ((k.kind == Kind.SHIFT || k.kind == Kind.SPEED) && shift != Shift.OFF)
+    private fun latched(k: Key) = (k.kind == Kind.LAYER && altMode != Shift.OFF) || ((k.kind == Kind.SHIFT || (k.kind == Kind.SPEED && !emojiKey)) && shift != Shift.OFF)
 
     private fun drawRidge(canvas: Canvas, y: Float) {
         val p = Path().apply {
@@ -341,7 +338,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                 clearShadow(); drawBackArrow(canvas, acx, cy + dp(8f))
             }
             Kind.SPACE -> fitWord(canvas, "space", acx, cy - dp(2f), dp(13f), maxW)
-            Kind.SPEED -> { clearShadow(); drawShiftKey(canvas, acx, cy, false, maxW) }
+            Kind.SPEED -> { clearShadow(); if (emojiKey) drawSmiley(canvas, acx, cy) else drawShiftKey(canvas, acx, cy, false, maxW) }
             Kind.SYM -> fitWord(canvas, "sym", acx, cy, dp(13f), maxW)
             Kind.LAYER -> {
                 fitWord(canvas, "alt", acx, cy, dp(13f), maxW)
@@ -428,6 +425,19 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         icon.strokeWidth = dp(1.8f)
     }
 
+    /** The emoji key: a small outlined smiley. */
+    private fun drawSmiley(canvas: Canvas, cx: Float, cy: Float) {
+        val r = dp(8.5f)
+        icon.color = th.legend; icon.strokeWidth = dp(1.4f); icon.style = Paint.Style.STROKE
+        canvas.drawCircle(cx, cy, r, icon)
+        icon.style = Paint.Style.FILL
+        canvas.drawCircle(cx - r * 0.38f, cy - r * 0.25f, dp(1.2f), icon)
+        canvas.drawCircle(cx + r * 0.38f, cy - r * 0.25f, dp(1.2f), icon)
+        icon.style = Paint.Style.STROKE
+        canvas.drawArc(RectF(cx - r * 0.55f, cy - r * 0.35f, cx + r * 0.55f, cy + r * 0.55f), 20f, 140f, false, icon)
+        icon.strokeWidth = dp(1.8f)
+    }
+
     private fun drawBackArrow(canvas: Canvas, cx: Float, cy: Float) {
         val w = dp(6f); val h = dp(2.5f)
         icon.color = th.legend; icon.strokeWidth = dp(1.1f)
@@ -475,10 +485,10 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
     }
 
     override fun onTouchEvent(e: MotionEvent): Boolean {
+        if (picker != Picker.NONE) return pickerTouch(e)
         when (e.actionMasked) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
                 val i = e.actionIndex
-                if (symPage >= 0) { symTouch(e.getX(i), e.getY(i)); return true }
                 hit(e.getX(i), e.getY(i))?.let { c ->
                     pressed[e.getPointerId(i)] = c
                     feedback.key()
@@ -486,7 +496,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                     val wasUpper = shift != Shift.OFF
                     val plain = altMode == Shift.OFF && !altHeld && !speedHeld
                     if (c.key.kind == Kind.LAYER) { altHeld = true; altUsedWhileHeld = false }
-                    if (c.key.kind == Kind.SPEED) { speedHeld = true; speedUsed = false }
+                    if (c.key.kind == Kind.SPEED) { speedHeld = true; speedUsed = false; speedDownAt = SystemClock.uptimeMillis() }
                     else if (speedHeld && c.key.kind == Kind.CHAR && c.key.label.length == 1 && c.key.label[0].isLetter()) {
                         speedUsed = true
                         listener.onShortcut(c.key.label[0])
@@ -525,7 +535,11 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                 }
                 if (up?.key?.kind == Kind.SPEED) {
                     speedHeld = false
-                    if (!speedUsed) fire(Key("shift", "", 1.5f, Kind.SHIFT)) // let go without using it: it was a plain Shift tap
+                    // let go without using it: a quick tap opens the emoji picker (or is a plain Shift when the emoji key is off); a long hold that did nothing is left alone
+                    if (!speedUsed) {
+                        if (!emojiKey) fire(Key("shift", "", 1.5f, Kind.SHIFT))
+                        else if (SystemClock.uptimeMillis() - speedDownAt < 450) { feedback.key(); openPicker(Picker.EMOJI) }
+                    }
                 }
                 if (pressed.values.none { it.key.kind == Kind.DELETE }) ui.removeCallbacks(repeatDelete)
                 invalidate()
@@ -622,7 +636,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                 lastShiftTap = now
             }
             Kind.SPEED -> {}
-            Kind.SYM -> symPage = 0
+            Kind.SYM -> openPicker(Picker.SYM)
             Kind.DELETE -> listener.onDelete()
             Kind.ENTER -> listener.onEnter()
             Kind.LAYER -> {
@@ -638,62 +652,274 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         invalidate()
     }
 
-    // ---- the SYM picker: a grid of symbols; SYM cycles the pages
+    // ---- the pickers: symbols (the sym key) and emoji (the right-hand key). A grid that scrolls: drag it, or use the trackpad; "more" jumps to the next page or group.
 
-    private class SymLayout(val cells: List<RectF>, val more: RectF, val close: RectF)
+    private enum class Picker { NONE, SYM, EMOJI }
+    private var picker = Picker.NONE
+    private var pickItems = ArrayList<String>()
+    private var pickBases = ArrayList<Emoji.Item?>() // emoji: what is behind each cell, so a hold can offer skin tones
+    private var pickSections: List<Pair<String, Int>> = emptyList() // a name, and the index of its first cell
+    private var pickCols = 5
+    private var pickScroll = 0f
+    private var tones: Pair<Map<String, Int>, Int> = emptyMap<String, Int>() to 0
 
-    private fun symLayout(): SymLayout {
-        val pad = dp(8f); val gapX = dp(6f); val gapY = dp(6f)
-        val cols = 5; val rowsN = 4
-        val pillH = dp(34f)
-        val gridH = height - pad * 2 - pillH - dp(8f)
-        val cw = (width - pad * 2 - gapX * (cols - 1)) / cols
-        val ch = (gridH - gapY * (rowsN - 1)) / rowsN
-        val cells = ArrayList<RectF>()
-        for (r in 0 until rowsN) for (c in 0 until cols) {
-            val l = pad + c * (cw + gapX); val tp = pad + r * (ch + gapY)
-            cells.add(RectF(l, tp, l + cw, tp + ch))
+    fun pickerOpen() = picker != Picker.NONE
+
+    private fun openPicker(mode: Picker) {
+        picker = mode; pickScroll = 0f; stopTones()
+        pickItems = ArrayList(); pickBases = ArrayList()
+        val sections = ArrayList<Pair<String, Int>>()
+        if (mode == Picker.SYM) {
+            pickCols = 5
+            Layouts.symbolPages.forEachIndexed { i, page ->
+                sections.add("${i + 1}/${Layouts.symbolPages.size}" to pickItems.size)
+                for (s in page) { pickItems.add(s); pickBases.add(null) }
+            }
+        } else {
+            pickCols = 7
+            tones = Emoji.toneState(context)
+            for (g in Emoji.groups(context)) {
+                sections.add(g.name to pickItems.size)
+                for (it in g.items) { pickItems.add(Emoji.shown(it, Emoji.tone(it, tones.first, tones.second))); pickBases.add(it) }
+                while (pickItems.size % pickCols != 0) { pickItems.add(""); pickBases.add(null) } // each group starts on a fresh row
+            }
         }
-        val y = height - pad - pillH
-        val half = (width - pad * 2 - gapX) / 2
-        return SymLayout(cells, RectF(pad, y, pad + half, y + pillH), RectF(pad + half + gapX, y, width - pad, y + pillH))
+        pickSections = sections
+        invalidate()
     }
 
-    private fun drawSymPanel(canvas: Canvas) {
-        val lay = symLayout()
-        fill.shader = null; fill.color = th.panel
+    private fun closePicker() { picker = Picker.NONE; stopTones(); invalidate() }
+
+    private class PickGeo(val grid: RectF, val cw: Float, val ch: Float, val gx: Float, val gy: Float, val more: RectF, val label: RectF, val close: RectF) {
+        val stride get() = ch + gy
+    }
+
+    private fun pickGeo(): PickGeo {
+        val pad = dp(8f); val gapX = dp(6f); val gapY = dp(6f)
+        val rowsN = 4
+        val pillH = dp(34f)
+        val gridH = height - pad * 2 - pillH - dp(8f)
+        val cw = (width - pad * 2 - gapX * (pickCols - 1)) / pickCols
+        val ch = (gridH - gapY * (rowsN - 1)) / rowsN
+        val y = height - pad - pillH
+        val pill = (width - pad * 2 - gapX * 2) * 0.3f
+        val more = RectF(pad, y, pad + pill, y + pillH)
+        val close = RectF(width - pad - pill, y, width - pad, y + pillH)
+        return PickGeo(RectF(pad, pad, width - pad, pad + gridH), cw, ch, gapX, gapY, more, RectF(more.right + gapX, y, close.left - gapX, y + pillH), close)
+    }
+
+    private fun maxScroll(g: PickGeo): Float {
+        val rows = (pickItems.size + pickCols - 1) / pickCols
+        return max(0f, rows * g.stride - g.gy - g.grid.height())
+    }
+
+    /** The trackpad scrolls the picker: up and down move the grid, a longer swipe sideways jumps to the next page or group. */
+    private var padDx = 0
+    fun pickerScroll(dx: Int, dy: Int) {
+        if (picker == Picker.NONE) return
+        val g = pickGeo()
+        if (dy != 0) pickScroll = (pickScroll + dy * dp(23f)).coerceIn(0f, maxScroll(g))
+        padDx += dx
+        if (abs(padDx) >= 4) { jump(if (padDx > 0) 1 else -1); padDx = 0 }
+        invalidate()
+    }
+
+    /** Scrolls to the start of the next (or previous) page or group, wrapping round. */
+    private fun jump(dir: Int) {
+        if (pickSections.isEmpty()) return
+        val g = pickGeo()
+        val row = (pickScroll / g.stride + 0.5f).toInt()
+        val here = pickSections.indexOfLast { it.second / pickCols <= row }.coerceAtLeast(0)
+        val to = (here + dir + pickSections.size) % pickSections.size
+        pickScroll = (pickSections[to].second / pickCols * g.stride).coerceIn(0f, maxScroll(g))
+    }
+
+    private fun sectionName(g: PickGeo): String {
+        val row = (pickScroll / g.stride + 0.5f).toInt()
+        return pickSections.lastOrNull { it.second / pickCols <= row }?.first ?: ""
+    }
+
+    private val emojiPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER }
+
+    private fun drawPicker(canvas: Canvas) {
+        val g = pickGeo()
+        fill.shader = null; fill.color = th.bg // solid underneath, so the keys do not show through the panel
         canvas.drawPath(body, fill)
-        val page = symPages()[symPage % symPages().size]
-        legend.color = th.legend
-        for ((i, r) in lay.cells.withIndex()) {
-            fill.shader = LinearGradient(0f, r.top, 0f, r.bottom, th.padTop, th.padBottom, Shader.TileMode.CLAMP)
-            canvas.drawRoundRect(r, dp(7f), dp(7f), fill)
+        fill.color = th.panel
+        canvas.drawPath(body, fill)
+        pickScroll = pickScroll.coerceIn(0f, maxScroll(g))
+        val cellShader = LinearGradient(0f, 0f, 0f, g.ch, th.padTop, th.padBottom, Shader.TileMode.CLAMP)
+        val emoji = picker == Picker.EMOJI
+        emojiPaint.textSize = dp(24f)
+        legend.color = th.legend; legend.textSize = dp(21f)
+        canvas.save()
+        canvas.clipRect(g.grid)
+        val first = (pickScroll / g.stride).toInt().coerceAtLeast(0)
+        val last = ((pickScroll + g.grid.height()) / g.stride).toInt()
+        for (row in first..last) for (c in 0 until pickCols) {
+            val i = row * pickCols + c
+            if (i >= pickItems.size) break
+            val s = pickItems[i]
+            if (s.isEmpty()) continue
+            val l = g.grid.left + c * (g.cw + g.gx); val t = g.grid.top + row * g.stride - pickScroll
+            canvas.save(); canvas.translate(l, t)
+            fill.shader = cellShader
+            canvas.drawRoundRect(0f, 0f, g.cw, g.ch, dp(7f), dp(7f), fill)
             fill.shader = null
-            legend.textSize = dp(21f)
-            drawInk(canvas, page.getOrNull(i) ?: "", r.centerX(), r.centerY())
+            if (emoji) {
+                canvas.drawText(s, g.cw / 2f, g.ch / 2f - (emojiPaint.ascent() + emojiPaint.descent()) / 2f, emojiPaint)
+                if (pickBases[i]?.tones?.isNotEmpty() == true) { // a small corner mark: hold this one for skin tones
+                    fill.color = th.barText2
+                    canvas.drawCircle(g.cw - dp(5f), g.ch - dp(5f), dp(1.6f), fill)
+                }
+            } else drawInk(canvas, s, g.cw / 2f, g.ch / 2f)
+            canvas.restore()
         }
-        for ((r, label) in listOf(lay.more to "more", lay.close to "close")) {
+        canvas.restore()
+        // where you are in the list
+        val rows = (pickItems.size + pickCols - 1) / pickCols
+        val ms = maxScroll(g)
+        if (ms > 0f) {
+            val trackH = g.grid.height(); val thumbH = max(dp(18f), trackH * trackH / (rows * g.stride))
+            val ty = g.grid.top + (trackH - thumbH) * (pickScroll / ms)
+            fill.color = th.divider
+            canvas.drawRoundRect(g.grid.right - dp(3f), ty, g.grid.right, ty + thumbH, dp(1.5f), dp(1.5f), fill)
+        }
+        for ((r, label) in listOf(g.more to "more", g.close to "close")) {
             fill.shader = LinearGradient(0f, r.top, 0f, r.bottom, th.pillTop, th.pillBottom, Shader.TileMode.CLAMP)
             canvas.drawRoundRect(r, dp(17f), dp(17f), fill)
             fill.shader = null
             legend.textSize = dp(13f)
             drawInk(canvas, label, r.centerX(), r.centerY())
         }
+        legend.color = th.barText2; legend.textSize = dp(12f)
+        drawInk(canvas, sectionName(g), g.label.centerX(), g.label.centerY())
+        drawTones(canvas)
     }
 
-    private fun symTouch(x: Float, y: Float) {
-        val lay = symLayout()
-        val page = symPages()[symPage % symPages().size]
+    private fun cellAt(g: PickGeo, x: Float, y: Float): Int {
+        if (!g.grid.contains(x, y)) return -1
+        val c = ((x - g.grid.left) / (g.cw + g.gx)).toInt().coerceIn(0, pickCols - 1)
+        val ry = y - g.grid.top + pickScroll
+        val r = (ry / g.stride).toInt()
+        if (ry - r * g.stride > g.ch) return -1 // in the gap between rows
+        val i = r * pickCols + c
+        return if (i in pickItems.indices && pickItems[i].isNotEmpty()) i else -1
+    }
+
+    private var pDown = false
+    private var pDrag = false
+    private var pY = 0f
+    private var pStartScroll = 0f
+    private var pCell = -1
+
+    private fun pickerTouch(e: MotionEvent): Boolean {
+        val g = pickGeo()
+        when (e.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                pDown = true; pDrag = false; pY = e.y; pStartScroll = pickScroll
+                pCell = cellAt(g, e.x, e.y)
+                if (pBases(pCell)?.tones?.isNotEmpty() == true) ui.postDelayed(showTones, 420)
+            }
+            MotionEvent.ACTION_MOVE -> if (pDown) {
+                if (toneRects.isNotEmpty()) {
+                    val idx = toneRects.indices.minByOrNull { abs(toneRects[it].centerX() - e.x) } ?: -1
+                    if (idx != toneIndex) { toneIndex = idx; invalidate() }
+                } else {
+                    if (!pDrag && abs(e.y - pY) > dp(8f)) { pDrag = true; ui.removeCallbacks(showTones) }
+                    if (pDrag) { pickScroll = (pStartScroll - (e.y - pY)).coerceIn(0f, maxScroll(g)); invalidate() }
+                }
+            }
+            MotionEvent.ACTION_UP -> {
+                ui.removeCallbacks(showTones)
+                if (pDown) {
+                    if (toneRects.isNotEmpty()) chooseTone()
+                    else if (!pDrag) pickerTap(g, e.x, e.y)
+                }
+                pDown = false
+                releaseKeys(e)
+            }
+            MotionEvent.ACTION_CANCEL -> { ui.removeCallbacks(showTones); stopTones(); pDown = false; pressed.clear(); altHeld = false; speedHeld = false; invalidate() }
+            MotionEvent.ACTION_POINTER_UP -> releaseKeys(e)
+        }
+        return true
+    }
+
+    /** The finger that opened the picker lifts after it is up: let go of the key it was on. */
+    private fun releaseKeys(e: MotionEvent) {
+        pressed.remove(e.getPointerId(e.actionIndex))
+        if (pressed.isEmpty()) { altHeld = false; speedHeld = false }
+        invalidate()
+    }
+
+    private fun pBases(i: Int) = if (i in pickBases.indices) pickBases[i] else null
+
+    private fun pickerTap(g: PickGeo, x: Float, y: Float) {
         feedback.key()
         when {
-            lay.more.contains(x, y) -> symPage = (symPage + 1) % symPages().size
-            lay.close.contains(x, y) -> symPage = -1
+            g.more.contains(x, y) -> jump(1)
+            g.close.contains(x, y) -> closePicker()
             else -> {
-                val i = lay.cells.indexOfFirst { it.contains(x, y) }
-                if (i >= 0 && i < page.size) listener.onText(page[i]) // the picker stays open: only "close" puts the keys back
+                val i = cellAt(g, x, y)
+                if (i >= 0) listener.onText(pickItems[i]) // the picker stays open: only "close" puts the keys back
             }
         }
         invalidate()
+    }
+
+    // ---- hold an emoji that takes a skin tone: the plain one and the five tones in a row to slide to
+
+    private var toneRects: List<RectF> = emptyList()
+    private var toneChoices: List<String> = emptyList()
+    private var toneIndex = -1
+
+    private val showTones = Runnable {
+        val item = pBases(pCell) ?: return@Runnable
+        if (item.tones.isEmpty()) return@Runnable
+        val g = pickGeo()
+        toneChoices = listOf(item.plain) + item.tones
+        toneIndex = -1
+        val w = dp(40f); val h = dp(46f); val pad = dp(4f)
+        val total = toneChoices.size * w + pad * 2
+        val c = pCell % pickCols
+        val cellL = g.grid.left + c * (g.cw + g.gx); val cellT = g.grid.top + (pCell / pickCols) * g.stride - pickScroll
+        val left = (cellL + g.cw / 2f - total / 2f).coerceIn(dp(2f), width - total - dp(2f))
+        val top = if (cellT - h - dp(10f) >= dp(2f)) cellT - h - dp(10f) else cellT + g.ch + dp(8f) // above the cell, or below it on the top row
+        toneRects = toneChoices.indices.map { RectF(left + pad + it * w, top + pad, left + pad + (it + 1) * w, top + h) }
+        feedback.key()
+        invalidate()
+    }
+
+    private fun stopTones() { ui.removeCallbacks(showTones); toneRects = emptyList(); toneChoices = emptyList(); toneIndex = -1 }
+
+    private fun chooseTone() {
+        val item = pBases(pCell)
+        val tone = toneIndex
+        stopTones()
+        if (item != null && tone in 0..5) {
+            feedback.key()
+            Emoji.remember(context, item, tone)
+            tones = Emoji.toneState(context)
+            pickItems[pCell] = Emoji.shown(item, tone)
+            listener.onText(Emoji.shown(item, tone))
+        }
+        invalidate()
+    }
+
+    private fun drawTones(canvas: Canvas) {
+        if (toneRects.isEmpty()) return
+        val l = toneRects.first().left - dp(4f); val t = toneRects.first().top - dp(4f)
+        val r = toneRects.last().right + dp(4f); val b = toneRects.first().bottom + dp(4f)
+        accentPaint.shader = null
+        accentPaint.color = 0xAA000000.toInt(); canvas.drawRoundRect(l, t + dp(3f), r, b + dp(3f), dp(10f), dp(10f), accentPaint)
+        accentPaint.shader = LinearGradient(0f, t, 0f, b, th.padTop, th.padBottom, Shader.TileMode.CLAMP)
+        canvas.drawRoundRect(l, t, r, b, dp(10f), dp(10f), accentPaint)
+        accentPaint.shader = null
+        emojiPaint.textSize = dp(24f)
+        toneRects.forEachIndexed { i, rc ->
+            if (i == toneIndex) { accentPaint.color = 0xFF2f8fe8.toInt(); canvas.drawRoundRect(rc, dp(7f), dp(7f), accentPaint) }
+            canvas.drawText(toneChoices[i], rc.centerX(), rc.centerY() - (emojiPaint.ascent() + emojiPaint.descent()) / 2f, emojiPaint)
+        }
     }
 
     /** True while a finger rests on a shift key (the trackpad then selects text). */
