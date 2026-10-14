@@ -187,6 +187,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         canvas.drawColor(0xFF000000.toInt()) // below the curve: the same black as the navigation bar
         fill.shader = null; fill.color = th.bg
         canvas.drawPath(body, fill)
+        if (picker != Picker.NONE) { drawPicker(canvas); return } // the picker covers the keys: they are not drawn at all, so scrolling it costs only the picker
         // the silver ridges above, between and below the rows, following the same smile as the keys
         canvas.save(); canvas.clipPath(body)
         for (r in 0..cells.size) if (r < cells.size || th.dark) drawRidge(canvas, padTop + r * (keyH + rowGap) - rowGap / 2)
@@ -485,6 +486,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
                 val i = e.actionIndex
                 hit(e.getX(i), e.getY(i))?.let { c ->
+                    val before = modifierState()
                     pressed[e.getPointerId(i)] = c
                     feedback.key()
                     pressedRow = c.row; pressedCol = c.col
@@ -504,7 +506,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                         accentFor = c; accentPointer = e.getPointerId(i); accentUpper = wasUpper
                         ui.postDelayed(showAccents, 420)
                     }
-                    invalidate()
+                    if (modifierState() != before) invalidate() else invalidateKey(c)
                 }
             }
             MotionEvent.ACTION_MOVE -> {
@@ -515,6 +517,8 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                 }
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP, MotionEvent.ACTION_CANCEL -> {
+                val before = modifierState()
+                val hadAccents = accentRects.isNotEmpty()
                 if (e.getPointerId(e.actionIndex) == accentPointer) {
                     val chosen = accentChoices.getOrNull(accentIndex)
                     val lifted = e.actionMasked != MotionEvent.ACTION_CANCEL
@@ -537,7 +541,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                     }
                 }
                 if (pressed.values.none { it.key.kind == Kind.DELETE }) ui.removeCallbacks(repeatDelete)
-                invalidate()
+                if (up == null || hadAccents || modifierState() != before || picker != Picker.NONE) invalidate() else invalidateKey(up)
             }
         }
         return true
@@ -545,6 +549,16 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
 
     private var pressedRow = 0
     private var pressedCol = 0
+
+    /**
+     * A key press only changes that key, so only its square is redrawn (with room for its shadow and glow): the graphics chip then repaints one key
+     * instead of the whole keyboard on every touch. Anything that changes more than a key (shift, alt, a picker, the accent row) redraws everything.
+     */
+    private fun invalidateKey(c: Cell) {
+        val pad = dp(14f).toInt()
+        invalidate((c.rect.left - pad).toInt(), (c.rect.top - pad).toInt(), (c.rect.right + pad).toInt(), (c.rect.bottom + pad).toInt())
+    }
+    private fun modifierState() = shift.ordinal * 100 + altMode.ordinal * 10 + (if (altHeld) 5 else 0) + (if (speedHeld) 1 else 0)
 
     // ---- press and hold on a letter: a row of accented forms to slide to; the plain letter has already been typed, and the choice replaces it
     private var accentFor: Cell? = null
@@ -603,6 +617,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
     }
 
     private fun fire(key: Key) {
+        val shift0 = shift; val alt0 = altMode
         when (key.kind) {
             Kind.CHAR, Kind.SPACE -> {
                 var t = key.text
@@ -644,6 +659,8 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                 lastAltTap = now
             }
         }
+        val onlyThisKey = key.kind == Kind.CHAR || key.kind == Kind.SPACE || key.kind == Kind.DELETE || key.kind == Kind.ENTER
+        if (onlyThisKey && shift == shift0 && altMode == alt0 && picker == Picker.NONE) cells.getOrNull(pressedRow)?.getOrNull(pressedCol)?.let { invalidateKey(it); return }
         invalidate()
     }
 
@@ -661,7 +678,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
     fun pickerOpen() = picker != Picker.NONE
 
     private fun openPicker(mode: Picker) {
-        picker = mode; pickScroll = 0f; stopTones()
+        picker = mode; pickScroll = 0f; stopTones(); stopMotion()
         pickItems = ArrayList(); pickBases = ArrayList()
         val sections = ArrayList<Pair<String, Int>>()
         if (mode == Picker.SYM) {
@@ -683,7 +700,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         invalidate()
     }
 
-    private fun closePicker() { picker = Picker.NONE; stopTones(); invalidate() }
+    private fun closePicker() { picker = Picker.NONE; stopTones(); stopMotion(); invalidate() }
 
     private class PickGeo(val grid: RectF, val cw: Float, val ch: Float, val gx: Float, val gy: Float, val more: RectF, val label: RectF, val close: RectF) {
         val stride get() = ch + gy
@@ -708,15 +725,56 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         return max(0f, rows * g.stride - g.gy - g.grid.height())
     }
 
+    // ---- how the grid moves: it glides to where the trackpad sends it, a finger's flick carries on after it lets go, and the scroll indicator shows only while it moves
+
+    private var scrollTarget = 0f
+    private var gliding = false
+    private var lastGlideAt = 0L
+    private var lastScrollAt = 0L
+    private val scroller = android.widget.OverScroller(context, android.view.animation.DecelerateInterpolator(1.4f))
+    private var flinging = false
+    private var tracker: android.view.VelocityTracker? = null
+
+    /** Moves the grid a fraction of the way to its target each frame, by the time that really passed, so it looks the same at 60 and 120 Hz. */
+    private val glideStep = object : Runnable {
+        override fun run() {
+            if (picker == Picker.NONE) { gliding = false; return }
+            val g = pickGeo()
+            val now = SystemClock.uptimeMillis(); val dt = (now - lastGlideAt).coerceIn(1L, 50L); lastGlideAt = now
+            val diff = scrollTarget - pickScroll
+            if (abs(diff) < 0.6f) { pickScroll = scrollTarget; gliding = false; invalidate(); return }
+            pickScroll = (pickScroll + diff * (1f - 0.72f.pow(dt / 8.33f))).coerceIn(0f, maxScroll(g))
+            lastScrollAt = now
+            invalidate(); postOnAnimation(this)
+        }
+    }
+
+    private val flingStep = object : Runnable {
+        override fun run() {
+            if (picker == Picker.NONE || !flinging) return
+            if (scroller.computeScrollOffset()) {
+                pickScroll = scroller.currY.toFloat().coerceIn(0f, maxScroll(pickGeo())); scrollTarget = pickScroll; lastScrollAt = SystemClock.uptimeMillis()
+                invalidate(); postOnAnimation(this)
+            } else flinging = false
+        }
+    }
+
+    private fun stopMotion() { gliding = false; flinging = false; scroller.forceFinished(true); scrollTarget = pickScroll }
+
+    private fun glideTo(target: Float) {
+        flinging = false; scroller.forceFinished(true)
+        scrollTarget = target.coerceIn(0f, maxScroll(pickGeo()))
+        lastScrollAt = SystemClock.uptimeMillis()
+        if (!gliding) { gliding = true; lastGlideAt = lastScrollAt; postOnAnimation(glideStep) }
+    }
+
     /** The trackpad scrolls the picker: up and down move the grid, a longer swipe sideways jumps to the next page or group. */
     private var padDx = 0
     fun pickerScroll(dx: Int, dy: Int) {
         if (picker == Picker.NONE) return
-        val g = pickGeo()
-        if (dy != 0) pickScroll = (pickScroll + dy * dp(23f)).coerceIn(0f, maxScroll(g))
+        if (dy != 0) glideTo((if (gliding) scrollTarget else pickScroll) + dy * dp(23f))
         padDx += dx
         if (abs(padDx) >= 4) { jump(if (padDx > 0) 1 else -1); padDx = 0 }
-        invalidate()
     }
 
     /** Scrolls to the start of the next (or previous) page or group, wrapping round. */
@@ -726,7 +784,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         val row = (pickScroll / g.stride + 0.5f).toInt()
         val here = pickSections.indexOfLast { it.second / pickCols <= row }.coerceAtLeast(0)
         val to = (here + dir + pickSections.size) % pickSections.size
-        pickScroll = (pickSections[to].second / pickCols * g.stride).coerceIn(0f, maxScroll(g))
+        glideTo(pickSections[to].second / pickCols * g.stride)
     }
 
     private fun sectionName(g: PickGeo): String {
@@ -735,6 +793,30 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
     }
 
     private val emojiPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER }
+    private val blit = Paint(Paint.FILTER_BITMAP_FLAG)
+    /** Each symbol or emoji painted once into a small picture, and each tile's background once per size: scrolling then only moves pictures, and no text is laid out or shaped on any frame. */
+    private val glyphs = android.util.LruCache<String, Bitmap>(300)
+
+    private fun glyph(text: String, emoji: Boolean): Bitmap = glyphs.get("$text|$emoji|${th.dark}") ?: run {
+        val box = dp(36f).toInt()
+        val bmp = Bitmap.createBitmap(box, box, Bitmap.Config.ARGB_8888)
+        val c = Canvas(bmp)
+        if (emoji) {
+            emojiPaint.textSize = dp(24f)
+            c.drawText(text, box / 2f, box / 2f - (emojiPaint.ascent() + emojiPaint.descent()) / 2f, emojiPaint)
+        } else {
+            legend.color = th.legend; legend.textSize = dp(21f)
+            drawInk(c, text, box / 2f, box / 2f)
+        }
+        bmp.also { glyphs.put("$text|$emoji|${th.dark}", it) }
+    }
+
+    private fun tileBackground(w: Int, h: Int): Bitmap = glyphs.get("tile|$w|$h|${th.dark}") ?: run {
+        val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { shader = LinearGradient(0f, 0f, 0f, h.toFloat(), th.padTop, th.padBottom, Shader.TileMode.CLAMP) }
+        Canvas(bmp).drawRoundRect(0f, 0f, w.toFloat(), h.toFloat(), dp(7f), dp(7f), p)
+        bmp.also { glyphs.put("tile|$w|$h|${th.dark}", it) }
+    }
 
     private fun drawPicker(canvas: Canvas) {
         val g = pickGeo()
@@ -743,10 +825,8 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         fill.color = th.panel
         canvas.drawPath(body, fill)
         pickScroll = pickScroll.coerceIn(0f, maxScroll(g))
-        val cellShader = LinearGradient(0f, 0f, 0f, g.ch, th.padTop, th.padBottom, Shader.TileMode.CLAMP)
         val emoji = picker == Picker.EMOJI
-        emojiPaint.textSize = dp(24f)
-        legend.color = th.legend; legend.textSize = dp(21f)
+        val tile = tileBackground(g.cw.toInt().coerceAtLeast(1), g.ch.toInt().coerceAtLeast(1))
         canvas.save()
         canvas.clipRect(g.grid)
         val first = (pickScroll / g.stride).toInt().coerceAtLeast(0)
@@ -757,28 +837,26 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
             val s = pickItems[i]
             if (s.isEmpty()) continue
             val l = g.grid.left + c * (g.cw + g.gx); val t = g.grid.top + row * g.stride - pickScroll
-            canvas.save(); canvas.translate(l, t)
-            fill.shader = cellShader
-            canvas.drawRoundRect(0f, 0f, g.cw, g.ch, dp(7f), dp(7f), fill)
-            fill.shader = null
-            if (emoji) {
-                canvas.drawText(s, g.cw / 2f, g.ch / 2f - (emojiPaint.ascent() + emojiPaint.descent()) / 2f, emojiPaint)
-                if (pickBases[i]?.tones?.isNotEmpty() == true) { // a small corner mark: hold this one for skin tones
-                    fill.color = th.barText2
-                    canvas.drawCircle(g.cw - dp(5f), g.ch - dp(5f), dp(1.6f), fill)
-                }
-            } else drawInk(canvas, s, g.cw / 2f, g.ch / 2f)
-            canvas.restore()
+            canvas.drawBitmap(tile, l, t, blit)
+            val pic = glyph(s, emoji)
+            canvas.drawBitmap(pic, l + (g.cw - pic.width) / 2f, t + (g.ch - pic.height) / 2f, blit)
+            if (emoji && pickBases[i]?.tones?.isNotEmpty() == true) { // a small corner mark: hold this one for skin tones
+                fill.shader = null; fill.color = th.barText2
+                canvas.drawCircle(l + g.cw - dp(5f), t + g.ch - dp(5f), dp(1.6f), fill)
+            }
         }
         canvas.restore()
         // where you are in the list
         val rows = (pickItems.size + pickCols - 1) / pickCols
         val ms = maxScroll(g)
-        if (ms > 0f) {
-            val trackH = g.grid.height(); val thumbH = max(dp(18f), trackH * trackH / (rows * g.stride))
+        val since = SystemClock.uptimeMillis() - lastScrollAt
+        val fade = when { since < 700 -> 1f; since < 1000 -> 1f - (since - 700) / 300f; else -> 0f } // visible while it moves, then gone
+        if (ms > 0f && fade > 0f) {
+            val trackH = g.grid.height(); val thumbH = max(dp(28f), trackH * trackH / (rows * g.stride))
             val ty = g.grid.top + (trackH - thumbH) * (pickScroll / ms)
-            fill.color = th.divider
-            canvas.drawRoundRect(g.grid.right - dp(3f), ty, g.grid.right, ty + thumbH, dp(1.5f), dp(1.5f), fill)
+            fill.shader = null; fill.color = (th.barText2 and 0x00FFFFFF) or ((0xAA * fade).toInt() shl 24)
+            canvas.drawRoundRect(g.grid.right - dp(4f), ty, g.grid.right - dp(0.5f), ty + thumbH, dp(2f), dp(2f), fill)
+            if (since >= 700) postInvalidateOnAnimation()
         }
         for ((r, label) in listOf(g.more to "more", g.close to "close")) {
             fill.shader = LinearGradient(0f, r.top, 0f, r.bottom, th.pillTop, th.pillBottom, Shader.TileMode.CLAMP)
@@ -812,6 +890,8 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         val g = pickGeo()
         when (e.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
+                stopMotion() // a touch catches a grid that is still gliding or flying
+                tracker?.recycle(); tracker = android.view.VelocityTracker.obtain().also { it.addMovement(e) }
                 pDown = true; pDrag = false; pY = e.y; pStartScroll = pickScroll
                 pCell = cellAt(g, e.x, e.y)
                 if (pBases(pCell)?.tones?.isNotEmpty() == true) ui.postDelayed(showTones, 420)
@@ -821,8 +901,9 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                     val idx = toneRects.indices.minByOrNull { abs(toneRects[it].centerX() - e.x) } ?: -1
                     if (idx != toneIndex) { toneIndex = idx; invalidate() }
                 } else {
+                    tracker?.addMovement(e)
                     if (!pDrag && abs(e.y - pY) > dp(8f)) { pDrag = true; ui.removeCallbacks(showTones) }
-                    if (pDrag) { pickScroll = (pStartScroll - (e.y - pY)).coerceIn(0f, maxScroll(g)); invalidate() }
+                    if (pDrag) { pickScroll = (pStartScroll - (e.y - pY)).coerceIn(0f, maxScroll(g)); scrollTarget = pickScroll; lastScrollAt = SystemClock.uptimeMillis(); invalidate() }
                 }
             }
             MotionEvent.ACTION_UP -> {
@@ -830,11 +911,20 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                 if (pDown) {
                     if (toneRects.isNotEmpty()) chooseTone()
                     else if (!pDrag) pickerTap(g, e.x, e.y)
+                    else tracker?.let { t -> // let go while moving: it carries on and slows down
+                        t.addMovement(e); t.computeCurrentVelocity(1000, android.view.ViewConfiguration.get(context).scaledMaximumFlingVelocity.toFloat())
+                        val vy = -t.yVelocity
+                        if (abs(vy) > android.view.ViewConfiguration.get(context).scaledMinimumFlingVelocity) {
+                            scroller.fling(0, pickScroll.toInt(), 0, vy.toInt(), 0, 0, 0, maxScroll(g).toInt())
+                            flinging = true; postOnAnimation(flingStep)
+                        }
+                    }
                 }
+                tracker?.recycle(); tracker = null
                 pDown = false
                 releaseKeys(e)
             }
-            MotionEvent.ACTION_CANCEL -> { ui.removeCallbacks(showTones); stopTones(); pDown = false; pressed.clear(); altHeld = false; speedHeld = false; invalidate() }
+            MotionEvent.ACTION_CANCEL -> { ui.removeCallbacks(showTones); stopTones(); tracker?.recycle(); tracker = null; pDown = false; pressed.clear(); altHeld = false; speedHeld = false; invalidate() }
             MotionEvent.ACTION_POINTER_UP -> releaseKeys(e)
         }
         return true

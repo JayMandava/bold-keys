@@ -1,6 +1,8 @@
 package ai.boldkeys
 
 import android.content.Context
+import android.os.Handler
+import android.os.HandlerThread
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -16,7 +18,12 @@ class Feedback(context: Context) {
         get() = prefs.getString("pattern", "ms8")!!
         set(v) { prefs.edit().putString("pattern", v).apply() }
 
-    private fun effect(name: String): VibrationEffect? = when (name) {
+    /** The buzz is handed to its own thread: asking the vibrator is a call into the system that can take several milliseconds, and it must not hold up the touch it answers. */
+    private val haptic = Handler(HandlerThread("bk-haptic").apply { start() }.looper)
+    private val effects = HashMap<String, VibrationEffect?>()
+    private fun effect(name: String): VibrationEffect? = effects.getOrPut(name) { build(name) }
+
+    private fun build(name: String): VibrationEffect? = when (name) {
         "ms3" -> VibrationEffect.createOneShot(3, VibrationEffect.DEFAULT_AMPLITUDE)
         "ms5" -> VibrationEffect.createOneShot(5, VibrationEffect.DEFAULT_AMPLITUDE)
         "ms8" -> VibrationEffect.createOneShot(8, VibrationEffect.DEFAULT_AMPLITUDE)
@@ -26,7 +33,7 @@ class Feedback(context: Context) {
         else -> null // "off"
     }
 
-    fun buzz(name: String = pattern) { effect(name)?.let { vibrator.vibrate(it) } }
+    fun buzz(name: String = pattern) { effect(name)?.let { e -> haptic.post { vibrator.vibrate(e) } } }
 
     /** A key press: the buzz, and nothing else. The real keys click under the thumb; there is no sound to switch on or off. */
     fun key() { buzz() }

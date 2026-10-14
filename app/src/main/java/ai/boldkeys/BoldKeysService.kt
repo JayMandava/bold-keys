@@ -230,8 +230,15 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
         selStart = newSelStart; selEnd = newSelEnd
         ui.removeCallbacks(hideRunnable) // the cursor moved: the tap was in the field, not away from it
-        if (::bar.isInitialized) refreshStrip()
+        if (::bar.isInitialized) scheduleRefresh()
     }
+
+    /**
+     * The strip and the automatic capital need several calls into the app (the text before the cursor, the selection, the caps mode). Doing them inside
+     * the key press held the press up for milliseconds, so they wait a few milliseconds instead, and a burst of typing does them once at the end.
+     */
+    private val refreshNow = Runnable { refreshAutoCaps(); refreshStrip() }
+    private fun scheduleRefresh() { ui.removeCallbacks(refreshNow); ui.postDelayed(refreshNow, 14) }
 
     // ---- typing
 
@@ -251,7 +258,8 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
             }
             lastSpaceAt = now
         }
-        if (smart && !urlLike && emoticonsOn && text.length == 1 && convertEmoticon(ic, text)) return
+        // Looking for a text face reads the text before the cursor, a blocking call into the app that took most of the time of a key press. Only a character that can end a face (or a space or punctuation mark) needs it.
+        if (smart && !urlLike && emoticonsOn && text.length == 1 && (text[0] in EMOTICON_ENDS || text[0] in SEPARATORS) && convertEmoticon(ic, text)) return
         if (smart && e != null && text.length == 1 && text[0] in SEPARATORS) {
             val word = currentWord()
             if (word.isNotEmpty()) {
@@ -271,8 +279,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         }
         undo = null
         ic.commitText(text, 1)
-        refreshAutoCaps()
-        refreshStrip()
+        scheduleRefresh()
     }
 
     /** Turns a text emoticon just completed by [typed] into its emoji; the undo list remembers it so Backspace gives the text back. */
@@ -333,8 +340,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         }
         undo = null
         if (ic.getSelectedText(0).isNullOrEmpty()) ic.deleteSurroundingText(1, 0) else ic.commitText("", 1)
-        refreshAutoCaps()
-        refreshStrip()
+        scheduleRefresh()
     }
 
     override fun onEnter() {
@@ -473,6 +479,8 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
     }
 
     private companion object {
+        /** The last character of every text face that is changed as soon as it is typed. */
+        val EMOTICON_ENDS: Set<Char> = Layouts.emoticonsNow.keys.map { it.last() }.toSet()
         const val SEPARATORS = " .,!?;:"
         val SECRET_VARIATIONS = setOf(
             InputType.TYPE_TEXT_VARIATION_PASSWORD, InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD, InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD,
