@@ -17,7 +17,7 @@ follow the two steps on screen to turn the keyboard on. Needs Android 13 or newe
 - **Autocorrect and suggestions:** a dictionary tuned to where thumbs land (a miss next to the right key costs less than a random one),
   completions as you type, next-word suggestions, and double space for a full stop. Backspace right after a correction brings your word
   back and teaches it. Words you type twice are learned; you can add, remove and clear them in Settings.
-- **Emoji:** tap the right-hand key (the smiley) for every emoji your phone can show, in Unicode's groups, with skin tones (hold an emoji with a dot and slide to a tone; set a default in Settings). "more" jumps to the next group.
+- **Emoji:** tap the right-hand key (the grid of dots, as on the original's Speed key) for every emoji your phone can show, in Unicode's groups, with skin tones (hold an emoji with a dot and slide to a tone; set a default in Settings). "more" jumps to the next group.
 - **Speed key:** hold the right-hand key and tap a letter to open an app, a link or type a snippet you set in Settings. Nothing is
   shown on the keys; a plain tap on that key is still Shift.
 - **QWERTY or AZERTY:** choose the layout in Settings > Typing. AZERTY swaps A and Z with Q and W and moves M beside N, and the spelling model follows the layout, so

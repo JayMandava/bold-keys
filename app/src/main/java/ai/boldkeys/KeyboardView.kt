@@ -338,7 +338,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                 clearShadow(); drawBackArrow(canvas, acx, cy + dp(8f))
             }
             Kind.SPACE -> fitWord(canvas, "space", acx, cy - dp(2f), dp(13f), maxW)
-            Kind.SPEED -> { clearShadow(); if (emojiKey) drawSmiley(canvas, acx, cy) else drawShiftKey(canvas, acx, cy, false, maxW) }
+            Kind.SPEED -> { clearShadow(); if (emojiKey) drawDotGrid(canvas, acx, cy) else drawShiftKey(canvas, acx, cy, false, maxW) }
             Kind.SYM -> fitWord(canvas, "sym", acx, cy, dp(13f), maxW)
             Kind.LAYER -> {
                 fitWord(canvas, "alt", acx, cy, dp(13f), maxW)
@@ -425,17 +425,12 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         icon.strokeWidth = dp(1.8f)
     }
 
-    /** The emoji key: a small outlined smiley. */
-    private fun drawSmiley(canvas: Canvas, cx: Float, cy: Float) {
-        val r = dp(8.5f)
-        icon.color = th.legend; icon.strokeWidth = dp(1.4f); icon.style = Paint.Style.STROKE
-        canvas.drawCircle(cx, cy, r, icon)
-        icon.style = Paint.Style.FILL
-        canvas.drawCircle(cx - r * 0.38f, cy - r * 0.25f, dp(1.2f), icon)
-        canvas.drawCircle(cx + r * 0.38f, cy - r * 0.25f, dp(1.2f), icon)
+    /** The Speed key as printed on the Key2: a grid of nine dots. */
+    private fun drawDotGrid(canvas: Canvas, cx: Float, cy: Float) {
+        val step = dp(5.6f); val r = dp(1.55f)
+        icon.color = th.legend; icon.style = Paint.Style.FILL
+        for (i in -1..1) for (j in -1..1) canvas.drawCircle(cx + i * step, cy + j * step, r, icon)
         icon.style = Paint.Style.STROKE
-        canvas.drawArc(RectF(cx - r * 0.55f, cy - r * 0.35f, cx + r * 0.55f, cy + r * 0.55f), 20f, 140f, false, icon)
-        icon.strokeWidth = dp(1.8f)
     }
 
     private fun drawBackArrow(canvas: Canvas, cx: Float, cy: Float) {
@@ -861,7 +856,10 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
             g.close.contains(x, y) -> closePicker()
             else -> {
                 val i = cellAt(g, x, y)
-                if (i >= 0) listener.onText(pickItems[i]) // the picker stays open: only "close" puts the keys back
+                if (i >= 0) {
+                    listener.onText(pickItems[i])
+                    if (picker == Picker.EMOJI) closePicker() // one emoji, and back to the keys; the symbol picker stays open until "close"
+                }
             }
         }
         invalidate()
@@ -902,6 +900,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
             tones = Emoji.toneState(context)
             pickItems[pCell] = Emoji.shown(item, tone)
             listener.onText(Emoji.shown(item, tone))
+            closePicker()
         }
         invalidate()
     }

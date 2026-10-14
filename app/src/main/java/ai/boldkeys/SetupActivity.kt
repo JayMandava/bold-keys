@@ -174,7 +174,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.homeItems(context: Co
                 NavRow("Key feel", "How hard each key press buzzes") { open(Screen.FEEL) }
                 NavRow("Symbols & emoji", "The emoji key, skin tone, and the sym key") { open(Screen.SYMBOLS) }
                 NavRow("Personal dictionary", "${readDictionary(context).size} words you have taught it") { open(Screen.DICTIONARY) }
-                NavRow("Speed key", "${Shortcuts.all(context).size} letters assigned: hold the smiley key, tap a letter") { open(Screen.SHORTCUTS) }
+                NavRow("Speed key", "${Shortcuts.all(context).size} letters assigned: hold the right-hand key, tap a letter") { open(Screen.SHORTCUTS) }
                 NavRow("Context model", if (Prefs.contextModel(context)) "On: judges words by the sentence around them" else "Off: optional, needs a download") { open(Screen.CONTEXT) }
                 NavRow("About", "Privacy and credits") { open(Screen.ABOUT) }
             }
@@ -463,7 +463,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.symbolItems(context: 
         var tone by remember { mutableStateOf(Emoji.defaultTone(context)) }
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Section("Emoji") {
-            SwitchRow("Emoji key", "Tap the right-hand key (the smiley) for every emoji your phone can show, in groups. Hold it and tap a letter for a Speed key shortcut. Off, a tap on it is a Shift.", emoji) { emoji = it; Prefs.put(context, "emojiPages", it) }
+            SwitchRow("Emoji key", "Tap the right-hand key (the grid of dots) for every emoji your phone can show, in groups. Hold it and tap a letter for a Speed key shortcut. Off, a tap on it is a Shift.", emoji) { emoji = it; Prefs.put(context, "emojiPages", it) }
             SwitchRow("Turn text faces into emoji", "Typing :) gives 🙂 and :D then a space gives 😀. Backspace gives your text back.", emoticons) { emoticons = it; Prefs.put(context, "emoticons", it) }
         }
         Section("Skin tone") {
@@ -639,7 +639,7 @@ private fun ShortcutsContent(context: Context) {
     val assigned = remember(version) { Shortcuts.all(context) }
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Section("How it works") {
-            Note("Hold the right-hand key (the smiley, bottom right) and tap a letter to run its shortcut. The keys show nothing: it is there for you to remember. Tapping that key on its own opens the emoji picker (or acts as Shift when the emoji key is off in Symbols & emoji).")
+            Note("Hold the right-hand key (the grid of dots, bottom right) and tap a letter to run its shortcut. The keys show nothing: it is there for you to remember. Tapping that key on its own opens the emoji picker (or acts as Shift when the emoji key is off in Symbols & emoji).")
             Note("A shortcut opens an app, opens a link or action (a web page, tel:, mailto:, geo:), or types a piece of text. It only runs while this keyboard is on screen.")
         }
         Section("Letters") {
