@@ -4,7 +4,7 @@
 
 Candidates come from a symmetric-delete index over about 46,000 words. Each is scored by word frequency minus a weighted edit cost:
 a miss on a neighbouring key, a doubled letter or a swapped pair costs less than an unrelated edit, and the first letter is trusted more.
-Which keys are neighbours comes from the layout in use (`Layouts.positions`), so QWERTY and AZERTY each judge a slip by where the thumb really was.
+Which keys are neighbours comes from the layout in use (`Layouts.positions`), so QWERTY, QWERTZ and AZERTY each judge a slip by where the thumb really was.
 A word is only changed when it is not in the dictionary, the best candidate is plainly closest, and it is a word people really use.
 Some words are never touched: names (a capital in mid-sentence), acronyms and camelCase, anything after `@`, `#`, `/`, `.`, `_`, `-` or a digit
 (handles, addresses, versions), words with accented letters, common abbreviations, and possessives, contractions and plurals of known words.
@@ -46,15 +46,17 @@ About 40 ms per word. The thresholds were chosen on a separate set of 6,600 case
 
 ## Layouts and accents
 
-`Layouts.kt` holds each layout as a table of rows (QWERTY, the default, and AZERTY); every row adds up to ten key widths, so AZERTY moves M down beside N rather than adding a key.
+`Layouts.kt` holds each layout as a table of rows (QWERTY, the default, QWERTZ and AZERTY); every row adds up to ten key widths, so AZERTY moves M down beside N rather than adding a key, and QWERTZ only swaps Z and Y.
 The small Alt symbols belong to key positions, as on a physical keyboard, so they stay put when the letters change. The choice is `Prefs.layout`, read whenever the keyboard opens.
-The language is chosen separately from the layout (`Prefs.language`: Automatic follows the layout, French with AZERTY and English with QWERTY), and each language has its own word list, next-word table and personal dictionary file (`Lang.kt`).
+The language is chosen separately from the layout (`Prefs.language`: Automatic follows the layout: French with AZERTY, German with QWERTZ, English with QWERTY), and each language has its own word list, next-word table and personal dictionary file (`Lang.kt`).
 
 For French, `SpellEngine` is built with `accented = true`: words are indexed by their unaccented form so `ete` finds `été`, a missing or wrong accent costs almost nothing in the typo model, and an unknown word that is just a known word without its accents is offered first.
 `Lang.stripElision` removes a leading `l'`, `j'`, `qu'` and the like before looking a word up. `tools/build_fr.py` builds `words_fr.tsv` (FrequencyWords French, with unaccented spellings dropped where the accented twin is at least four times commoner)
 and `pairs_fr.tsv` (counted from Tatoeba sentences). Measured on the phone: the strip puts the right word first 89.7% of the time, and autocorrect changes 0.07% of the words in 28,000 words of real French text. The context model is switched off for French because it has only been measured on English.
 Holding a letter with accented forms (`Layouts.accents`) shows a row of them after about 420 ms. The plain letter was already typed when the key went down, so choosing one replaces it
 (`onAccent` deletes one character and commits the accented one); letting go without choosing keeps the plain letter. On the top row, where there is no room above the keys, the row is drawn over the key row itself.
+
+German is built the same way by `tools/build_de.py` (`words_de.tsv`, `pairs_de.tsv`): FrequencyWords German and Tatoeba German sentences, dropping an unmarked spelling (`fur`, `uber`, `grosse`) when its umlaut or ß twin is at least four times commoner. The engine folds ä, ö, ü and ß to a, o, u and s when it judges a slip, so a word typed without its mark is offered with it. Holding a vowel or S on QWERTZ (or with German chosen) offers `ä ö ü ß` first (`Layouts.accentsFor`). German capitalises its nouns; the dictionary is lower case and keeps the case you typed, so noun capitalisation is not corrected.
 
 ## The pickers: symbols and emoji
 
@@ -69,3 +71,7 @@ The right-hand key is also the Speed key: a plain tap (under 450 ms, with no let
 Smoothness. Everything the picker draws is cached: each symbol or emoji is painted once into a small picture and each tile's background once per size, so scrolling only moves pictures, and while a picker is open the keys underneath are not drawn at all.
 The grid glides to where the trackpad sends it (a fraction of the remaining distance each frame, scaled by the time that really passed, so it looks the same at 60 and 120 Hz), a flick of a finger carries on and slows down (`OverScroller`), a touch catches it, and the scroll indicator shows only while it moves.
 A key press redraws only that key's square (`invalidateKey`) unless it changes shift, alt or opens a picker. The buzz runs on its own thread, a vibrator call can block for milliseconds, and the suggestion strip is refreshed a few milliseconds after typing rather than inside the key press, once per burst; looking for a text face reads the text before the cursor, so it only happens for a character that can end one.
+
+## Key size
+
+`Prefs.keySize` (small, normal, large, xlarge) becomes a scale of 0.9, 1, 1.12 or 1.25. `KeyboardView.keyH` is 46 dp times that scale, so the keyboard measures taller and every row, hit test and ridge follows it; letters grow at half the rate (`fontScale`) because the keys do not get any wider. Changing the setting calls `requestLayout`, and the preview on the Appearance page redraws at once. Normal is exactly the size it always was.

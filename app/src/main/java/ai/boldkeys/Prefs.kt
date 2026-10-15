@@ -23,6 +23,9 @@ object Prefs {
         "auto" -> (c.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
         else -> true
     }
+    /** How tall the keys are: small, normal, large or xlarge. The width is always the screen's, so a bigger key is a taller one. */
+    fun keySize(c: Context) = string(c, "keySize", "normal")
+    fun keyScale(c: Context) = when (keySize(c)) { "small" -> 0.9f; "large" -> 1.12f; "xlarge" -> 1.25f; else -> 1f }
     fun backlightMode(c: Context) = string(c, "backlight", "auto") // off, on, auto (follows the phone's light sensor)
     fun backlightColor(c: Context) = string(c, "backlightColor", "white")
     fun backlightLevel(c: Context) = float(c, "backlightLevel", 0.6f)
@@ -35,10 +38,10 @@ object Prefs {
     fun nextWord(c: Context) = bool(c, "nextWord", true)
     fun contextModel(c: Context) = bool(c, "contextModel", false) // needs a downloaded model, so off until the user turns it on
     fun spelling(c: Context) = string(c, "spelling", "us") // us or uk
-    fun layout(c: Context) = string(c, "layout", "qwerty") // qwerty or azerty
-    fun languageChoice(c: Context) = string(c, "language", "auto") // auto, en or fr
+    fun layout(c: Context) = string(c, "layout", "qwerty") // qwerty, qwertz or azerty
+    fun languageChoice(c: Context) = string(c, "language", "auto") // auto, en, fr or de
     /** The language the dictionary and suggestions use: what the user chose, or (on auto) the one the layout belongs to. */
-    fun language(c: Context) = languageChoice(c).let { if (it == "auto") (if (layout(c) == "azerty") "fr" else "en") else it }
+    fun language(c: Context) = languageChoice(c).let { if (it == "auto") (when (layout(c)) { "azerty" -> "fr"; "qwertz" -> "de"; else -> "en" }) else it }
 
     // symbols and emoji
     fun emojiPages(c: Context) = bool(c, "emojiPages", true)

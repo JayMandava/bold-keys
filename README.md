@@ -20,8 +20,10 @@ follow the two steps on screen to turn the keyboard on. Needs Android 13 or newe
 - **Emoji:** tap the right-hand key (the grid of dots, as on the original's Speed key) for every emoji your phone can show, in Unicode's groups, with skin tones (hold an emoji with a dot and slide to a tone; set a default in Settings). "more" jumps to the next group.
 - **Speed key:** hold the right-hand key and tap a letter to open an app, a link or type a snippet you set in Settings. Nothing is
   shown on the keys; a plain tap on that key is still Shift.
-- **QWERTY or AZERTY:** choose the layout in Settings > Typing. AZERTY swaps A and Z with Q and W and moves M beside N, and the spelling model follows the layout, so
-  a slip to a neighbouring key still counts as a slip. Choose the dictionary separately under Language (Automatic gives French with AZERTY, English with QWERTY).
+- **QWERTY, QWERTZ or AZERTY:** choose the layout in Settings > Typing. AZERTY swaps A and Z with Q and W and moves M beside N; QWERTZ swaps Z and Y. The spelling model follows the layout, so
+  a slip to a neighbouring key still counts as a slip. Choose the dictionary separately under Language (Automatic gives French with AZERTY, German with QWERTZ, English with QWERTY).
+- **Key size:** Small, Normal, Large or XL in Settings > Appearance, for bigger buttons (or a shorter keyboard). The keys get taller; the width is always the screen's.
+- **German:** a German dictionary and next-word hints with QWERTZ. Hold A, O, U or S for `ä`, `ö`, `ü` and `ß` (German puts these first; the French forms are still there), and `fur` offers and corrects to `für`.
 - **French:** a French dictionary and next-word hints, with accent-aware correction (`ete` becomes `été`, `ca` becomes `ça`) and `l'`, `j'`, `qu'` handled. The optional context model stays English-only for now.
 - **Accents on hold:** hold A, E, I, O, U, C, Y, N or S and slide to an accented form (é è ê ë, à â ä, ç, ñ and more); the plain letter is replaced when you let go.
 - **American or British spelling:** colour/color, realise/realize and similar pairs follow the one you choose.

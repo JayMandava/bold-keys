@@ -25,10 +25,13 @@ object Layouts {
     /** AZERTY: A and Z swap places with Q and W, and M moves down beside N, so every row still adds up to ten keys. */
     private val azertyRows: List<List<Key>> = layoutRows("AZERTYUIOP", "QSDFGHJKL", "WXCVBNM")
 
-    /** The layouts on offer: the id kept in the settings, and its name. */
-    val LAYOUTS = listOf("qwerty" to "QWERTY", "azerty" to "AZERTY")
+    /** QWERTZ: Z and Y swap places, and nothing else moves, so every row still adds up to ten keys. */
+    private val qwertzRows: List<List<Key>> = layoutRows("QWERTZUIOP", "ASDFGHJKL", "YXCVBNM")
 
-    fun rows(layout: String): List<List<Key>> = if (layout == "azerty") azertyRows else letterRows
+    /** The layouts on offer: the id kept in the settings, and its name. */
+    val LAYOUTS = listOf("qwerty" to "QWERTY", "qwertz" to "QWERTZ", "azerty" to "AZERTY")
+
+    fun rows(layout: String): List<List<Key>> = when (layout) { "azerty" -> azertyRows; "qwertz" -> qwertzRows; else -> letterRows }
 
     /** Where each letter sits as (column, row), for judging which wrong keys are a slip away from the right one. Alt takes the first place of the third row, as on the phone. */
     fun positions(layout: String): Map<Char, Pair<Int, Int>> {
@@ -38,12 +41,18 @@ object Layouts {
     }
 
     /** The languages on offer: the id kept in the settings, and its name. */
-    val LANGUAGES = listOf("auto" to "Automatic", "en" to "English", "fr" to "Français")
+    val LANGUAGES = listOf("auto" to "Auto", "en" to "English", "fr" to "Français", "de" to "Deutsch")
 
     /** What press-and-hold on a letter offers, most common first. */
     val accents: Map<Char, String> = mapOf(
         'a' to "àâäáãåæ", 'e' to "éèêë", 'i' to "îïíì", 'o' to "ôöòóœõ", 'u' to "ùûüú", 'c' to "ç", 'y' to "ÿý", 'n' to "ñ", 's' to "ß",
     )
+
+    /** German puts its own letters first when you hold a vowel or S: ä, ö, ü and ß before the French forms. */
+    private val germanAccents: Map<Char, String> = accents + mapOf('a' to "äàáâãåæ", 'o' to "öòóôõœ", 'u' to "üùúû", 's' to "ßś")
+
+    /** The hold-a-letter forms for [lang]: in the order that language wants them. */
+    fun accentsFor(lang: String): Map<Char, String> = if (lang == "de") germanAccents else accents
 
     /** The pages of the SYM picker (emoji have their own picker, from the emoji key). */
     val symbolPages: List<List<String>> = listOf(

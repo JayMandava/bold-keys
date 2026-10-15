@@ -249,7 +249,7 @@ class SpellEngine(entries0: List<Pair<String, Int>>, val accented: Boolean = fal
     companion object {
         private const val ACCENT = 0.05f
         private val FOLD: Map<Char, Char> = HashMap<Char, Char>().also { m ->
-            for ((base, accented) in listOf('a' to "àâäæ", 'e' to "éèêë", 'i' to "îï", 'o' to "ôöœ", 'u' to "ùûü", 'y' to "ÿ", 'c' to "ç")) for (c in accented) m[c] = base
+            for ((base, accented) in listOf('a' to "àâäæ", 'e' to "éèêë", 'i' to "îï", 'o' to "ôöœ", 'u' to "ùûü", 'y' to "ÿ", 'c' to "ç", 's' to "ß")) for (c in accented) m[c] = base
         }
         /** [s] without its accents (for tests and tools). */
         fun unaccent(s: String): String = s.map { FOLD[it] ?: it }.joinToString("")

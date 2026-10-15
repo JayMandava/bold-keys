@@ -59,7 +59,10 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         glowMode = Prefs.backlightMode(c)
         glowRgb = Prefs.BACKLIGHT_COLORS[Prefs.backlightColor(c)] ?: 0xFFEAF2FF.toInt()
         glowSetting = Prefs.backlightLevel(c)
+        val scale = Prefs.keyScale(c)
+        if (scale != sizeScale) { sizeScale = scale; faces.clear(); requestLayout() } // a new height measures again, and the keys are laid out afresh with it
         val layout = Prefs.layout(c)
+        accentMap = Layouts.accentsFor(Prefs.language(c))
         if (layout != layoutId) { layoutId = layout; rebuild() }
         updateGlow()
         faces.clear()
@@ -96,7 +99,9 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
     private val d = resources.displayMetrics.density
     private fun dp(v: Float) = v * d
 
-    private val keyH get() = dp(46f)
+    private var sizeScale = 1f // the key-height setting: 1 is the size it always had
+    private val keyH get() = dp(46f) * sizeScale
+    private val fontScale get() = 1f + (sizeScale - 1f) * 0.5f // the letters grow too, but half as fast: the keys do not get any wider
     private val gap get() = dp(3.5f)
     private val rowGap get() = dp(11f) // wide enough for the silver ridge to sit between the rows without touching a key
     private val padX get() = dp(5f)
@@ -157,6 +162,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
     }
 
     private var layoutId = "qwerty"
+    private var accentMap = Layouts.accents // the hold-a-letter forms for the language in use, in that language's order
     private fun rows() = Layouts.rows(layoutId)
 
     /** Vertical drop of the row at horizontal position x: 0 at the ends, [smile] in the middle. */
@@ -351,10 +357,10 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
             Kind.CHAR -> {
                 val isLetter = c.key.label.length == 1 && c.key.label[0].isLetter()
                 if (isLetter) {
-                    legend.textSize = dp(17.5f)
+                    legend.textSize = dp(17.5f) * fontScale
                     drawInk(canvas, c.key.label, acx, cy + dp(3f), -0.24f)
                 } else { // 0 and $ stand upright
-                    legend.textSize = dp(18f)
+                    legend.textSize = dp(18f) * fontScale
                     drawInk(canvas, c.key.label, acx, cy + dp(2f))
                 }
                 clearShadow()
@@ -501,7 +507,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                     if (c.key.kind == Kind.DELETE) ui.postDelayed(repeatDelete, 380)
                     // a letter with accented forms: hold it and they appear (the plain letter is already typed)
                     val base = c.key.label.takeIf { c.key.kind == Kind.CHAR && it.length == 1 && it[0].isLetter() }?.get(0)?.lowercaseChar()
-                    if (plain && base != null && Layouts.accents.containsKey(base)) {
+                    if (plain && base != null && accentMap.containsKey(base)) {
                         stopAccents()
                         accentFor = c; accentPointer = e.getPointerId(i); accentUpper = wasUpper
                         ui.postDelayed(showAccents, 420)
@@ -572,7 +578,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
     private val showAccents = Runnable {
         val cell = accentFor ?: return@Runnable
         val base = cell.key.label.firstOrNull()?.lowercaseChar() ?: return@Runnable
-        val list = Layouts.accents[base] ?: return@Runnable
+        val list = accentMap[base] ?: return@Runnable
         accentChoices = list.map { if (accentUpper) it.toString().uppercase() else it.toString() }
         accentIndex = -1
         val w = dp(40f); val h = dp(46f); val pad = dp(4f)

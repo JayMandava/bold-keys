@@ -2,13 +2,13 @@ package ai.boldkeys
 
 /** What differs between the languages the dictionary comes in. */
 object Lang {
-    fun wordsAsset(lang: String) = if (lang == "fr") "words_fr.tsv" else "words.tsv"
-    fun pairsAsset(lang: String) = if (lang == "fr") "pairs_fr.tsv" else "pairs.tsv"
-    fun learnedName(lang: String) = if (lang == "fr") "learned_fr.tsv" else "learned.tsv" // English keeps the name it always had
-    fun hasAccents(lang: String) = lang == "fr"
+    fun wordsAsset(lang: String) = if (lang == "en") "words.tsv" else "words_$lang.tsv"
+    fun pairsAsset(lang: String) = if (lang == "en") "pairs.tsv" else "pairs_$lang.tsv"
+    fun learnedName(lang: String) = if (lang == "en") "learned.tsv" else "learned_$lang.tsv" // English keeps the name it always had
+    fun hasAccents(lang: String) = lang != "en"
 
     /** How a sentence usually starts, offered before anything is typed. */
-    fun starters(lang: String) = if (lang == "fr") listOf("Je", "Le") else listOf("I", "The")
+    fun starters(lang: String) = when (lang) { "fr" -> listOf("Je", "Le"); "de" -> listOf("Ich", "Der"); else -> listOf("I", "The") }
 
     private val ELISIONS = setOf("c", "d", "j", "l", "m", "n", "s", "t", "qu", "jusqu", "lorsqu", "puisqu", "quelqu", "quoiqu", "aujourd")
 

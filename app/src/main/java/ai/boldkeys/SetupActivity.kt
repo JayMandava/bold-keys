@@ -320,8 +320,11 @@ private fun androidx.compose.foundation.lazy.LazyListScope.typingItems(context: 
                 }
             }
             Note(
-                if (layout == "azerty") "A, Z, Q and W swap places and M moves beside N. Hold a letter (A, E, I, O, U, C, Y, N, S) to pick an accented form."
-                else "The order printed on the Bold. Hold a letter (A, E, I, O, U, C, Y, N, S) to pick an accented form. AZERTY is available too.",
+                when (layout) {
+                    "azerty" -> "A, Z, Q and W swap places and M moves beside N. Hold a letter (A, E, I, O, U, C, Y, N, S) to pick an accented form."
+                    "qwertz" -> "Z and Y swap places, as on a German keyboard. Hold A, O, U or S for ä, ö, ü and ß; hold E, I or C for é, è, ï, ç and the rest."
+                    else -> "The order printed on the Bold. Hold a letter (A, E, I, O, U, C, Y, N, S) to pick an accented form. AZERTY and QWERTZ are available too."
+                },
             )
         }
         Section("Language") {
@@ -334,7 +337,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.typingItems(context: 
                     ) { Text(name, maxLines = 1, softWrap = false) }
                 }
             }
-            Note("Sets the dictionary, suggestions and next-word hints. Automatic follows the layout: French with AZERTY, English with QWERTY. In French, typing \"ete\" offers and corrects to \"été\", and l', j' and qu' are handled. Each language keeps its own personal dictionary.")
+            Note("Sets the dictionary, suggestions and next-word hints. Automatic follows the layout: French with AZERTY, German with QWERTZ, English with QWERTY. In French, typing \"ete\" offers and corrects to \"été\", and l', j' and qu' are handled. Each language keeps its own personal dictionary.")
         }
         Section("While you type") {
             SwitchRow("Autocorrect", "Fixes a misspelt word when you press space or punctuation. Backspace right after brings your word back.", correct) { correct = it; Prefs.put(context, "autocorrect", it) }
@@ -366,6 +369,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.lookItems(context: Co
 @Composable
 private fun AppearanceContent(context: Context) {
     var theme by remember { mutableStateOf(Prefs.theme(context)) }
+    var keySize by remember { mutableStateOf(Prefs.keySize(context)) }
     var mode by remember { mutableStateOf(Prefs.backlightMode(context)) }
     var color by remember { mutableStateOf(Prefs.backlightColor(context)) }
     var level by remember { mutableStateOf(Prefs.backlightLevel(context)) }
@@ -397,6 +401,19 @@ private fun AppearanceContent(context: Context) {
                 }
             }
             Note("Match phone follows the system's light or dark setting.")
+        }
+        Section("Key size") {
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
+                val options = listOf("small" to "Small", "normal" to "Normal", "large" to "Large", "xlarge" to "XL")
+                options.forEachIndexed { i, (key, name) ->
+                    SegmentedButton(
+                        selected = keySize == key, onClick = { keySize = key; Prefs.put(context, "keySize", key); version++ },
+                        shape = SegmentedButtonDefaults.itemShape(i, options.size),
+                        icon = {}, // no check mark: the fill shows the choice, and the label needs the room
+                    ) { Text(name, maxLines = 1, softWrap = false) }
+                }
+            }
+            Note("How tall the keys are. Large and XL make bigger buttons for big thumbs; the keyboard takes more of the screen.")
         }
         Section("Backlight") {
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
