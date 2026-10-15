@@ -79,3 +79,7 @@ A key press redraws only that key's square (`invalidateKey`) unless it changes s
 ## Alt
 
 Alt arms on a tap (`Shift.ONCE`), locks on a double tap within 400 ms (`Shift.CAPS`), and works while held (`altHeld`, ended when the finger lifts if a key was typed meanwhile). A hold of at least `ALT_HOLD_MS` (450 ms) that ends with nothing typed also locks it; a hold that was used does not. A tap on Alt turns a lock off.
+
+## The white theme
+
+Every colour comes from `KeyTheme`. A key top is a lit surface (`keyFace`): base colour times `ambient + diffuse * light`, plus a little specular. In `drawKey` the top is painted over the key's wall gradient with the same `Paint` that drew the cast shadow, and `drawBitmap` uses that Paint's alpha, so the top was only as opaque as the shadow colour: about 60% on the black keyboard (which is tuned around that) and only about 20% on the white one, where the dark wall showed through and made it a dull grey. The white theme now paints its tops fully opaque and has its own lighting (`ambient` 0.72, `diffuse` 0.38, a near-white base, softer function keys, a light board and lighter walls). Measured on the phone, a white key top went from about `#A3A6AB` to about `#FEFEFF`; the black theme is unchanged pixel for pixel.

@@ -330,6 +330,8 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         surf.shader = null
 
         val face = keyFace(faceW.coerceAtLeast(1), faceH.coerceAtLeast(1), false, hasFacet, special)
+        // the paint still carries the cast shadow's alpha, and drawBitmap uses it: on the white keyboard that left the key top about a fifth opaque over the dark wall, which is what made it grey
+        if (!th.dark) surf.alpha = 255
         surf.colorFilter = if (isDown) pressFilter else null
         canvas.drawBitmap(face, t.left, t.top, surf)
         surf.colorFilter = null
