@@ -75,3 +75,7 @@ A key press redraws only that key's square (`invalidateKey`) unless it changes s
 ## Key size
 
 `Prefs.keySize` (small, normal, large, xlarge) becomes a scale of 0.9, 1, 1.12 or 1.25. `KeyboardView.keyH` is 46 dp times that scale, so the keyboard measures taller and every row, hit test and ridge follows it; letters grow at half the rate (`fontScale`) because the keys do not get any wider. Changing the setting calls `requestLayout`, and the preview on the Appearance page redraws at once. Normal is exactly the size it always was.
+
+## Alt
+
+Alt arms on a tap (`Shift.ONCE`), locks on a double tap within 400 ms (`Shift.CAPS`), and works while held (`altHeld`, ended when the finger lifts if a key was typed meanwhile). A hold of at least `ALT_HOLD_MS` (450 ms) that ends with nothing typed also locks it; a hold that was used does not. A tap on Alt turns a lock off.

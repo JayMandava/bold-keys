@@ -23,6 +23,9 @@ import kotlin.math.pow
 import kotlin.math.sin
 import kotlin.math.sqrt
 
+/** How long Alt must be held, with nothing typed, for it to stay on after the finger lifts. */
+private const val ALT_HOLD_MS = 450L
+
 /**
  * The keyboard, drawn by hand to look like the Bold 9900's keys: near-black caps with a domed, glossy top and a soft sheen, rows that
  * curve gently like a smile, thin silver ridges between the rows, light condensed legends with the Alt symbol printed small in the corner.
@@ -115,6 +118,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
     private var lastAltTap = 0L
     private var altHeld = false // a finger is on Alt right now: keys type their symbols for as long as it stays there (the other thumb types)
     private var altUsedWhileHeld = false
+    private var altDownAt = 0L
     private var lastShiftTap = 0L
     /** The right-hand key: hold it and tap a letter to run that letter's Speed shortcut; a plain tap opens the emoji picker (or, with the emoji key off, works as Shift). */
     private var speedHeld = false
@@ -498,7 +502,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                     pressedRow = c.row; pressedCol = c.col
                     val wasUpper = shift != Shift.OFF
                     val plain = altMode == Shift.OFF && !altHeld && !speedHeld
-                    if (c.key.kind == Kind.LAYER) { altHeld = true; altUsedWhileHeld = false }
+                    if (c.key.kind == Kind.LAYER) { altHeld = true; altUsedWhileHeld = false; altDownAt = SystemClock.uptimeMillis() }
                     if (c.key.kind == Kind.SPEED) { speedHeld = true; speedUsed = false; speedDownAt = SystemClock.uptimeMillis() }
                     else if (speedHeld && c.key.kind == Kind.CHAR && c.key.label.length == 1 && c.key.label[0].isLetter()) {
                         speedUsed = true
@@ -536,6 +540,8 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                 if (up?.key?.kind == Kind.LAYER) {
                     altHeld = false
                     if (altUsedWhileHeld && altMode == Shift.ONCE) altMode = Shift.OFF // held and used: it ends with the finger; a plain tap stays armed for the next key
+                    // held for a moment and let go with nothing typed: it stays on, so a run of numbers can be typed with one thumb (a tap on Alt ends it)
+                    else if (!altUsedWhileHeld && altMode == Shift.ONCE && e.actionMasked != MotionEvent.ACTION_CANCEL && SystemClock.uptimeMillis() - altDownAt >= ALT_HOLD_MS) { altMode = Shift.CAPS; feedback.key() }
                     altUsedWhileHeld = false
                 }
                 if (up?.key?.kind == Kind.SPEED) {

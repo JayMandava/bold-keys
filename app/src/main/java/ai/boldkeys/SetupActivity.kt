@@ -339,6 +339,9 @@ private fun androidx.compose.foundation.lazy.LazyListScope.typingItems(context: 
             }
             Note("Sets the dictionary, suggestions and next-word hints. Automatic follows the layout: French with AZERTY, German with QWERTZ, English with QWERTY. In French, typing \"ete\" offers and corrects to \"été\", and l', j' and qu' are handled. Each language keeps its own personal dictionary.")
         }
+        Section("Alt key") {
+            Note("Tap Alt and the next key types its small symbol. For a run of numbers, double-tap Alt, or hold it for half a second and let go: it stays on until you tap Alt again. You can also hold Alt with one thumb and type with the other.")
+        }
         Section("While you type") {
             SwitchRow("Autocorrect", "Fixes a misspelt word when you press space or punctuation. Backspace right after brings your word back.", correct) { correct = it; Prefs.put(context, "autocorrect", it) }
             SwitchRow("Suggestions", "Shows the likely words beside the trackpad.", suggest) { suggest = it; Prefs.put(context, "suggestions", it) }

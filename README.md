@@ -12,7 +12,7 @@ follow the two steps on screen to turn the keyboard on. Needs Android 13 or newe
 
 - **Keys that feel real:** each key is drawn as a lit 3D surface, with a haptic click, black or white themes and an optional backlight
   (white, amber, blue or green; on, off or following the light sensor).
-- **Four rows, no number row:** every key has a second symbol, reached by holding or tapping alt. The sym key opens a picker of symbols (three pages), and the right-hand key opens the emoji picker; both stay open until you close them, and scroll with the trackpad or your finger.
+- **Four rows, no number row:** every key has a second symbol, reached by holding or tapping alt (tap it for one symbol; double-tap, or hold it for half a second and let go, to keep it on for a run of numbers). The sym key opens a picker of symbols (three pages), and the right-hand key opens the emoji picker; both stay open until you close them, and scroll with the trackpad or your finger.
 - **Trackpad:** drag on the bar to move the cursor. Hold shift and drag to select. A quick tap takes the first suggestion.
 - **Autocorrect and suggestions:** a dictionary tuned to where thumbs land (a miss next to the right key costs less than a random one),
   completions as you type, next-word suggestions, and double space for a full stop. Backspace right after a correction brings your word
