@@ -26,6 +26,7 @@ import kotlin.math.sqrt
 /** How long Alt must be held, with nothing typed, for it to stay on after the finger lifts. */
 private const val ALT_HOLD_MS = 450L
 
+
 /**
  * The keyboard, drawn by hand to look like the Bold 9900's keys: near-black caps with a domed, glossy top and a soft sheen, rows that
  * curve gently like a smile, thin silver ridges between the rows, light condensed legends with the Alt symbol printed small in the corner.
@@ -48,6 +49,8 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
 
     private var th = KeyTheme(true)
     private var emojiKey = true // the right-hand key opens the emoji picker (a tap) or runs the Speed key (held); off, a tap is a Shift
+    private var currency = "$" // what the currency key shows and types (the Currency setting)
+    private var volumeSlide = true // hold the currency key and slide to change the volume
     private var glowMode = "off"
     private var glowRgb = 0xFFEAF2FF.toInt()
     private var glowSetting = 0.6f
@@ -59,6 +62,8 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         val c = context
         th = KeyTheme(Prefs.isDark(c))
         emojiKey = Prefs.emojiPages(c)
+        currency = Prefs.currency(c)
+        volumeSlide = Prefs.volumeSlide(c)
         glowMode = Prefs.backlightMode(c)
         glowRgb = Prefs.BACKLIGHT_COLORS[Prefs.backlightColor(c)] ?: 0xFFEAF2FF.toInt()
         glowSetting = Prefs.backlightLevel(c)
@@ -206,6 +211,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         for (row in cells) for (c in row) drawKey(canvas, c, c in down || latched(c.key))
         if (picker != Picker.NONE) drawPicker(canvas)
         drawAccents(canvas)
+        drawVolume(canvas)
     }
 
     /** A modifier that is on stays pressed in, like a held key; nothing else about the keyboard changes. */
@@ -365,9 +371,9 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                 if (isLetter) {
                     legend.textSize = dp(17.5f) * fontScale
                     drawInk(canvas, c.key.label, acx, cy + dp(3f), -0.24f)
-                } else { // 0 and $ stand upright
+                } else { // 0 and the currency sign stand upright
                     legend.textSize = dp(18f) * fontScale
-                    drawInk(canvas, c.key.label, acx, cy + dp(2f))
+                    drawInk(canvas, if (isCurrencyKey(c.key)) currency else c.key.label, acx, cy + dp(2f))
                 }
                 clearShadow()
                 val sym = secondaryFor(c.row, c.col)
@@ -379,7 +385,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                     val gapEdge = dp(8f) // the same distance from either edge, measured to the glyph itself
                     val x = if (rightSide) t.right - gapEdge - ink.right else t.left + gapEdge - ink.left
                     canvas.drawText(sym, x, t.top + dp(14f), small)
-                } else if (c.key.label == "$") {
+                } else if (isCurrencyKey(c.key)) {
                     drawSpeaker(canvas, t.right - dp(15f), t.top + dp(9f))
                 }
             }
@@ -499,6 +505,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                 val i = e.actionIndex
                 hit(e.getX(i), e.getY(i))?.let { c ->
                     val before = modifierState()
+                    flushVolumeTap() // a tap on the currency key still waiting for its finger to lift is typed first, so the order of keys never swaps
                     pressed[e.getPointerId(i)] = c
                     feedback.key()
                     pressedRow = c.row; pressedCol = c.col
@@ -509,6 +516,9 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                     else if (speedHeld && c.key.kind == Kind.CHAR && c.key.label.length == 1 && c.key.label[0].isLetter()) {
                         speedUsed = true
                         listener.onShortcut(c.key.label[0])
+                    } else if (volumeSlide && plain && isCurrencyKey(c.key)) {
+                        // typed when the finger lifts, unless the trackpad was used meanwhile: then it was the volume
+                        volAnchor = c.rect; volPointer = e.getPointerId(i); volCell = c; volPending = true
                     } else fire(c.key)
                     if (c.key.kind == Kind.DELETE) ui.postDelayed(repeatDelete, 380)
                     // a letter with accented forms: hold it and they appear (the plain letter is already typed)
@@ -531,6 +541,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP, MotionEvent.ACTION_CANCEL -> {
                 val before = modifierState()
                 val hadAccents = accentRects.isNotEmpty()
+                endVolume(e.getPointerId(e.actionIndex), e.actionMasked != MotionEvent.ACTION_CANCEL)
                 if (e.getPointerId(e.actionIndex) == accentPointer) {
                     val chosen = accentChoices.getOrNull(accentIndex)
                     val lifted = e.actionMasked != MotionEvent.ACTION_CANCEL
@@ -563,6 +574,64 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
 
     private var pressedRow = 0
     private var pressedCol = 0
+
+    // ---- the currency key: a tap types its sign (when the finger lifts); hold it and scroll the trackpad (the square in the strip above the keys) up or down, and it turns the
+    // phone's media volume instead (the speaker printed on it). Nothing is typed if the volume was changed. It needs no special permission: any app may step the volume.
+    private fun isCurrencyKey(k: Key) = k.kind == Kind.CHAR && k.label == "$"
+
+    private var volPointer = -1
+    private var volCell: Cell? = null
+    private var volPending = false // the sign has not been typed yet; lifting types it, unless the trackpad turned the volume
+    private val audio by lazy { context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager }
+
+    private var volShownUntil = 0L
+    private var volAnchor: RectF? = null // where the bar sits: above the key, kept after the finger lifts so the bar fades out in place
+
+    /** The keyboard's own volume bar, shown above the key while the volume moves (and a moment after), so the level is visible whatever the phone's own panel does. */
+    private fun showVolume() { volShownUntil = SystemClock.uptimeMillis() + 1400; invalidate(); postInvalidateDelayed(1450) }
+
+    private fun drawVolume(canvas: Canvas) {
+        if (SystemClock.uptimeMillis() >= volShownUntil) return
+        val anchor = volAnchor ?: return
+        val max = audio.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+        val now = audio.getStreamVolume(android.media.AudioManager.STREAM_MUSIC)
+        val w = dp(190f); val h = dp(34f)
+        val left = (anchor.centerX() - w / 2f).coerceIn(dp(4f), width - w - dp(4f))
+        val top = (anchor.top - h - dp(18f)).coerceAtLeast(dp(4f))
+        val box = RectF(left, top, left + w, top + h)
+        accentPaint.shader = null; accentPaint.color = if (th.dark) 0xE6000000.toInt() else 0xF2FFFFFF.toInt()
+        canvas.drawRoundRect(box, dp(17f), dp(17f), accentPaint)
+        drawSpeaker(canvas, left + dp(12f), top + h / 2f)
+        val bar = RectF(left + dp(40f), top + h / 2f - dp(3f), left + w - dp(14f), top + h / 2f + dp(3f))
+        accentPaint.color = (th.legend and 0x00FFFFFF) or 0x55000000; canvas.drawRoundRect(bar, dp(3f), dp(3f), accentPaint)
+        accentPaint.color = 0xFF2f8fe8.toInt()
+        canvas.drawRoundRect(RectF(bar.left, bar.top, bar.left + bar.width() * now / max, bar.bottom), dp(3f), dp(3f), accentPaint)
+    }
+
+    /** True while a finger rests on the currency key and the volume gesture is on: the trackpad then turns the volume. */
+    fun isCurrencyHeld() = volumeSlide && volPointer >= 0 && volCell != null
+
+    /** The trackpad moved [dy] steps while the currency key is held: up is louder, down quieter. */
+    fun trackpadVolume(dy: Int) {
+        if (dy == 0) return
+        volPending = false // the volume was used: lifting types no sign
+        repeat(abs(dy)) { audio.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC, if (dy < 0) android.media.AudioManager.ADJUST_RAISE else android.media.AudioManager.ADJUST_LOWER, android.media.AudioManager.FLAG_SHOW_UI) }
+        feedback.key()
+        showVolume()
+    }
+
+    /** Types the waiting sign now (another key went down before the finger lifted), so the order of keys never swaps. */
+    private fun flushVolumeTap() {
+        if (!volPending) return
+        volPending = false
+        volCell?.let { fire(it.key) }
+    }
+
+    private fun endVolume(pointer: Int, lifted: Boolean) {
+        if (pointer != volPointer) return
+        if (volPending && lifted) volCell?.let { fire(it.key) }
+        volPointer = -1; volCell = null; volPending = false
+    }
 
     /**
      * A key press only changes that key, so only its square is redrawn (with room for its shadow and glow): the graphics chip then repaints one key
@@ -634,11 +703,11 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         val shift0 = shift; val alt0 = altMode
         when (key.kind) {
             Kind.CHAR, Kind.SPACE -> {
-                var t = key.text
+                var t = if (isCurrencyKey(key)) currency else key.text
                 val isLetter = key.kind == Kind.CHAR && t.length == 1 && t[0].isLetter()
                 val sym = if (isLetter) secondaryFor(pressedRow, pressedCol) else null
-                if (altMode != Shift.OFF && key.label == "$") {
-                    // Alt + $ is the speaker on the real phone; with no sound to switch it does nothing, but it still uses up the Alt
+                if (altMode != Shift.OFF && isCurrencyKey(key)) {
+                    // Alt + the currency key is the speaker on the real phone; there is no sound to switch, so it does nothing, but it still uses up the Alt (the volume is on a hold and slide instead)
                     if (altHeld) altUsedWhileHeld = true else if (altMode == Shift.ONCE) altMode = Shift.OFF
                     invalidate(); return
                 } else if (altMode != Shift.OFF && sym != null) {
@@ -704,6 +773,14 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         } else {
             pickCols = 7
             tones = Emoji.toneState(context)
+            // one row of the ones used most and most lately comes first, so the picker opens on them; it is fixed while the picker is open (it would shuffle under a thumb tapping the same emoji again and again)
+            val owner = Emoji.owner(context)
+            val recent = Emoji.recents(context, pickCols).filter { it in owner }
+            if (recent.isNotEmpty()) {
+                sections.add("Recent" to 0)
+                for (s in recent) { pickItems.add(s); pickBases.add(owner[s]) }
+                while (pickItems.size % pickCols != 0) { pickItems.add(""); pickBases.add(null) }
+            }
             for (g in Emoji.groups(context)) {
                 sections.add(g.name to pickItems.size)
                 for (it in g.items) { pickItems.add(Emoji.shown(it, Emoji.tone(it, tones.first, tones.second))); pickBases.add(it) }
@@ -714,9 +791,12 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         invalidate()
     }
 
-    private fun closePicker() { picker = Picker.NONE; stopTones(); stopMotion(); invalidate() }
+    private fun closePicker() { picker = Picker.NONE; stopTones(); stopMotion(); stopPickerDelete(); invalidate() }
 
-    private class PickGeo(val grid: RectF, val cw: Float, val ch: Float, val gx: Float, val gy: Float, val more: RectF, val label: RectF, val close: RectF) {
+    /** A new text field starts on the letter keys, whatever the last one left open. */
+    fun resetPicker() { if (picker != Picker.NONE) closePicker() }
+
+    private class PickGeo(val grid: RectF, val cw: Float, val ch: Float, val gx: Float, val gy: Float, val more: RectF, val label: RectF, val close: RectF, val del: RectF?) {
         val stride get() = ch + gy
     }
 
@@ -728,10 +808,13 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         val cw = (width - pad * 2 - gapX * (pickCols - 1)) / pickCols
         val ch = (gridH - gapY * (rowsN - 1)) / rowsN
         val y = height - pad - pillH
-        val pill = (width - pad * 2 - gapX * 2) * 0.3f
+        val emoji = picker == Picker.EMOJI
+        // the emoji picker stays open after each emoji, so it has a delete pill of its own beside "more" (the symbol picker keeps its two pills)
+        val pill = if (emoji) (width - pad * 2) * 0.22f else (width - pad * 2 - gapX * 2) * 0.3f
         val more = RectF(pad, y, pad + pill, y + pillH)
         val close = RectF(width - pad - pill, y, width - pad, y + pillH)
-        return PickGeo(RectF(pad, pad, width - pad, pad + gridH), cw, ch, gapX, gapY, more, RectF(more.right + gapX, y, close.left - gapX, y + pillH), close)
+        val del = if (emoji) RectF(more.right + gapX, y, more.right + gapX + (width - pad * 2) * 0.14f, y + pillH) else null
+        return PickGeo(RectF(pad, pad, width - pad, pad + gridH), cw, ch, gapX, gapY, more, RectF((del ?: more).right + gapX, y, close.left - gapX, y + pillH), close, del)
     }
 
     private fun maxScroll(g: PickGeo): Float {
@@ -879,6 +962,12 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
             legend.textSize = dp(13f)
             drawInk(canvas, label, r.centerX(), r.centerY())
         }
+        g.del?.let { r ->
+            fill.shader = LinearGradient(0f, r.top, 0f, r.bottom, th.pillTop, th.pillBottom, Shader.TileMode.CLAMP)
+            canvas.drawRoundRect(r, dp(17f), dp(17f), fill)
+            fill.shader = null
+            drawBackArrow(canvas, r.centerX(), r.centerY())
+        }
         legend.color = th.barText2; legend.textSize = dp(12f)
         drawInk(canvas, sectionName(g), g.label.centerX(), g.label.centerY())
         drawTones(canvas)
@@ -899,6 +988,16 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
     private var pY = 0f
     private var pStartScroll = 0f
     private var pCell = -1
+    private var pDel = false // the finger is on the delete pill: it deletes now, and again and again while held
+
+    private val pickerDeleteRepeat = object : Runnable {
+        override fun run() {
+            if (!pDel || picker == Picker.NONE) return
+            feedback.key(); listener.onDelete(); ui.postDelayed(this, 55)
+        }
+    }
+
+    private fun stopPickerDelete() { pDel = false; ui.removeCallbacks(pickerDeleteRepeat) }
 
     private fun pickerTouch(e: MotionEvent): Boolean {
         val g = pickGeo()
@@ -908,9 +1007,13 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                 tracker?.recycle(); tracker = android.view.VelocityTracker.obtain().also { it.addMovement(e) }
                 pDown = true; pDrag = false; pY = e.y; pStartScroll = pickScroll
                 pCell = cellAt(g, e.x, e.y)
-                if (pBases(pCell)?.tones?.isNotEmpty() == true) ui.postDelayed(showTones, 420)
+                if (g.del?.contains(e.x, e.y) == true) {
+                    pDel = true; pCell = -1
+                    feedback.key(); listener.onDelete(); ui.postDelayed(pickerDeleteRepeat, 380)
+                    invalidate()
+                } else if (pBases(pCell)?.tones?.isNotEmpty() == true) ui.postDelayed(showTones, 420)
             }
-            MotionEvent.ACTION_MOVE -> if (pDown) {
+            MotionEvent.ACTION_MOVE -> if (pDown && !pDel) {
                 if (toneRects.isNotEmpty()) {
                     val idx = toneRects.indices.minByOrNull { abs(toneRects[it].centerX() - e.x) } ?: -1
                     if (idx != toneIndex) { toneIndex = idx; invalidate() }
@@ -922,7 +1025,8 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
             }
             MotionEvent.ACTION_UP -> {
                 ui.removeCallbacks(showTones)
-                if (pDown) {
+                if (pDown && pDel) stopPickerDelete()
+                else if (pDown) {
                     if (toneRects.isNotEmpty()) chooseTone()
                     else if (!pDrag) pickerTap(g, e.x, e.y)
                     else tracker?.let { t -> // let go while moving: it carries on and slows down
@@ -938,7 +1042,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                 pDown = false
                 releaseKeys(e)
             }
-            MotionEvent.ACTION_CANCEL -> { ui.removeCallbacks(showTones); stopTones(); tracker?.recycle(); tracker = null; pDown = false; pressed.clear(); altHeld = false; speedHeld = false; invalidate() }
+            MotionEvent.ACTION_CANCEL -> { ui.removeCallbacks(showTones); stopTones(); stopPickerDelete(); tracker?.recycle(); tracker = null; pDown = false; pressed.clear(); altHeld = false; speedHeld = false; invalidate() }
             MotionEvent.ACTION_POINTER_UP -> releaseKeys(e)
         }
         return true
@@ -962,7 +1066,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                 val i = cellAt(g, x, y)
                 if (i >= 0) {
                     listener.onText(pickItems[i])
-                    if (picker == Picker.EMOJI) closePicker() // one emoji, and back to the keys; the symbol picker stays open until "close"
+                    if (picker == Picker.EMOJI) Emoji.bump(context, pickItems[i]) // both pickers stay open until "close", so one visit can type many; the emoji one remembers what was used
                 }
             }
         }
@@ -1004,7 +1108,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
             tones = Emoji.toneState(context)
             pickItems[pCell] = Emoji.shown(item, tone)
             listener.onText(Emoji.shown(item, tone))
-            closePicker()
+            Emoji.bump(context, Emoji.shown(item, tone))
         }
         invalidate()
     }

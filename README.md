@@ -12,12 +12,12 @@ follow the two steps on screen to turn the keyboard on. Needs Android 13 or newe
 
 - **Keys that feel real:** each key is drawn as a lit 3D surface, with a haptic click, black or white themes and an optional backlight
   (white, amber, blue or green; on, off or following the light sensor).
-- **Four rows, no number row:** every key has a second symbol, reached by holding or tapping alt (tap it for one symbol; double-tap, or hold it for half a second and let go, to keep it on for a run of numbers). The sym key opens a picker of symbols (three pages), and the right-hand key opens the emoji picker; both stay open until you close them, and scroll with the trackpad or your finger.
+- **Four rows, no number row:** every key has a second symbol, reached by holding or tapping alt (tap it for one symbol; double-tap, or hold it for half a second and let go, to keep it on for a run of numbers). The sym key opens a picker of symbols (three pages), and the right-hand key opens the emoji picker; both stay open until you close them, and scroll with the trackpad or your finger. A new text field always starts on the letter keys.
 - **Trackpad:** drag on the bar to move the cursor. Hold shift and drag to select. A quick tap takes the first suggestion.
 - **Autocorrect and suggestions:** a dictionary tuned to where thumbs land (a miss next to the right key costs less than a random one),
   completions as you type, next-word suggestions, and double space for a full stop. Backspace right after a correction brings your word
   back and teaches it. Words you type twice are learned; you can add, remove and clear them in Settings.
-- **Emoji:** tap the right-hand key (the grid of dots, as on the original's Speed key) for every emoji your phone can show, in Unicode's groups, with skin tones (hold an emoji with a dot and slide to a tone; set a default in Settings). "more" jumps to the next group.
+- **Emoji:** tap the right-hand key (the grid of dots, as on the original's Speed key) for every emoji your phone can show, in Unicode's groups, with skin tones (hold an emoji with a dot and slide to a tone; set a default in Settings). "more" jumps to the next group. The picker stays open after each emoji (so a run of them is one visit) and has a delete arrow of its own; its first row, "Recent", holds the seven you use most and most lately.
 - **Speed key:** hold the right-hand key and tap a letter to open an app, a link or type a snippet you set in Settings. Nothing is
   shown on the keys; a plain tap on that key is still Shift.
 - **QWERTY, QWERTZ or AZERTY:** choose the layout in Settings > Typing. AZERTY swaps A and Z with Q and W and moves M beside N; QWERTZ swaps Z and Y. The spelling model follows the layout, so
@@ -32,6 +32,7 @@ follow the two steps on screen to turn the keyboard on. Needs Android 13 or newe
   never writes text. Off by default. See [docs/how-it-works.md](docs/how-it-works.md).
 - **Private by design:** the only network use is the Download button for a context model, and only when you tap it. Passwords, email and
   web-address fields are never corrected or suggested.
+- **Currency key:** the key beside M shows and types your region's sign (£, €, ₹ ...) or any of fourteen you choose in Settings. Its small speaker is real: hold the key and scroll the trackpad up or down to change the media volume (a quick tap still types the sign; switch it off in Settings). No special permission is needed.
 - **Material 3 Expressive settings,** and text emoticons that turn into emoji (optional).
 
 ## Context models

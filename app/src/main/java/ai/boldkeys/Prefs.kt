@@ -47,6 +47,17 @@ object Prefs {
     fun emojiPages(c: Context) = bool(c, "emojiPages", true)
     fun emoticons(c: Context) = bool(c, "emoticons", true)
 
+    /** The symbol on the currency key: what the user chose, or (on auto) the one the phone's region uses. */
+    fun currencyChoice(c: Context) = string(c, "currency", "auto")
+    fun currency(c: Context) = currencyChoice(c).let { if (it == "auto") regionCurrency() else it }
+    /** The region's currency sign, when it is a single character ($, £, €, ¥, ₹ ...); a longer one (kr, zł) would not fit the key, so it falls back to $. */
+    fun regionCurrency(): String = runCatching {
+        val locale = java.util.Locale.getDefault()
+        java.util.Currency.getInstance(locale).getSymbol(locale)
+    }.getOrNull()?.takeIf { it.length == 1 } ?: "$"
+    /** Hold the $ key and slide up or down to change the volume (a quick tap still types the currency sign). */
+    fun volumeSlide(c: Context) = bool(c, "volumeSlide", true)
+
     /** The glow colours the backlight can use, as RGB. */
     val BACKLIGHT_COLORS = linkedMapOf(
         "white" to 0xFFEAF2FF.toInt(), "amber" to 0xFFFFB347.toInt(), "blue" to 0xFF4DA3FF.toInt(), "green" to 0xFF5CF29A.toInt(),

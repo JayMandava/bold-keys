@@ -193,6 +193,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         doubleSpaceOn = Prefs.doubleSpace(this); nextWordOn = Prefs.nextWord(this); loadEngine(Prefs.language(this))
         engine?.british = Prefs.spelling(this) == "uk"; engine?.setLayout(Prefs.layout(this))
         contextOn = Prefs.contextModel(this) && lang == "en"; syncContextModel() // the context model has only been measured on English
+        if (!restarting) kb.resetPicker() // a new text field starts on the letter keys, even if the last one left the emoji picker open (a restart in the same field leaves it alone)
         kb.applySettings(); bar.applyTheme(Prefs.isDark(this))
         reloadLearnedIfChanged()
         currentInputConnection?.requestCursorUpdates(android.view.inputmethod.InputConnection.CURSOR_UPDATE_MONITOR or android.view.inputmethod.InputConnection.CURSOR_UPDATE_FILTER_EDITOR_BOUNDS)
@@ -339,8 +340,19 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
             }
         }
         undo = null
-        if (ic.getSelectedText(0).isNullOrEmpty()) ic.deleteSurroundingText(1, 0) else ic.commitText("", 1)
+        if (ic.getSelectedText(0).isNullOrEmpty()) ic.deleteSurroundingText(lastCharLength(ic), 0) else ic.commitText("", 1)
         scheduleRefresh()
+    }
+
+    /** How many units the character before the cursor takes: one for a letter, but two or more for an emoji, a skin tone, a flag or a letter with its accent, which must go together or half of it is left behind. */
+    private fun lastCharLength(ic: android.view.inputmethod.InputConnection): Int {
+        val before = ic.getTextBeforeCursor(32, 0)?.toString() ?: return 1
+        if (before.isEmpty()) return 1
+        val it = android.icu.text.BreakIterator.getCharacterInstance()
+        it.setText(before)
+        val end = it.last()
+        val start = it.previous()
+        return if (start == android.icu.text.BreakIterator.DONE) 1 else (end - start).coerceAtLeast(1)
     }
 
     override fun onEnter() {
@@ -429,6 +441,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
     // ---- trackpad
 
     override fun onMove(dx: Int, dy: Int, select: Boolean) {
+        if (kb.isCurrencyHeld()) { kb.trackpadVolume(dy); return } // the currency key (with the speaker) is held: the trackpad's up and down are the volume
         if (kb.pickerOpen()) { kb.pickerScroll(dx, dy); return } // with the symbol or emoji picker open the trackpad scrolls it
         val meta = if (select) KeyEvent.META_SHIFT_ON or KeyEvent.META_SHIFT_LEFT_ON else 0
         fun press(code: Int, times: Int) {

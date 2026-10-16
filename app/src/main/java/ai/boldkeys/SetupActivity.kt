@@ -43,6 +43,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -481,6 +482,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.symbolItems(context: 
         var emoji by remember { mutableStateOf(Prefs.emojiPages(context)) }
         var emoticons by remember { mutableStateOf(Prefs.emoticons(context)) }
         var tone by remember { mutableStateOf(Emoji.defaultTone(context)) }
+        var currency by remember { mutableStateOf(Prefs.currencyChoice(context)) }
+        var volume by remember { mutableStateOf(Prefs.volumeSlide(context)) }
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Section("Emoji") {
             SwitchRow("Emoji key", "Tap the right-hand key (the grid of dots) for every emoji your phone can show, in groups. Hold it and tap a letter for a Speed key shortcut. Off, a tap on it is a Shift.", emoji) { emoji = it; Prefs.put(context, "emojiPages", it) }
@@ -495,8 +498,20 @@ private fun androidx.compose.foundation.lazy.LazyListScope.symbolItems(context: 
             }
             Note("Used for every emoji that comes in skin tones. In the emoji picker, hold one of those (they have a small dot) and slide to a tone to change just that emoji.")
         }
+        Section("Currency key") {
+            val signs = listOf("auto" to "Auto", "$" to "$", "£" to "£", "€" to "€", "¥" to "¥", "₹" to "₹", "₩" to "₩", "₽" to "₽", "₺" to "₺", "₦" to "₦", "₱" to "₱", "₫" to "₫", "฿" to "฿", "₪" to "₪")
+            FlowRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                signs.forEach { (key, name) ->
+                    FilterChip(selected = currency == key, onClick = { currency = key; Prefs.put(context, "currency", key) }, label = { Text(name) })
+                }
+            }
+            Note("The key beside M types this sign. Auto uses your phone's region (${Prefs.regionCurrency()} here).")
+        }
+        Section("Volume") {
+            SwitchRow("Volume on the currency key", "Hold the currency key (the one with the small speaker) with one thumb and scroll the trackpad (the square above the keys) up or down with the other: up is louder, down is quieter. A quick tap still types the sign, when you lift. No special permission is needed.", volume) { volume = it; Prefs.put(context, "volumeSlide", it) }
+        }
         Section("Sym key") {
-            Note("The sym key keeps to symbols: three pages you can scroll with the trackpad or your finger.")
+            Note("The sym key keeps to symbols: three pages you can scroll with the trackpad or your finger. Both the sym and emoji pickers stay open while you pick, and close with the close button. The emoji picker opens on a row of the emoji you use most.")
         }
         }
     }
