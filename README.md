@@ -14,8 +14,9 @@ follow the two steps on screen to turn the keyboard on. Needs Android 13 or newe
   (white, amber, blue or green; on, off or following the light sensor).
 - **Four rows, no number row:** every key has a second symbol, reached by holding or tapping alt (tap it for one symbol; double-tap, or hold it for half a second and let go, to keep it on for a run of numbers). The sym key opens a picker of symbols (three pages), and the right-hand key opens the emoji picker; both stay open until you close them, and scroll with the trackpad or your finger. A new text field always starts on the letter keys.
 - **Trackpad:** drag on the bar to move the cursor. Hold shift and drag to select. A quick tap takes the first suggestion.
+- **Caps lock:** hold Shift for about half a second, or double-tap it, to keep letters capitalised. The bar under its arrow shows the lock; tap Shift to turn it off. A quick single tap still capitalises just the next letter.
 - **Autocorrect and suggestions:** a dictionary tuned to where thumbs land (a miss next to the right key costs less than a random one),
-  completions as you type, next-word suggestions, and double space for a full stop. Backspace right after a correction brings your word
+  completions as you type, next-word suggestions, and double space for a full stop after a word or emoji. Backspace right after a correction brings your word
   back and teaches it. Words you type twice are learned; you can add, remove and clear them in Settings.
 - **Emoji:** tap the right-hand key (the grid of dots, as on the original's Speed key) for every emoji your phone can show, in Unicode's groups, with skin tones (hold an emoji with a dot and slide to a tone; set a default in Settings). "more" jumps to the next group. The picker stays open after each emoji (so a run of them is one visit) and has a delete arrow of its own; its first row, "Recent", holds the seven you use most and most lately.
 - **Speed key:** hold the right-hand key and tap a letter to open an app, a link or type a snippet you set in Settings. Nothing is
@@ -66,6 +67,12 @@ cd bold-keys
 echo "sdk.dir=/path/to/Android/sdk" > local.properties    # add cmake.dir=... if CMake is not in the SDK
 ./gradlew assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+Run the focused keyboard regression tests (Robolectric, no connected phone required) and Android lint with:
+
+```
+./gradlew testDebugUnitTest lintDebug
 ```
 
 The debug build also contains two measurement screens, `EvalActivity` (dictionary) and `ContextEvalActivity` (context model).

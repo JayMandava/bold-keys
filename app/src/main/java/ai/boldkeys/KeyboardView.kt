@@ -25,6 +25,7 @@ import kotlin.math.sqrt
 
 /** How long Alt must be held, with nothing typed, for it to stay on after the finger lifts. */
 private const val ALT_HOLD_MS = 450L
+private const val SHIFT_HOLD_MS = 450L
 
 
 /**
@@ -102,7 +103,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         applySettings()
     }
 
-    override fun onDetachedFromWindow() { sensors.unregisterListener(lightListener); super.onDetachedFromWindow() }
+    override fun onDetachedFromWindow() { cancelShiftHold(); sensors.unregisterListener(lightListener); super.onDetachedFromWindow() }
 
     private val d = resources.displayMetrics.density
     private fun dp(v: Float) = v * d
@@ -132,6 +133,32 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
     private var cells: List<List<Cell>> = emptyList()
     private val pressed = HashMap<Int, Cell>()
     private val ui = Handler(Looper.getMainLooper())
+    private var shiftHoldPointer = -1
+    private var shiftBeforeHoldLock: Shift? = null
+    private var speedShiftLocked = false
+    private val lockShift = Runnable {
+        if (pressed[shiftHoldPointer] == null) return@Runnable
+        if (shift != Shift.CAPS) {
+            shiftBeforeHoldLock = shift
+            shift = Shift.CAPS
+            lastShiftTap = 0L
+            if (pressed[shiftHoldPointer]?.key?.kind == Kind.SPEED) speedShiftLocked = true
+            feedback.key()
+            invalidate() // the existing Caps-lock underline is visible before the finger lifts
+        }
+    }
+
+    /** A selection/shortcut or interrupted touch is not a Caps gesture, even after the hold timer fired. */
+    fun cancelShiftHold() {
+        shiftBeforeHoldLock?.let { before ->
+            if (shift == Shift.CAPS) { shift = before; invalidate() }
+            speedShiftLocked = false
+        }
+        finishShiftHold()
+    }
+
+    /** Lifting after a hold, or starting ordinary typing, keeps the lock the timer established. */
+    private fun finishShiftHold() { ui.removeCallbacks(lockShift); shiftHoldPointer = -1; shiftBeforeHoldLock = null }
 
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
     private val line = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND }
@@ -505,14 +532,17 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                 val i = e.actionIndex
                 hit(e.getX(i), e.getY(i))?.let { c ->
                     val before = modifierState()
+                    if (speedHeld && c.key.kind == Kind.CHAR && c.key.label.length == 1 && c.key.label[0].isLetter()) cancelShiftHold()
+                    else finishShiftHold()
                     flushVolumeTap() // a tap on the currency key still waiting for its finger to lift is typed first, so the order of keys never swaps
                     pressed[e.getPointerId(i)] = c
                     feedback.key()
                     pressedRow = c.row; pressedCol = c.col
                     val wasUpper = shift != Shift.OFF
+                    val wasCaps = shift == Shift.CAPS
                     val plain = altMode == Shift.OFF && !altHeld && !speedHeld
                     if (c.key.kind == Kind.LAYER) { altHeld = true; altUsedWhileHeld = false; altDownAt = SystemClock.uptimeMillis() }
-                    if (c.key.kind == Kind.SPEED) { speedHeld = true; speedUsed = false; speedDownAt = SystemClock.uptimeMillis() }
+                    if (c.key.kind == Kind.SPEED) { speedHeld = true; speedUsed = false; speedShiftLocked = false; speedDownAt = SystemClock.uptimeMillis() }
                     else if (speedHeld && c.key.kind == Kind.CHAR && c.key.label.length == 1 && c.key.label[0].isLetter()) {
                         speedUsed = true
                         listener.onShortcut(c.key.label[0])
@@ -520,6 +550,12 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                         // typed when the finger lifts, unless the trackpad was used meanwhile: then it was the volume
                         volAnchor = c.rect; volPointer = e.getPointerId(i); volCell = c; volPending = true
                     } else fire(c.key)
+                    // The left Shift still acts on press; the right Shift (when emoji is off) still acts on release.
+                    // Both share the existing Caps state, without re-locking a press that just unlocked it.
+                    if (!wasCaps && shift != Shift.CAPS && (c.key.kind == Kind.SHIFT || (c.key.kind == Kind.SPEED && !emojiKey))) {
+                        shiftHoldPointer = e.getPointerId(i)
+                        ui.postDelayed(lockShift, SHIFT_HOLD_MS)
+                    }
                     if (c.key.kind == Kind.DELETE) ui.postDelayed(repeatDelete, 380)
                     // a letter with accented forms: hold it and they appear (the plain letter is already typed)
                     val base = c.key.label.takeIf { c.key.kind == Kind.CHAR && it.length == 1 && it[0].isLetter() }?.get(0)?.lowercaseChar()
@@ -532,6 +568,13 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                 }
             }
             MotionEvent.ACTION_MOVE -> {
+                val si = e.findPointerIndex(shiftHoldPointer)
+                val held = pressed[shiftHoldPointer]
+                if (si >= 0 && held != null) {
+                    val slop = android.view.ViewConfiguration.get(context).scaledTouchSlop
+                    val r = held.rect
+                    if (e.getX(si) !in r.left - slop..r.right + slop || e.getY(si) !in r.top - slop..r.bottom + slop) cancelShiftHold()
+                }
                 val pi = e.findPointerIndex(accentPointer)
                 if (pi >= 0 && accentRects.isNotEmpty()) {
                     val idx = accentAt(e.getX(pi), e.getY(pi))
@@ -540,6 +583,8 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP, MotionEvent.ACTION_CANCEL -> {
                 val before = modifierState()
+                if (e.actionMasked == MotionEvent.ACTION_CANCEL) cancelShiftHold()
+                else if (e.getPointerId(e.actionIndex) == shiftHoldPointer) finishShiftHold()
                 val hadAccents = accentRects.isNotEmpty()
                 endVolume(e.getPointerId(e.actionIndex), e.actionMasked != MotionEvent.ACTION_CANCEL)
                 if (e.getPointerId(e.actionIndex) == accentPointer) {
@@ -560,10 +605,12 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                 if (up?.key?.kind == Kind.SPEED) {
                     speedHeld = false
                     // let go without using it: a quick tap opens the emoji picker (or is a plain Shift when the emoji key is off); a long hold that did nothing is left alone
-                    if (!speedUsed) {
-                        if (!emojiKey) fire(Key("shift", "", 1.5f, Kind.SHIFT))
-                        else if (SystemClock.uptimeMillis() - speedDownAt < 450) { feedback.key(); openPicker(Picker.EMOJI) }
+                    if (!speedUsed && e.actionMasked != MotionEvent.ACTION_CANCEL) {
+                        if (!emojiKey) {
+                            if (!speedShiftLocked) fire(Key("shift", "", 1.5f, Kind.SHIFT))
+                        } else if (SystemClock.uptimeMillis() - speedDownAt < 450) { feedback.key(); openPicker(Picker.EMOJI) }
                     }
+                    speedShiftLocked = false
                 }
                 if (pressed.values.none { it.key.kind == Kind.DELETE }) ui.removeCallbacks(repeatDelete)
                 if (up == null || hadAccents || modifierState() != before || picker != Picker.NONE) invalidate() else invalidateKey(up)
@@ -761,6 +808,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
     fun pickerOpen() = picker != Picker.NONE
 
     private fun openPicker(mode: Picker) {
+        cancelShiftHold()
         picker = mode; pickScroll = 0f; stopTones(); stopMotion()
         pickItems = ArrayList(); pickBases = ArrayList()
         val sections = ArrayList<Pair<String, Int>>()
@@ -794,7 +842,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
     private fun closePicker() { picker = Picker.NONE; stopTones(); stopMotion(); stopPickerDelete(); invalidate() }
 
     /** A new text field starts on the letter keys, whatever the last one left open. */
-    fun resetPicker() { if (picker != Picker.NONE) closePicker() }
+    fun resetPicker() { cancelShiftHold(); if (picker != Picker.NONE) closePicker() }
 
     private class PickGeo(val grid: RectF, val cw: Float, val ch: Float, val gx: Float, val gy: Float, val more: RectF, val label: RectF, val close: RectF, val del: RectF?) {
         val stride get() = ch + gy
@@ -809,12 +857,12 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         val ch = (gridH - gapY * (rowsN - 1)) / rowsN
         val y = height - pad - pillH
         val emoji = picker == Picker.EMOJI
-        // the emoji picker stays open after each emoji, so it has a delete pill of its own beside "more" (the symbol picker keeps its two pills)
+        // Close is always on the left and More on the right; emoji keeps its delete pill in the same position.
         val pill = if (emoji) (width - pad * 2) * 0.22f else (width - pad * 2 - gapX * 2) * 0.3f
-        val more = RectF(pad, y, pad + pill, y + pillH)
-        val close = RectF(width - pad - pill, y, width - pad, y + pillH)
-        val del = if (emoji) RectF(more.right + gapX, y, more.right + gapX + (width - pad * 2) * 0.14f, y + pillH) else null
-        return PickGeo(RectF(pad, pad, width - pad, pad + gridH), cw, ch, gapX, gapY, more, RectF((del ?: more).right + gapX, y, close.left - gapX, y + pillH), close, del)
+        val close = RectF(pad, y, pad + pill, y + pillH)
+        val more = RectF(width - pad - pill, y, width - pad, y + pillH)
+        val del = if (emoji) RectF(close.right + gapX, y, close.right + gapX + (width - pad * 2) * 0.14f, y + pillH) else null
+        return PickGeo(RectF(pad, pad, width - pad, pad + gridH), cw, ch, gapX, gapY, more, RectF((del ?: close).right + gapX, y, more.left - gapX, y + pillH), close, del)
     }
 
     private fun maxScroll(g: PickGeo): Float {
