@@ -75,6 +75,8 @@ Run the focused keyboard regression tests (Robolectric, no connected phone requi
 ./gradlew testDebugUnitTest lintDebug
 ```
 
+For production releases, see [Protected cloud releases](docs/CLOUD_RELEASE.md). Release builds never fall back to a debug signing key; `-PunsignedRelease=true` explicitly creates an unsigned candidate for separate production signing.
+
 The debug build also contains two measurement screens, `EvalActivity` (dictionary) and `ContextEvalActivity` (context model).
 
 ## Credits

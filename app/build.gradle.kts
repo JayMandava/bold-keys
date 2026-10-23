@@ -6,6 +6,65 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+// CI must opt in to unsigned output. A typo must not accidentally enable signing or read secrets.
+val unsignedRelease = when (providers.gradleProperty("unsignedRelease").orElse("false").get()) {
+    "true" -> true
+    "false" -> false
+    else -> throw GradleException("unsignedRelease must be exactly true or false.")
+}
+
+val releaseSigningProperties = Properties()
+var releaseSigningProblem: String? = null
+if (!unsignedRelease) {
+    // Keep the existing local signing configuration, but never read it during an unsigned CI build.
+    val propertiesPath = providers.environmentVariable("BOLD_KEYSTORE_PROPERTIES").orNull
+        ?: "${System.getProperty("user.home")}/.bold-keys-keystore/keystore.properties"
+    val propertiesFile = file(propertiesPath)
+    releaseSigningProblem = when {
+        !propertiesFile.isFile || !propertiesFile.canRead() -> "Release signing properties are missing or unreadable."
+        else -> try {
+            propertiesFile.inputStream().use(releaseSigningProperties::load)
+            val missing = listOf("storeFile", "storePassword", "keyAlias", "keyPassword")
+                .filter { releaseSigningProperties.getProperty(it).isNullOrBlank() }
+            when {
+                missing.isNotEmpty() -> "Release signing properties are incomplete: ${missing.joinToString()}."
+                releaseSigningProperties.getProperty("keyAlias").equals("androiddebugkey", ignoreCase = true) ->
+                    "The Android debug key must not be used for a release."
+                !file(releaseSigningProperties.getProperty("storeFile")).let { it.isFile && it.canRead() } ->
+                    "The configured release keystore is missing or unreadable."
+                else -> null
+            }
+        } catch (_: Exception) {
+            // Do not include exception text: it can contain signing configuration values.
+            "Release signing properties could not be loaded."
+        }
+    }
+}
+
+val verifyReleaseSigningMode = tasks.register("verifyReleaseSigningMode") {
+    group = "verification"
+    description = "Require local release signing credentials or explicit secret-free unsigned mode."
+    val problem = releaseSigningProblem
+    doLast {
+        if (!unsignedRelease && problem != null) {
+            throw GradleException(
+                "$problem Configure BOLD_KEYSTORE_PROPERTIES or ~/.bold-keys-keystore/keystore.properties " +
+                    "with the production signing configuration. For a secret-free CI artifact, pass " +
+                    "-PunsignedRelease=true; that artifact must be signed separately before distribution. " +
+                    "Release builds never fall back to the debug key.",
+            )
+        }
+    }
+}
+
+// Gate artifact-producing entry points, not compilation, unit tests or lint. The packaging dependency
+// also protects direct package invocations and checks even when previous outputs are up to date.
+tasks.configureEach {
+    if (name in setOf("packageRelease", "packageReleaseBundle", "signReleaseBundle", "assembleRelease", "bundleRelease", "installRelease")) {
+        dependsOn(verifyReleaseSigningMode)
+    }
+}
+
 android {
     namespace = "ai.boldkeys"
     compileSdk = 36
@@ -29,18 +88,13 @@ android {
     }
     externalNativeBuild { cmake { path = file("src/main/cpp/CMakeLists.txt") } }
 
-    // Release signing: a keystore.properties file (storeFile, storePassword, keyAlias, keyPassword) kept outside the repository, found through
-    // the BOLD_KEYSTORE_PROPERTIES environment variable or ~/.bold-keys-keystore/keystore.properties. Without one, release builds use the debug key.
-    val keystoreProps = Properties()
-    val keystoreFile = (System.getenv("BOLD_KEYSTORE_PROPERTIES") ?: "${System.getProperty("user.home")}/.bold-keys-keystore/keystore.properties").let { file(it) }
-    if (keystoreFile.exists()) keystoreFile.inputStream().use { stream -> keystoreProps.load(stream) }
     signingConfigs {
-        if (keystoreProps.containsKey("storeFile")) {
+        if (!unsignedRelease && releaseSigningProblem == null) {
             create("release") {
-                storeFile = file(keystoreProps.getProperty("storeFile"))
-                storePassword = keystoreProps.getProperty("storePassword")
-                keyAlias = keystoreProps.getProperty("keyAlias")
-                keyPassword = keystoreProps.getProperty("keyPassword")
+                storeFile = file(releaseSigningProperties.getProperty("storeFile"))
+                storePassword = releaseSigningProperties.getProperty("storePassword")
+                keyAlias = releaseSigningProperties.getProperty("keyAlias")
+                keyPassword = releaseSigningProperties.getProperty("keyPassword")
             }
         }
     }
@@ -48,7 +102,8 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
+            isDebuggable = false
+            signingConfig = if (unsignedRelease) null else signingConfigs.findByName("release")
         }
     }
     compileOptions {
