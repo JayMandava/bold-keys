@@ -168,6 +168,8 @@ class ReleaseChecks(unittest.TestCase):
         self.assertEqual(text.count('digest-mismatch: error'), 2)
         self.assertNotIn('cache:', text)
         self.assertNotIn('--licenses', text)
+        self.assertEqual(text.count('"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install'), 3)
+        self.assertNotRegex(text, r'(?m)^\s+(?:run: )?sdkmanager\b')
         secret_step = text.split('- name: Sign with existing production key')[1].split('- name: Verify production certificate')[0]
         self.assertNotIn('gradlew', secret_step)
         self.assertNotIn('python', secret_step)
