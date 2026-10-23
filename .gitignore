@@ -7,3 +7,5 @@ local.properties
 *.apk
 *.gguf
 .DS_Store
+__pycache__/
+*.py[cod]
