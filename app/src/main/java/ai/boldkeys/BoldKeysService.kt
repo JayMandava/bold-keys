@@ -206,6 +206,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         smart = cls == InputType.TYPE_CLASS_TEXT &&
             (search || urlLike || info.inputType and InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS == 0) &&
             variation !in (if (search || urlLike) SECRET_VARIATIONS else PRIVATE_VARIATIONS)
+        lastSpaceAt = 0
         undo = null
         refreshAutoCaps()
         refreshStrip()
@@ -247,10 +248,11 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         val ic = currentInputConnection ?: return
         val e = engine
         if (smart && !urlLike && doubleSpaceOn && text == " ") {
-            // two spaces in quick succession after a word end the sentence: ". " in place of the first space, as on the original
-            val before = ic.getTextBeforeCursor(2, 0)?.toString() ?: ""
+            // Two spaces after a word or emoji end the sentence. Inspect a whole grapheme:
+            // an emoji can end in a surrogate, variation selector, skin tone or ZWJ sequence.
+            val before = ic.getTextBeforeCursor(DoubleSpacePeriod.LOOK_BEHIND, 0)?.toString() ?: ""
             val now = SystemClock.uptimeMillis()
-            if (before.length == 2 && before[1] == ' ' && (before[0].isLetterOrDigit() || before[0] in ")\"'") && now - lastSpaceAt < 700) {
+            if (DoubleSpacePeriod.shouldReplace(before, now, lastSpaceAt)) {
                 ic.deleteSurroundingText(1, 0)
                 ic.commitText(". ", 1)
                 lastSpaceAt = 0; undo = null
@@ -258,7 +260,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
                 return
             }
             lastSpaceAt = now
-        }
+        } else lastSpaceAt = 0
         // Looking for a text face reads the text before the cursor, a blocking call into the app that took most of the time of a key press. Only a character that can end a face (or a space or punctuation mark) needs it.
         if (smart && !urlLike && emoticonsOn && text.length == 1 && (text[0] in EMOTICON_ENDS || text[0] in SEPARATORS) && convertEmoticon(ic, text)) return
         if (smart && e != null && text.length == 1 && text[0] in SEPARATORS) {
@@ -317,6 +319,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
     /** A letter was held and an accented form chosen: it replaces the plain letter that was typed when the key went down. */
     override fun onAccent(accent: String) {
         val ic = currentInputConnection ?: return
+        lastSpaceAt = 0
         undo = null
         ic.deleteSurroundingText(1, 0)
         ic.commitText(accent, 1)
@@ -326,6 +329,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
 
     override fun onDelete() {
         val ic = currentInputConnection ?: return
+        lastSpaceAt = 0
         val u = undo
         if (u != null) {
             val tail = u.fixed + u.sep
@@ -356,6 +360,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
     }
 
     override fun onEnter() {
+        lastSpaceAt = 0
         val info = currentInputEditorInfo
         val action = info?.imeOptions?.and(EditorInfo.IME_MASK_ACTION) ?: EditorInfo.IME_ACTION_NONE
         val noAction = info != null && info.imeOptions and EditorInfo.IME_FLAG_NO_ENTER_ACTION != 0
@@ -416,6 +421,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         if (kb.pickerOpen()) return // a tap on the trackpad must not drop a word into the text while the picker is open
         val ic = currentInputConnection ?: return
         val pick = shown.getOrNull(index) ?: return
+        lastSpaceAt = 0
         val word = currentWord()
         if (word.isEmpty()) { // a next-word suggestion: just add it
             ic.commitText("$pick ", 1)
@@ -441,6 +447,8 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
     // ---- trackpad
 
     override fun onMove(dx: Int, dy: Int, select: Boolean) {
+        if (select && (dx != 0 || dy != 0)) kb.cancelShiftHold()
+        if (dx != 0 || dy != 0) lastSpaceAt = 0
         if (kb.isCurrencyHeld()) { kb.trackpadVolume(dy); return } // the currency key (with the speaker) is held: the trackpad's up and down are the volume
         if (kb.pickerOpen()) { kb.pickerScroll(dx, dy); return } // with the symbol or emoji picker open the trackpad scrolls it
         val meta = if (select) KeyEvent.META_SHIFT_ON or KeyEvent.META_SHIFT_LEFT_ON else 0

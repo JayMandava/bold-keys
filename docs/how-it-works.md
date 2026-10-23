@@ -62,13 +62,14 @@ German is built the same way by `tools/build_de.py` (`words_de.tsv`, `pairs_de.t
 
 Both pickers are one scrollable grid (`pickerTouch`, `drawPicker` in `KeyboardView`). The sym key opens three pages of symbols in five columns; the right-hand key opens the emoji, seven columns wide.
 A drag on the grid scrolls it, a tap types, and "more" jumps to the next page or group. While a picker is open the trackpad scrolls it (`pickerScroll`): up and down move the grid, a longer swipe sideways jumps a group.
+Both pickers put "close" on the left and "more" on the right, with drawing and touch targets coming from the same geometry.
 
 The emoji come from `assets/emoji.tsv`, built by `tools/build_emoji.py` from Unicode's `emoji-test.txt` (fully-qualified emoji, in Unicode's groups, with the five single-tone variants kept beside the 308 emoji that take a tone).
 `Emoji.groups` drops, at run time, every emoji the phone's font cannot draw as one glyph (`Paint.hasGlyph`), so newer emoji appear as the phone's Android version supports them and there are no empty boxes.
 Holding an emoji that takes a tone offers the plain one and the five tones to slide to (like the accent row); the choice is remembered for that emoji, and Settings holds a default tone for all of them.
 The right-hand key is also the Speed key: a plain tap (under 450 ms, with no letter tapped) opens the emoji picker; holding it and tapping a letter runs that letter's shortcut as before. With the emoji key switched off, a plain tap is a Shift again.
 
-Staying open. Both pickers stay open after a pick and close with "close"; `onStartInputView` closes one when a new field starts (not on a restart in the same field). The emoji picker has a delete pill of its own beside "more", which repeats while held. Delete everywhere removes one whole character (`lastCharLength` in `BoldKeysService`, using ICU's character `BreakIterator`), so an emoji, a skin tone, a flag or a letter with its accent never loses just half.
+Staying open. Both pickers stay open after a pick and close with "close"; `onStartInputView` closes one when a new field starts (not on a restart in the same field). The emoji picker has a delete pill of its own beside "close", which repeats while held. Delete everywhere removes one whole character (`lastCharLength` in `BoldKeysService`, using ICU's character `BreakIterator`), so an emoji, a skin tone, a flag or a letter with its accent never loses just half.
 
 Recent emoji. Each emoji typed from the picker adds a point to its score and fades every other a little (`Emoji.bump`, factor 0.93, 40 kept, stored as text in the preferences). `openPicker` puts the best seven, as typed (skin tone included), in a first row named "Recent"; it is built once when the picker opens, so it does not shuffle under a thumb tapping the same emoji again. `Emoji.owner` maps every form of an emoji to its item, so a recent one can still be held for tones and one this phone cannot draw is dropped.
 
@@ -85,6 +86,12 @@ A key press redraws only that key's square (`invalidateKey`) unless it changes s
 ## Alt
 
 Alt arms on a tap (`Shift.ONCE`), locks on a double tap within 400 ms (`Shift.CAPS`), and works while held (`altHeld`, ended when the finger lifts if a key was typed meanwhile). A hold of at least `ALT_HOLD_MS` (450 ms) that ends with nothing typed also locks it; a hold that was used does not. A tap on Alt turns a lock off.
+
+## Shift and sentence endings
+
+Shift keeps its existing one-letter tap and double-tap Caps lock. An unused hold for `SHIFT_HOLD_MS` (450 ms) now enters the same `Shift.CAPS` state, showing the existing underline as soon as it locks. A tap unlocks it, and automatic sentence capitalisation does not clear a lock. Moving off the key, cancelling the touch, typing another key, using the trackpad for selection, starting a new field or detaching the keyboard cancels a pending hold. The right-hand key supports the same hold when its emoji function is disabled; Speed shortcuts retain priority.
+
+Double-space punctuation examines the complete grapheme before the first space with Android ICU, rather than one UTF-16 unit. Letters, numbers, the existing closing quotes/parenthesis, and emoji can end a sentence. Variation selectors, skin tones, flags, keycaps and joined emoji remain intact: only the ASCII space is replaced by ". ". The existing 700 ms window, preference and safe-field checks still apply.
 
 ## The white theme
 
