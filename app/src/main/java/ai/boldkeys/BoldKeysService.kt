@@ -194,7 +194,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         engine?.british = Prefs.spelling(this) == "uk"; engine?.setLayout(Prefs.layout(this))
         contextOn = Prefs.contextModel(this) && lang == "en"; syncContextModel() // the context model has only been measured on English
         if (!restarting) kb.resetPicker() // a new text field starts on the letter keys, even if the last one left the emoji picker open (a restart in the same field leaves it alone)
-        kb.applySettings(); bar.applyTheme(Prefs.isDark(this))
+        kb.applySettings(); bar.applyTheme(Prefs.keyTheme(this))
         reloadLearnedIfChanged()
         currentInputConnection?.requestCursorUpdates(android.view.inputmethod.InputConnection.CURSOR_UPDATE_MONITOR or android.view.inputmethod.InputConnection.CURSOR_UPDATE_FILTER_EDITOR_BOUNDS)
         val cls = info.inputType and InputType.TYPE_MASK_CLASS

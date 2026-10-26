@@ -26,7 +26,7 @@ class SuggestionBar(context: Context, private val feedback: Feedback, private va
     private fun dp(v: Float) = v * d
 
     private var th = KeyTheme(true)
-    fun applyTheme(dark: Boolean) { th = KeyTheme(dark); invalidate() }
+    fun applyTheme(theme: KeyTheme) { th = theme; invalidate() }
 
     private var words: List<String> = emptyList()
     fun setSuggestions(w: List<String>) { if (w != words) { words = w; invalidate() } }
@@ -107,7 +107,7 @@ class SuggestionBar(context: Context, private val feedback: Feedback, private va
         }
         // the trackpad: a silver square ring around a dark, slightly domed centre
         val r = RectF(p)
-        fill.shader = LinearGradient(0f, r.top, 0f, r.bottom, 0xFFf2f4f6.toInt(), 0xFF70747b.toInt(), Shader.TileMode.CLAMP)
+        fill.shader = LinearGradient(0f, r.top, 0f, r.bottom, th.trimHighlight, th.ringBottom, Shader.TileMode.CLAMP)
         canvas.drawRoundRect(r, dp(9f), dp(9f), fill)
         val inner = RectF(r).apply { inset(dp(3.2f), dp(3.2f)) }
         fill.shader = LinearGradient(0f, inner.top, 0f, inner.bottom, if (pressed) 0xFF0c0e10.toInt() else 0xFF1c2127.toInt(), 0xFF07080a.toInt(), Shader.TileMode.CLAMP)

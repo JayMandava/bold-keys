@@ -17,12 +17,13 @@ object Prefs {
     }
 
     // keyboard look
-    fun theme(c: Context) = string(c, "theme", "dark") // dark, light, auto
-    fun isDark(c: Context) = when (theme(c)) {
-        "light" -> false
-        "auto" -> (c.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
-        else -> true
+    fun theme(c: Context) = string(c, "theme", "dark").let { id ->
+        if (KeyColour.choices.any { it.first == id }) id else "dark"
     }
+    fun keyTheme(c: Context) = KeyTheme(KeyColour.resolve(
+        theme(c), (c.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES,
+    ))
+    fun isDark(c: Context) = keyTheme(c).dark
     /** How tall the keys are: small, normal, large or xlarge. The width is always the screen's, so a bigger key is a taller one. */
     fun keySize(c: Context) = string(c, "keySize", "normal")
     fun keyScale(c: Context) = when (keySize(c)) { "small" -> 0.9f; "large" -> 1.12f; "xlarge" -> 1.25f; else -> 1f }
