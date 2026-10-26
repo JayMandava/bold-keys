@@ -48,6 +48,13 @@ class SoftwareUiWorkflowTests(unittest.TestCase):
         self.assertIn('-PqaX86Debug=true connectedDebugAndroidTest', S)
         self.assertIn('testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest', W)
         self.assertIn('adb pull /sdcard/Download/bold-keys-qa', S)
+    def test_cold_transport_uses_the_full_shared_boot_budget(self):
+        self.assertNotIn('adb wait-for-device', S)
+        self.assertLess(S.index('boot_deadline=$((SECONDS + 1200))'), S.index('adb shell getprop sys.boot_completed'))
+        self.assertIn('SECONDS >= boot_deadline', S)
+        self.assertIn('kill -0 "$emulator_pid"', S)
+        self.assertIn('timeout 10 adb shell getprop sys.boot_completed', S)
+        self.assertIn('shared transport/boot budget', S)
     def test_sparse_reclaim_checks_full_image_identity(self):
         self.assertIn("['fallocate', '--dig-holes', str(path)]", P)
         self.assertIn('hashlib.sha256()', P)

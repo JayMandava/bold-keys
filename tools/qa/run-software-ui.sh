@@ -43,11 +43,19 @@ PYCONFIG
   -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader -feature -Vulkan \
   -camera-back none -camera-front none -memory 2048 -cores 2 > qa-artifacts/emulator.txt 2>&1 &
 emulator_pid=$!
-timeout 120 adb wait-for-device
+# A cold software-emulated guest can take longer than two minutes just to bring
+# up adbd. Transport availability and Android boot share the same bounded
+# startup budget; a separate short wait must not abort that budget early.
 boot_deadline=$((SECONDS + 1200))
+next_boot_report=$SECONDS
 until [[ "$(timeout 10 adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == 1 ]]; do
   if ! kill -0 "$emulator_pid" 2>/dev/null; then echo 'Emulator exited before Android boot'; exit 1; fi
   if (( SECONDS >= boot_deadline )); then echo 'Android did not complete boot within the twenty-minute software startup gate'; exit 1; fi
+  if (( SECONDS >= next_boot_report )); then
+    echo "Waiting for Android startup; $((boot_deadline - SECONDS)) seconds remain in the shared transport/boot budget"
+    timeout 5 adb get-state || true
+    next_boot_report=$((SECONDS + 30))
+  fi
   sleep 5
 done
 adb shell input keyevent KEYCODE_WAKEUP
