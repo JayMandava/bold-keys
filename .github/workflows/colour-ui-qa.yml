@@ -1,0 +1,85 @@
+name: Android colour UI QA
+run-name: 'Colour UI QA at ${{ github.sha }}'
+
+# Feature-only, secret-free runtime validation. This is never a release trigger.
+'on':
+  push:
+    branches: [feat/iconic-colours]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: colour-ui-qa-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  android_ui:
+    if: github.repository == 'JayMandava/bold-keys' && github.event.repository.private == false && github.ref == 'refs/heads/feat/iconic-colours'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          submodules: recursive
+      - name: Require existing KVM access without changing permissions
+        run: |
+          mkdir -p qa-artifacts
+          {
+            id
+            if [[ -e /dev/kvm ]]; then stat -c '%A %U %G %n' /dev/kvm; fi
+            if [[ ! -c /dev/kvm || ! -r /dev/kvm || ! -w /dev/kvm ]]; then
+              echo 'BLOCKED: this runner lacks effective KVM device access. No ACL, group, udev, root-emulator or security-policy workaround will be applied.'
+              exit 1
+            fi
+            echo 'PASS: existing runner user has effective read/write KVM access.'
+          } 2>&1 | tee qa-artifacts/kvm-readiness.txt
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install official Android tools using preaccepted licenses only
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install \
+            'platforms;android-36' 'build-tools;35.0.0' 'build-tools;36.0.0' \
+            'ndk;27.0.12077973' 'cmake;3.22.1' 'platform-tools' 'emulator' \
+            'system-images;android-35;google_apis;x86_64' </dev/null
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --list_installed > qa-artifacts/sdk-packages.txt
+          "$ANDROID_HOME/emulator/emulator" -accel-check | tee qa-artifacts/acceleration.txt
+      - name: Test, lint and build test plus unsigned release artifacts
+        run: |
+          set -o pipefail
+          python3 -m unittest discover -s tests -p 'test_*workflow.py' -v 2>&1 | tee qa-artifacts/release-tool-tests.txt
+          ./gradlew --no-daemon --max-workers=2 -PunsignedRelease=true \
+            testReleaseUnitTest testDebugUnitTest lintRelease lintDebug \
+            assembleRelease assembleDebug assembleDebugAndroidTest 2>&1 | tee qa-artifacts/build.txt
+          git rev-parse HEAD > qa-artifacts/source-commit.txt
+          sha256sum app/build/outputs/apk/release/app-release-unsigned.apk \
+            app/build/outputs/apk/debug/app-debug.apk \
+            app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk > qa-artifacts/APK-SHA256SUMS.txt
+      - name: Run real Android IME and settings UI gates with labelled captures
+        run: tools/qa/run-cloud-ui.sh
+      - name: Upload bounded QA evidence (not a production release)
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: colour-ui-qa-${{ github.sha }}-${{ github.run_id }}
+          path: |
+            qa-artifacts/
+            app/build/reports/tests/
+            app/build/reports/androidTests/
+            app/build/reports/lint-results-*.html
+            app/build/test-results/
+            app/build/outputs/androidTest-results/
+            app/build/outputs/apk/debug/app-debug.apk
+            app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+          if-no-files-found: warn
+          retention-days: 1
+          compression-level: 1
