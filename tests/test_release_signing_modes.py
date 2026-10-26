@@ -86,6 +86,32 @@ def main():
 """)
         run("local-signing-config-preserved", ["--init-script", str(init),
             ":app:verifyReleaseSigningMode", ":app:assertReleaseSigningConfigured"], configured)
+        abi_init = fixtures / "assert-qa-abi.gradle"
+        abi_init.write_text("""gradle.projectsEvaluated {
+    def app = gradle.rootProject.project(':app')
+    app.tasks.register('assertQaAbiIsolation') {
+        doLast {
+            def x86 = app.findProperty('qaX86Debug') == 'true'
+            def debug = app.android.buildTypes.debug
+            def release = app.android.buildTypes.release
+            def armFlags = ['-DCMAKE_C_FLAGS=-march=armv8.2-a+dotprod', '-DCMAKE_CXX_FLAGS=-march=armv8.2-a+dotprod']
+            assert app.android.defaultConfig.ndk.abiFilters.empty
+            assert debug.ndk.abiFilters == ([x86 ? 'x86_64' : 'arm64-v8a'] as Set)
+            assert release.ndk.abiFilters == (['arm64-v8a'] as Set)
+            assert release.externalNativeBuild.cmake.arguments == armFlags
+            assert debug.externalNativeBuild.cmake.arguments == (x86 ? ['-DGGML_NATIVE=OFF'] : armFlags)
+            assert !release.debuggable
+            assert release.signingConfig == null
+        }
+    }
+}
+""")
+        run("default-debug-release-abi-isolation", ["-PunsignedRelease=true", "--init-script", str(abi_init),
+            ":app:assertQaAbiIsolation"], malformed)
+        run("x86-debug-release-abi-isolation", ["-PunsignedRelease=true", "-PqaX86Debug=true", "--init-script", str(abi_init),
+            ":app:assertQaAbiIsolation"], malformed)
+        run("invalid-debug-abi-flag", ["-PunsignedRelease=true", "-PqaX86Debug=tru", ":app:help"], malformed,
+            "qaX86Debug must be exactly true or false.")
         run("credential-free-tests-lint", [":app:testReleaseUnitTest", ":app:lintRelease"])
 
         # On Linux, also prove the unsigned build never even opens/reads the supplied properties.
@@ -111,6 +137,14 @@ def main():
         finally:
             if watch is not None:
                 os.close(watch)
+
+        # Opting into the debug emulator ABI must not alter even one release APK byte.
+        release_apk = ROOT / "app/build/outputs/apk/release/app-release-unsigned.apk"
+        normal_digest = hashlib.sha256(release_apk.read_bytes()).hexdigest()
+        run("debug-abi-option-release-build", ["-PunsignedRelease=true", "-PqaX86Debug=true", ":app:assembleRelease"], malformed)
+        assert hashlib.sha256(release_apk.read_bytes()).hexdigest() == normal_digest, "Debug ABI option changed release APK"
+        results.append({"check": "debug-abi-option-release-byte-identity", "passed": True})
+        print("PASS debug-abi-option-release-byte-identity", flush=True)
 
     apk = ROOT / "app/build/outputs/apk/release/app-release-unsigned.apk"
     sdk = Path(os.environ.get("ANDROID_HOME") or os.environ["ANDROID_SDK_ROOT"])

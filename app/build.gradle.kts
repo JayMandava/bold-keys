@@ -13,6 +13,17 @@ val unsignedRelease = when (providers.gradleProperty("unsignedRelease").orElse("
     else -> throw GradleException("unsignedRelease must be exactly true or false.")
 }
 
+// Explicit, debug-only fallback for cloud emulators without ARM translation.
+// This never changes the release ABI, compiler flags, signing or application code.
+val qaX86Debug = when (providers.gradleProperty("qaX86Debug").orElse("false").get()) {
+    "true" -> true
+    "false" -> false
+    else -> throw GradleException("qaX86Debug must be exactly true or false.")
+}
+val arm64CompilerArguments = listOf(
+    "-DCMAKE_C_FLAGS=-march=armv8.2-a+dotprod", "-DCMAKE_CXX_FLAGS=-march=armv8.2-a+dotprod",
+)
+
 val releaseSigningProperties = Properties()
 var releaseSigningProblem: String? = null
 if (!unsignedRelease) {
@@ -76,13 +87,11 @@ android {
         versionCode = 10
         versionName = "0.7.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        ndk { abiFilters += "arm64-v8a" }
         externalNativeBuild {
             cmake {
                 // Release even for debug variants: a debug-built llama.cpp is unusably slow.
                 arguments += listOf(
                     "-DCMAKE_BUILD_TYPE=Release", "-DANDROID_STL=c++_static", "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON",
-                    "-DCMAKE_C_FLAGS=-march=armv8.2-a+dotprod", "-DCMAKE_CXX_FLAGS=-march=armv8.2-a+dotprod",
                 )
             }
         }
@@ -101,7 +110,15 @@ android {
     }
 
     buildTypes {
+        getByName("debug") {
+            ndk { abiFilters += if (qaX86Debug) "x86_64" else "arm64-v8a" }
+            externalNativeBuild.cmake {
+                arguments += if (qaX86Debug) listOf("-DGGML_NATIVE=OFF") else arm64CompilerArguments
+            }
+        }
         release {
+            ndk { abiFilters += "arm64-v8a" }
+            externalNativeBuild.cmake { arguments += arm64CompilerArguments }
             isMinifyEnabled = false
             isDebuggable = false
             signingConfig = if (unsignedRelease) null else signingConfigs.findByName("release")

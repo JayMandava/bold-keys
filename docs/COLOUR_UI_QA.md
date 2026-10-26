@@ -44,3 +44,20 @@ The debug test activity is excluded from the release APK. Successful debug
 instrumentation establishes runtime behaviour for the shared production code,
 but does not replace production certificate, fresh-download or protected
 release-workflow verification.
+
+## Software-emulator fallback
+
+For a cloud image without ARM translation, the explicit
+`-PqaX86Debug=true` option builds **only the debug variant** for x86_64, including
+the same native sources (no feature stubs). Debug defaults and all release
+builds remain ARM64. ARM compiler flags stay scoped to ARM builds; the test-only
+x86 build does not optimize for the cloud host's CPU. Invalid option values
+fail closed. Signing-mode functional checks verify both configurations and
+byte-identical release output with the option enabled or disabled.
+
+For example, build `assembleDebug assembleDebugAndroidTest` with
+`-PunsignedRelease=true -PqaX86Debug=true`, then run the same instrumentation on
+the dedicated emulator. Label this evidence with its actual API and x86_64
+debug ABI. It verifies real keyboard UI/input behaviour, not ARM64 execution,
+production signing, physical-device timing or AI-model performance. The primary
+GitHub workflow still uses the normal ARM64 APK and requires translation.
