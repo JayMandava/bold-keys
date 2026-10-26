@@ -7,6 +7,7 @@ import android.graphics.RectF
 import android.os.Looper
 import android.os.SystemClock
 import android.provider.Settings
+import android.util.Log
 import android.view.InputDevice
 import android.view.MotionEvent
 import android.view.View
@@ -32,11 +33,15 @@ import org.junit.runner.RunWith
 import org.junit.runners.MethodSorters
 import java.io.File
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.atomic.AtomicBoolean
 
 /** Real Android window/input-connection tests. No fake keyboard rendering or injected text commits. */
 @RunWith(AndroidJUnit4::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 class ColourUiTest {
+    companion object {
+        private val firstSettingsLaunch = AtomicBoolean(true)
+    }
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val context get() = instrumentation.targetContext
     private val device = UiDevice.getInstance(instrumentation)
@@ -157,17 +162,36 @@ class ColourUiTest {
     }
     private fun mirrorEvidence() {
         // Preserve evidence independently of UTP's optional test-app cleanup.
+        // UiAutomation executes argv directly: &&, redirection and background operators are not shell syntax here.
+        val destination = "/sdcard/Download/bold-keys-qa/evidence"
         val result = runCatching {
-            device.executeShellCommand("mkdir -p /sdcard/Download/bold-keys-qa/evidence && cp -R ${output.absolutePath}/. /sdcard/Download/bold-keys-qa/evidence/")
+            device.executeShellCommand("mkdir -p $destination")
+            device.executeShellCommand("cp -R ${output.absolutePath}/. $destination/")
+            val listing = device.executeShellCommand("ls -1 $destination").lineSequence().toSet()
+            val expected = output.listFiles()?.filter { it.isFile }?.map { it.name }.orEmpty()
+            check(expected.isNotEmpty()) { "No local evidence files to mirror" }
+            val missing = expected.filterNot { it in listing }
+            check(missing.isEmpty()) { "Evidence mirror missing files: $missing; listing=$listing" }
+            Log.i("ColourUiEvidence", "Verified ${expected.size} evidence filenames in $destination")
         }
-        if (result.isFailure || !result.getOrDefault("").isBlank()) {
-            File(output, "evidence-copy-warning.txt").writeText(result.exceptionOrNull()?.stackTraceToString() ?: result.getOrDefault(""))
+        result.exceptionOrNull()?.let { error ->
+            File(output, "evidence-copy-warning.txt").appendText(error.stackTraceToString() + "\n")
+            Log.e("ColourUiEvidence", "Evidence mirror failed; do not assume captures survived cleanup", error)
         }
     }
 
     private fun launchSettings() {
-        instrumentation.startActivitySync(Intent(context, SetupActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
-        waitFor("settings home") { device.findObject(By.text("Bold Keys")) != null || device.findObject(By.text("Try it")) != null }
+        val firstLaunch = firstSettingsLaunch.getAndSet(false)
+        val software = InstrumentationRegistry.getArguments().getString("softwareEmulator") == "true"
+        val timeout = if (firstLaunch && software) 120_000L else 45_000L
+        // Avoid MonitoringInstrumentation's fixed 45s cold-launch idle timeout. Still launch the real Activity,
+        // and require its focused, accessible Home UI; this never dismisses an ANR or bypasses a UI assertion.
+        context.startActivity(Intent(context, SetupActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
+        waitFor("focused settings home", timeout) {
+            device.currentPackageName == context.packageName &&
+                (device.findObject(By.pkg(context.packageName).text("Bold Keys")) != null ||
+                    device.findObject(By.pkg(context.packageName).text("Try it")) != null)
+        }
     }
     private fun textOnScreen(label: String): UiObject2 {
         repeat(10) {
@@ -283,17 +307,26 @@ class ColourUiTest {
 
     /** Optional raw footage. Failures are documented separately and never count as a successful capture. */
     private fun recording(name: String, action: () -> Unit) {
+        require(name.matches(Regex("[a-z0-9-]+")))
         val dir = "/sdcard/Download/bold-keys-qa"
-        device.executeShellCommand("mkdir -p $dir")
         val path = "$dir/$name.mp4"
-        val pid = device.executeShellCommand("screenrecord --bit-rate 6000000 --time-limit 60 $path >$dir/$name.log 2>&1 & echo \$!").trim()
+        // Execute a script file, not a quoted `sh -c` string: Runtime.exec tokenizes whitespace itself.
+        val startScript = File(output, "recording-$name-start.sh").apply {
+            writeText("""
+                #!/system/bin/sh
+                mkdir -p "$dir"
+                screenrecord --bit-rate 6000000 --time-limit 60 "$path" >"$dir/$name.log" 2>&1 </dev/null &
+                echo ${'$'}!
+            """.trimIndent() + "\n")
+        }
+        val pid = device.executeShellCommand("sh ${startScript.absolutePath}").trim()
         val started = pid.matches(Regex("[0-9]+"))
         try {
             action()
             SystemClock.sleep(1200) // hold the genuine completed UI in the recording
         } finally {
             if (started) device.executeShellCommand("kill -INT $pid")
-            val status = device.executeShellCommand("ls -l $path 2>&1")
+            val status = device.executeShellCommand("ls -l $path")
             File(output, "recording-$name.txt").writeText("Raw recording path: $path\nRecorder PID returned: $started\n$status\nVerify decoding before using; UI tests do not certify video encoding.\n")
         }
     }

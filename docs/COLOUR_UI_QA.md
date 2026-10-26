@@ -79,3 +79,21 @@ The same real IME tests and labelled captures run after debug unit/lint/build
 checks. This supplements—not replaces—the separately validated ARM64 release,
 release unit/lint/signing gates and final visual review. It makes no ARM64,
 physical-device timing or AI-performance claim.
+
+Cold software startup must reach a stable, visible launcher, not merely set the
+boot-completed property. Within the existing twenty-minute startup budget, a
+maximum ten-minute readiness check preserves system errors and actual screen
+evidence. It may press **Wait once**, only when both window focus and the exact
+hierarchy identify the System UI startup ANR dialog. A second dialog fails
+closed. The launcher must remain focused for thirty seconds and no new system
+ANR may occur for sixty seconds before product tests start. No service,
+watchdog, permission or security setting is disabled. A recovered startup is
+recorded explicitly; it is not a product test pass.
+
+The explicit `softwareEmulator=true` instrumentation argument permits only the
+first real Settings launch up to 120 seconds for cold Compose initialization.
+It still requires the focused, package-scoped, accessible Home UI; subsequent
+launches and all functional assertions retain their normal bounds. Evidence
+copies use separate commands because Android's UiAutomation does not interpret
+shell operators. Optional recording uses a fixed-path script invoked through
+the normal shell, and its output still requires independent decoding/review.

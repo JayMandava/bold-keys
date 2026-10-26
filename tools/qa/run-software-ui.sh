@@ -73,7 +73,14 @@ adb shell settings put system screen_off_timeout 1800000
 abis="$(adb shell getprop ro.product.cpu.abilist | tr -d '\r')"
 [[ ",$abis," == *',x86_64,'* ]] || { echo 'The image lacks the explicit test debug ABI'; exit 1; }
 [[ "$(adb shell id -u | tr -d '\r')" == 2000 ]] || { echo 'Guest adb must be the normal unprivileged shell user'; exit 1; }
+# Boot completion alone did not imply healthy UI on the first software run.
+# Keep this ordinary-UI warm-up inside the existing shared startup deadline.
+readiness_budget=$((boot_deadline - SECONDS))
+if (( readiness_budget > 600 )); then readiness_budget=600; fi
+(( readiness_budget > 0 )) || { echo 'No startup budget remains for UI readiness'; exit 1; }
+python3 tools/qa/wait-software-ui-ready.py --timeout "$readiness_budget"
 # Build tasks were completed before the guest started; this executes the actual test APK.
 set -o pipefail
 timeout 15m ./gradlew --no-daemon --max-workers=2 -PunsignedRelease=true \
-  -PqaX86Debug=true connectedDebugAndroidTest 2>&1 | tee qa-artifacts/instrumentation.txt
+  -PqaX86Debug=true -Pandroid.testInstrumentationRunnerArguments.softwareEmulator=true \
+  connectedDebugAndroidTest 2>&1 | tee qa-artifacts/instrumentation.txt
