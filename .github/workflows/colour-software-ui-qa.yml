@@ -1,0 +1,83 @@
+name: Android software colour UI QA
+run-name: 'Software colour UI QA at ${{ github.sha }}'
+
+# Separate test branch: never retries the hardware-permission gate or publishes.
+'on':
+  push:
+    branches: [qa/iconic-colours-software]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: software-colour-ui-qa-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  software_android_ui:
+    if: github.repository == 'JayMandava/bold-keys' && github.event.repository.private == false && github.ref == 'refs/heads/qa/iconic-colours-software'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          submodules: recursive
+      - name: Record ordinary runner resources and exact app source
+        run: |
+          mkdir -p qa-artifacts
+          { id; uname -a; free -h; df -h .; } > qa-artifacts/runner-resources.txt
+          git rev-parse HEAD > qa-artifacts/source-commit.txt
+          git rev-parse HEAD:app > qa-artifacts/app-tree.txt
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install official full-rendering AOSP image with preaccepted licenses only
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install \
+            'platforms;android-36' 'build-tools;35.0.0' 'build-tools;36.0.0' \
+            'ndk;27.0.12077973' 'cmake;3.22.1' 'platform-tools' 'emulator' \
+            'system-images;android-33;default;x86_64' </dev/null
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --list_installed > qa-artifacts/sdk-packages.txt
+      - name: Reclaim only zero extents without changing official image bytes
+        run: |
+          python3 tools/qa/sparsify-system-image.py \
+            "$ANDROID_HOME/system-images/android-33/default/x86_64/system.img" \
+            | tee qa-artifacts/image-integrity.json
+      - name: Build and validate the explicit x86 debug test variant
+        run: |
+          set -o pipefail
+          python3 -m unittest discover -s tests -p 'test_*workflow.py' -v 2>&1 | tee qa-artifacts/workflow-tests.txt
+          ./gradlew --no-daemon --max-workers=2 -PunsignedRelease=true -PqaX86Debug=true \
+            -Pkotlin.compiler.execution.strategy=in-process \
+            testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest 2>&1 | tee qa-artifacts/build.txt
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging app/build/outputs/apk/debug/app-debug.apk > qa-artifacts/debug-apk-badging.txt
+          grep -Fx "native-code: 'x86_64'" qa-artifacts/debug-apk-badging.txt
+          sha256sum app/build/outputs/apk/debug/app-debug.apk \
+            app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk > qa-artifacts/APK-SHA256SUMS.txt
+      - name: Run actual IME UI assertions and captures without hardware acceleration
+        run: tools/qa/run-software-ui.sh
+      - name: Upload bounded real QA evidence (not a release)
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: software-colour-ui-qa-${{ github.sha }}-${{ github.run_id }}
+          path: |
+            qa-artifacts/
+            app/build/reports/tests/
+            app/build/reports/androidTests/
+            app/build/reports/lint-results-debug.html
+            app/build/test-results/
+            app/build/outputs/androidTest-results/
+            app/build/outputs/apk/debug/app-debug.apk
+            app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+          if-no-files-found: warn
+          retention-days: 1
+          compression-level: 1

@@ -61,3 +61,21 @@ the dedicated emulator. Label this evidence with its actual API and x86_64
 debug ABI. It verifies real keyboard UI/input behaviour, not ARM64 execution,
 production signing, physical-device timing or AI-model performance. The primary
 GitHub workflow still uses the normal ARM64 APK and requires translation.
+
+### Independent hosted software runner
+
+`Android software colour UI QA` runs only on the separate
+`qa/iconic-colours-software` branch. It uses the standard, fully rendered AOSP
+API 33 image (not ATD), the explicit x86 debug variant, and `-accel off`. It does
+not access a hardware-virtualization device, change permissions or run as root.
+The guest adb identity must be the ordinary shell UID 2000. The failed primary
+KVM run is preserved rather than retried with weakened access controls.
+
+This ordinary public runner has read-only repository permission, no secrets or
+production environment, a 45-minute job cap and one-day artifacts. SDK install
+stdin is closed. Zero-only image extents may be made sparse to meet disk-space
+requirements, but full length and SHA-256 must remain identical before boot.
+The same real IME tests and labelled captures run after debug unit/lint/build
+checks. This supplements—not replaces—the separately validated ARM64 release,
+release unit/lint/signing gates and final visual review. It makes no ARM64,
+physical-device timing or AI-performance claim.
