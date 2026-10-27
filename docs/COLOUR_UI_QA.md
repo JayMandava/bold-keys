@@ -350,3 +350,22 @@ absent runner grant and stopped emulator. Its 162-file evidence manifest was
 independently hash-checked, with no application binary uploaded. This fourth
 approval is consumed; no fifth job/grant is authorized. Genuine palette frames
 can support a private Coming Soon preview, but not a full-QA or release claim.
+
+
+#### Separately approved fifth accelerated job
+
+After the paced-gesture correction passed final host validation and independent
+review, the owner explicitly approved one further initial disposable QA job
+and its test-only public push. This fifth approval is isolated to initial
+creation of `qa/iconic-colours-kvm-20261027-5`, workflow
+`colour-approved-kvm-qa-5.yml`, including correction ancestor
+`19877552d9c68598350e5a01bb25f9886aa2393c`.
+
+All four consumed branches/jobs remain untouched and cannot use this grant.
+The exact actor/repository/ref/creation/attempt/sole-history guards, build-before-
+grant, one non-root runner UID's temporary ACL, bounds and exact always-cleanup
+remain unchanged. The public artifact allowlist still excludes application
+binaries; private APK storage and the public release/Instagram hold remain.
+There is no sixth grant or rerun authorization. Production source, release
+bytes, signing policy and ordinary trackpad behaviour are unchanged. This job
+must establish the real runtime result; host checks are not a device pass.

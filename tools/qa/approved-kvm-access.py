@@ -13,7 +13,7 @@ import urllib.parse
 import urllib.request
 
 DEVICE = '/dev/kvm'
-REF = 'refs/heads/qa/iconic-colours-kvm-20261027-4'
+REF = 'refs/heads/qa/iconic-colours-kvm-20261027-5'
 BASE = ['user::rw-', 'group::rw-', 'other::---']
 
 
@@ -63,7 +63,7 @@ def write(path, data):
 def verify_sole_run(run_id):
     # Public read only, no token. A deleted/recreated branch must not reuse this grant.
     query = urllib.parse.urlencode({'branch': REF.removeprefix('refs/heads/'), 'per_page': 100})
-    url = 'https://api.github.com/repos/JayMandava/bold-keys/actions/workflows/colour-approved-kvm-qa-4.yml/runs?' + query
+    url = 'https://api.github.com/repos/JayMandava/bold-keys/actions/workflows/colour-approved-kvm-qa-5.yml/runs?' + query
     request = urllib.request.Request(url, headers={'Accept': 'application/vnd.github+json',
         'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'bold-keys-one-job-approval-guard'})
     with urllib.request.urlopen(request, timeout=20) as response:

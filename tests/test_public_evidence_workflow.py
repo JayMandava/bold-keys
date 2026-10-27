@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location('stage_public_evidence', ROOT / 'tools/qa/stage-public-evidence.py')
 EVIDENCE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(EVIDENCE)
-WORKFLOW = (ROOT / '.github/workflows/colour-approved-kvm-qa-4.yml').read_text()
+WORKFLOW = (ROOT / '.github/workflows/colour-approved-kvm-qa-5.yml').read_text()
 
 
 class PublicEvidenceTests(unittest.TestCase):
