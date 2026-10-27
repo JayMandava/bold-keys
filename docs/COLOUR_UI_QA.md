@@ -131,7 +131,7 @@ still requires the owner's separate protected-release approval.
 #### First accelerated attempt and readiness correction
 
 Run [40438950301](https://github.com/JayMandava/bold-keys/actions/runs/40438950301)
-reached a healthy API 35 Google launcher with ARM64 translation and no ANRs,
+reached a healthy API 35 Google launcher advertising ARM64 translation, with no ANRs,
 but stopped **before installing/testing Bold Keys**: the readiness helper had
 incorrectly assumed the AOSP launcher package. The job's artifacts verify
 that its temporary runner grant was removed and the exact original device ACL
@@ -170,3 +170,46 @@ build-before-grant, runner UID-only ACL, normal guest shell, bounded runtime,
 exact cleanup and always-run evidence checks are unchanged. A terminal failure
 of this second job likewise consumes this additional approval; no third grant
 is authorized. Production approval is still a separate owner-only gate.
+
+#### Second attempt: provisioning/HOME lifecycle, not a product failure
+
+Run [40485245229](https://github.com/JayMandava/bold-keys/actions/runs/40485245229)
+passed both 31-test JVM suites, both lint gates and ARM64 builds. Hardware
+acceleration passed; ABI/native-bridge properties advertised ARM64 translation.
+No ANRs were recorded; actual ARM64 app execution remains untested. It nevertheless
+stopped before installing Bold Keys: the first HOME resolution still referred
+to GoogleSdkSetup. Actual Android logs then show NexusLauncher starting at
+10:08:34 UTC, displaying at 10:08:36, and receiving the HOME role at 10:08:40.
+The helper had incorrectly frozen the initial component. The final screen was
+the healthy launcher. Artifacts verify exact original ACL/device metadata
+restoration, absent runner grant and owned emulator shutdown. This second
+approval is consumed; there is no authorization for a third grant.
+
+The follow-up readiness correction is a bounded lifecycle gate, not a setup
+bypass. Every poll reads device/user provisioning completion, current HOME,
+actual user-0 window focus, system process identity, boot state and error logs.
+It never writes provisioning settings or chooses a launcher. Incomplete setup
+or a temporarily unresolved HOME remains pending within the original deadline;
+ambiguous/malformed observations fail closed. A changed HOME or provisioning
+state restarts both stability timers. Completed provisioning regressing,
+system-server restart, boot regression, fatal exception or watchdog failure is
+an error, not a recovery success. Both ordinary and system-process Java fatal
+forms and warning-level watchdog termination messages are recognized.
+
+Only a provisioned current HOME with the existing thirty-second focus and
+sixty-second healthy interval can proceed. Resolution, provisioning, focus and
+health are checked again after hierarchy collection and again after screenshot
+capture; a late transition cannot use stale evidence. Initial/current HOME and
+all observed transitions are preserved. The original timeout, one narrowly
+verified System UI Wait maximum, product assertions and ACL/production gates
+remain unchanged. Regression fixtures cover both real failed-run component
+shapes plus synthetic provisioning/focus/health/capture-boundary transitions;
+these mocks are not real Android product-test results.
+
+Changing to a standard image alone is not a lifecycle fix: AOSP's own
+[Provision activity](https://android.googlesource.com/platform/packages/apps/Provision/+/8af0d687f40aef1974aac86516114fe440262741/src/com/android/provision/DefaultActivity.java)
+completes provisioning and disables its initial activity too. The separately
+inspected standard API 33 image lacks ARM64 translation and would require the
+labelled x86 debug variant. The API 35 Google image advertises the
+ARM64 translation required to attempt the normal APK. No new image trial, emulator run,
+security grant or production release is implied by this local correction.

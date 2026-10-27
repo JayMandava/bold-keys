@@ -107,6 +107,11 @@ class HomeReadinessRegressionTests(unittest.TestCase):
     GOOGLE_FOCUS = 'mCurrentFocus=Window{73ad53 u0 com.google.android.apps.nexuslauncher/com.google.android.apps.nexuslauncher.NexusLauncherActivity}'
     GOOGLE_HOME = 'com.google.android.apps.nexuslauncher/.NexusLauncherActivity'
     AOSP_HOME = 'com.android.launcher3/.uioverrides.QuickstepLauncher'
+    # Run 40485245229 resolved this setup HOME before Android changed the role to Nexus.
+    SETUP_HOME = 'priority=3 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=true\ncom.google.android.googlesdksetup/.DefaultActivity\n'
+    ANR_FOCUS = 'mCurrentFocus=Window{abc u0 Application Not Responding: com.android.systemui}'
+    ANR_XML = '''<hierarchy><node text="System UI isn't responding"/>
+      <node text="Wait" package="android" resource-id="android:id/aerr_wait" clickable="true" bounds="[100,650][650,750]"/></hierarchy>'''
 
     def setUp(self):
         spec = importlib.util.spec_from_file_location('readiness_regression', R / 'tools/qa/wait-software-ui-ready.py')
@@ -141,6 +146,11 @@ class HomeReadinessRegressionTests(unittest.TestCase):
                       'mCurrentFocus=Window{abc u0 com.google.android.apps.nexuslauncher/.SettingsActivity}',
                       'mCurrentFocus=Window{abc u0 com.other.launcher/.NexusLauncherActivity}',
                       'mCurrentFocus=Window{abc u0 ai.boldkeys/.SetupActivity}',
+                      self.GOOGLE_FOCUS.replace(' u0 ', ' u10 '),
+                      self.GOOGLE_FOCUS.replace('mCurrentFocus=', 'mFocusedApp='),
+                      'prefix ' + self.GOOGLE_FOCUS,
+                      self.GOOGLE_FOCUS + ' trailing-junk',
+                      self.GOOGLE_FOCUS[:-1],
                       self.GOOGLE_FOCUS + ' ' + self.AOSP_HOME):
             with self.subTest(focus=focus):
                 self.assertFalse(self.ready.home_is_focused(focus, home))
@@ -172,36 +182,60 @@ class HomeReadinessRegressionTests(unittest.TestCase):
         self.assertIn('Recorder did not finalize within ten seconds; do not use this clip', recorder)
         self.assertIn('Verify decoding and actual action coverage', recorder)
 
-    def run_mock_readiness(self, resolution, focus, hierarchy_package):
+    def run_mock_readiness(self, resolution, focus, hierarchy_package, *, timeout=90,
+                           provisioned='1', setup_complete='1', system_pid='549', boot='1',
+                           logs='', on_command=None, hierarchy_xml=None):
         """Exercise readiness itself using only synthetic ADB replies and a simulated clock."""
         now = [0.0]
         calls = []
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         directory = Path(temporary.name)
+        self.mock_directory = directory
+        self.mock_calls = calls
+        self.mock_times = []
+
+        def value(source):
+            return source(now[0]) if callable(source) else source
 
         def sleep(seconds):
             now[0] += seconds
 
         def adb_reply(arguments, **kwargs):
             calls.append(arguments)
+            self.mock_times.append(now[0])
             self.assertEqual('adb', arguments[0])
             command = arguments[1:]
+            if on_command is not None:
+                on_command(command, now)
             if command == ['shell', 'id', '-u']:
                 output = b'2000\n'
+            elif command == ['shell', 'settings', 'get', 'global', 'device_provisioned']:
+                output = (value(provisioned) + '\n').encode()
+            elif command == ['shell', 'settings', '--user', '0', 'get', 'secure', 'user_setup_complete']:
+                output = (value(setup_complete) + '\n').encode()
+            elif command == ['shell', 'pidof', 'system_server']:
+                output = (value(system_pid) + '\n').encode()
+            elif command == ['shell', 'getprop', 'sys.boot_completed']:
+                output = (value(boot) + '\n').encode()
             elif command[:4] == ['shell', 'cmd', 'package', 'resolve-activity']:
                 self.assertEqual(['--brief', '--user', '0', '-a', 'android.intent.action.MAIN', '-c', 'android.intent.category.HOME'], command[4:])
-                output = resolution.encode()
+                output = value(resolution).encode()
             elif command == ['shell', 'input', 'keyevent', 'KEYCODE_HOME']:
                 output = b''
-            elif command == ['shell', 'dumpsys', 'window']:
-                output = focus.encode()
-            elif command == ['logcat', '-d', '-v', 'threadtime', '-s', 'ActivityManager:E']:
+            elif command == ['shell', 'input', 'tap', '375', '700']:
                 output = b''
+            elif command == ['shell', 'dumpsys', 'window']:
+                output = value(focus).encode()
+            elif command[:5] == ['logcat', '-d', '-v', 'threadtime', '-s']:
+                self.assertEqual(['logcat', '-d', '-v', 'threadtime', '-s',
+                                  'ActivityManager:E', 'Watchdog:W', 'AndroidRuntime:E'], command)
+                output = value(logs).encode()
             elif command == ['shell', 'uiautomator', 'dump', '/sdcard/Download/bold-readiness.xml']:
                 output = b'UI hierarchy dumped\n'
             elif command == ['exec-out', 'cat', '/sdcard/Download/bold-readiness.xml']:
-                output = ('<hierarchy><node package="' + hierarchy_package + '"/></hierarchy>').encode()
+                output = (value(hierarchy_xml) if hierarchy_xml is not None else
+                          '<hierarchy><node package="' + value(hierarchy_package) + '"/></hierarchy>').encode()
             elif command == ['exec-out', 'screencap', '-p']:
                 output = b'mock screenshot bytes: not device evidence'
             else:
@@ -212,7 +246,7 @@ class HomeReadinessRegressionTests(unittest.TestCase):
 
         real_path = Path
         with (patch.object(self.ready.subprocess, 'run', side_effect=adb_reply),
-              patch.object(self.ready.argparse.ArgumentParser, 'parse_args', return_value=SimpleNamespace(timeout=90)),
+              patch.object(self.ready.argparse.ArgumentParser, 'parse_args', return_value=SimpleNamespace(timeout=timeout)),
               patch.object(self.ready.time, 'monotonic', side_effect=lambda: now[0]),
               patch.object(self.ready.time, 'sleep', side_effect=sleep),
               patch.object(self.ready, 'Path', side_effect=lambda path: directory / real_path(path)),
@@ -233,9 +267,209 @@ class HomeReadinessRegressionTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, 'not present in actual hierarchy'):
             self.run_mock_readiness(self.GOOGLE_HOME, self.GOOGLE_FOCUS, 'com.android.launcher3')
 
-    def test_unresolved_home_never_attempts_readiness_loop(self):
-        with self.assertRaisesRegex(ValueError, 'exactly one'):
+    def test_persistently_unresolved_home_never_becomes_ready(self):
+        with self.assertRaises(TimeoutError):
             self.run_mock_readiness('No activity found', self.GOOGLE_FOCUS, 'com.google.android.apps.nexuslauncher')
+        self.assert_no_ready()
+
+    def mock_events(self):
+        return json.loads((self.mock_directory / 'qa-artifacts/readiness/events.json').read_text())
+
+    def mock_observations(self):
+        return [json.loads(line) for line in
+                (self.mock_directory / 'qa-artifacts/readiness/observations.jsonl').read_text().splitlines()]
+
+    def assert_no_ready(self):
+        self.assertFalse(any(event['event'].startswith('Ordinary home UI ready') for event in self.mock_events()))
+        self.assertFalse((self.mock_directory / 'qa-artifacts/readiness/ready-home.png').exists())
+
+    def test_snapshot_parser_allows_only_known_unresolved_pending_shapes(self):
+        for pending in ('', ' \n', 'No activity found\n'):
+            self.assertIsNone(self.ready.home_snapshot(pending))
+        for bad in ('No activity found yet', 'unknown', self.GOOGLE_HOME + '\n' + self.AOSP_HOME):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                self.ready.home_snapshot(bad)
+        self.assertEqual(self.ready.resolved_home(self.SETUP_HOME), self.ready.home_snapshot(self.SETUP_HOME))
+
+    def test_provisioning_parser_never_guesses_malformed_or_missing_values(self):
+        self.assertTrue(self.ready.provisioning_flag('1\n'))
+        for pending in ('0', 'null'):
+            self.assertFalse(self.ready.provisioning_flag(pending))
+        for bad in ('', 'true', '2', '-1', '1 0'):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                self.ready.provisioning_flag(bad)
+
+    def test_captured_setup_to_nexus_role_handoff_uses_fresh_home_not_initial_snapshot(self):
+        self.run_mock_readiness(
+            lambda now: self.SETUP_HOME if now < 20 else self.GOOGLE_HOME,
+            lambda now: ('mCurrentFocus=Window{abc u0 com.google.android.googlesdksetup/.DefaultActivity}'
+                         if now < 10 else self.GOOGLE_FOCUS),
+            'com.google.android.apps.nexuslauncher', timeout=120,
+            provisioned=lambda now: '0' if now < 10 else '1',
+            setup_complete=lambda now: 'null' if now < 10 else '1')
+        events = self.mock_events()
+        self.assertGreaterEqual(events[-1]['monotonic'], 80)
+        self.assertEqual(self.ready.resolved_home(self.GOOGLE_HOME), events[-1]['component'])
+        initial = (self.mock_directory / 'qa-artifacts/readiness/initial-resolved-home.txt').read_text()
+        self.assertEqual(self.SETUP_HOME, initial)
+        observations = self.mock_observations()
+        self.assertIn(self.ready.resolved_home(self.SETUP_HOME), [entry['home'] for entry in observations])
+        self.assertIn('after-hierarchy', [entry['phase'] for entry in observations])
+        self.assertEqual('after-capture', observations[-1]['phase'])
+
+    def test_transient_unresolved_home_and_unfinished_setup_are_observed_not_bypassed(self):
+        self.run_mock_readiness(lambda now: 'No activity found' if now < 15 else self.GOOGLE_HOME,
+                                self.GOOGLE_FOCUS, 'com.google.android.apps.nexuslauncher',
+                                provisioned=lambda now: '0' if now < 15 else '1',
+                                setup_complete=lambda now: 'null' if now < 15 else '1')
+        self.assertGreaterEqual(self.mock_events()[-1]['monotonic'], 75)
+        self.assertIsNone(self.mock_observations()[0]['home'])
+        writes = [call for call in self.mock_calls if 'settings' in call and ('put' in call or 'delete' in call)]
+        self.assertEqual([], writes)
+
+    def test_either_incomplete_provisioning_flag_blocks_even_matching_home(self):
+        for kwargs in ({'provisioned': '0'}, {'setup_complete': '0'}, {'setup_complete': 'null'}):
+            with self.subTest(kwargs=kwargs), self.assertRaises(TimeoutError):
+                self.run_mock_readiness(self.GOOGLE_HOME, self.GOOGLE_FOCUS,
+                                        'com.google.android.apps.nexuslauncher', **kwargs)
+            self.assert_no_ready()
+
+    def test_completed_provisioning_regression_fails_instead_of_resetting_to_success(self):
+        for field in ('provisioned', 'setup_complete'):
+            with self.subTest(field=field), self.assertRaisesRegex(RuntimeError, 'provisioning regressed'):
+                self.run_mock_readiness(self.GOOGLE_HOME, self.GOOGLE_FOCUS,
+                                        'com.google.android.apps.nexuslauncher',
+                                        **{field: lambda now: '1' if now < 20 else '0'})
+            self.assert_no_ready()
+
+    def test_ambiguous_or_malformed_resolution_during_handoff_fails_closed(self):
+        for bad in ('unknown', self.GOOGLE_HOME + '\n' + self.AOSP_HOME):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                self.run_mock_readiness(lambda now: self.SETUP_HOME if now < 10 else bad,
+                                        self.GOOGLE_FOCUS, 'com.google.android.apps.nexuslauncher')
+            self.assert_no_ready()
+
+    def test_repeated_default_home_changes_cannot_accumulate_stability(self):
+        home = lambda now: self.GOOGLE_HOME if int(now / 20) % 2 == 0 else self.AOSP_HOME
+        with self.assertRaises(TimeoutError):
+            self.run_mock_readiness(home, lambda now: 'mCurrentFocus=Window{abc u0 ' + home(now) + '}',
+                                    lambda now: home(now).partition('/')[0])
+        self.assert_no_ready()
+
+    def test_system_server_restart_multiple_pid_and_boot_regression_fail_closed(self):
+        cases = ({'system_pid': lambda now: '549' if now < 20 else '999'},
+                 {'system_pid': '549 999'}, {'system_pid': ''},
+                 {'boot': lambda now: '1' if now < 20 else '0'})
+        for kwargs in cases:
+            with self.subTest(kwargs=kwargs), self.assertRaises(RuntimeError):
+                self.run_mock_readiness(self.GOOGLE_HOME, self.GOOGLE_FOCUS,
+                                        'com.google.android.apps.nexuslauncher', **kwargs)
+            self.assert_no_ready()
+
+    def test_fatal_and_watchdog_logs_prevent_success(self):
+        for logs in ('10-27 10:08:00.000 1234 1234 E AndroidRuntime: FATAL EXCEPTION: main',
+                     '10-27 10:08:00.000  549  591 E AndroidRuntime: *** FATAL EXCEPTION IN SYSTEM PROCESS: android.ui',
+                     '10-27 10:08:00.000  549  591 W Watchdog: *** WATCHDOG KILLING SYSTEM PROCESS: Blocked in handler on foreground thread (android.fg)'):
+            with self.subTest(logs=logs), self.assertRaisesRegex(RuntimeError, 'fatal exception or watchdog'):
+                self.run_mock_readiness(self.GOOGLE_HOME, self.GOOGLE_FOCUS,
+                                        'com.google.android.apps.nexuslauncher', logs=logs)
+            self.assert_no_ready()
+
+    def test_new_anr_history_restarts_full_sixty_second_quiet_period(self):
+        self.run_mock_readiness(self.GOOGLE_HOME, self.GOOGLE_FOCUS,
+                                'com.google.android.apps.nexuslauncher', timeout=120,
+                                logs=lambda now: '' if now < 30 else '10-27 10:08:30 E ActivityManager: ANR in com.android.phone')
+        self.assertGreaterEqual(self.mock_events()[-1]['monotonic'], 90)
+
+    def test_home_change_during_capture_is_reobserved_and_requires_fresh_stability(self):
+        changed = [False]
+
+        def change_on_capture(command, now):
+            if command == ['exec-out', 'screencap', '-p']:
+                changed[0] = True
+
+        self.run_mock_readiness(lambda now: self.AOSP_HOME if changed[0] else self.GOOGLE_HOME,
+                                lambda now: ('mCurrentFocus=Window{abc u0 ' + self.AOSP_HOME + '}'
+                                             if changed[0] else self.GOOGLE_FOCUS),
+                                lambda now: 'com.android.launcher3' if changed[0] else 'com.google.android.apps.nexuslauncher',
+                                timeout=150, on_command=change_on_capture)
+        events = self.mock_events()
+        self.assertGreaterEqual(events[-1]['monotonic'], 120)
+        self.assertEqual(self.ready.resolved_home(self.AOSP_HOME), events[-1]['component'])
+        self.assertTrue(any('state changed during evidence capture' in event['event'] for event in events))
+
+    def test_focus_loss_after_hierarchy_cannot_publish_ready_capture(self):
+        changed = [False]
+
+        def change_after_hierarchy(command, now):
+            if command == ['exec-out', 'cat', '/sdcard/Download/bold-readiness.xml']:
+                changed[0] = True
+
+        with self.assertRaises(TimeoutError):
+            self.run_mock_readiness(self.GOOGLE_HOME,
+                                    lambda now: 'mCurrentFocus=null' if changed[0] else self.GOOGLE_FOCUS,
+                                    'com.google.android.apps.nexuslauncher', on_command=change_after_hierarchy)
+        self.assert_no_ready()
+        self.assertNotIn(['adb', 'exec-out', 'screencap', '-p'], self.mock_calls)
+
+    def test_provisioning_regression_after_capture_is_not_claimed_ready(self):
+        changed = [False]
+
+        def change_on_capture(command, now):
+            if command == ['exec-out', 'screencap', '-p']:
+                changed[0] = True
+
+        with self.assertRaisesRegex(RuntimeError, 'provisioning regressed'):
+            self.run_mock_readiness(self.GOOGLE_HOME, self.GOOGLE_FOCUS,
+                                    'com.google.android.apps.nexuslauncher', on_command=change_on_capture,
+                                    setup_complete=lambda now: '0' if changed[0] else '1')
+        self.assert_no_ready()
+
+    def test_focus_loss_after_screen_capture_cannot_publish_ready_evidence(self):
+        changed = [False]
+
+        def lose_focus(command, now):
+            if command == ['exec-out', 'screencap', '-p']:
+                changed[0] = True
+
+        with self.assertRaises(TimeoutError):
+            self.run_mock_readiness(self.GOOGLE_HOME,
+                                    lambda now: 'mCurrentFocus=null' if changed[0] else self.GOOGLE_FOCUS,
+                                    'com.google.android.apps.nexuslauncher', on_command=lose_focus)
+        self.assertTrue((self.mock_directory / 'qa-artifacts/readiness/candidate-home.png').exists())
+        self.assert_no_ready()
+
+    def test_duplicate_focused_windows_are_not_arbitrarily_selected(self):
+        with self.assertRaisesRegex(RuntimeError, 'Ambiguous focused window'):
+            self.run_mock_readiness(self.GOOGLE_HOME, self.GOOGLE_FOCUS + '\n' + self.GOOGLE_FOCUS,
+                                    'com.google.android.apps.nexuslauncher')
+        self.assert_no_ready()
+
+    def test_screenshot_transport_failure_preserves_failure_without_ready_marker(self):
+        def fail_capture(command, now):
+            if command == ['exec-out', 'screencap', '-p']:
+                raise subprocess.CalledProcessError(1, ['mock-adb-screencap'])
+
+        with self.assertRaises(subprocess.CalledProcessError):
+            self.run_mock_readiness(self.GOOGLE_HOME, self.GOOGLE_FOCUS,
+                                    'com.google.android.apps.nexuslauncher', on_command=fail_capture)
+        self.assert_no_ready()
+        self.assertEqual('Readiness failed; do not start product tests', self.mock_events()[-1]['event'])
+
+    def test_only_verified_system_ui_wait_is_tapped_once_and_repeated_anr_fails(self):
+        recovered = [False]
+
+        def tap_once(command, now):
+            if command == ['shell', 'input', 'tap', '375', '700']:
+                recovered[0] = True
+
+        with self.assertRaisesRegex(RuntimeError, 'Another ANR dialog'):
+            self.run_mock_readiness(self.GOOGLE_HOME,
+                                    lambda now: self.ANR_FOCUS if not recovered[0] or now >= 20 else self.GOOGLE_FOCUS,
+                                    'com.google.android.apps.nexuslauncher', hierarchy_xml=self.ANR_XML,
+                                    on_command=tap_once, logs='10-27 10:08:00 E ActivityManager: ANR in com.android.systemui')
+        self.assertEqual(1, self.mock_calls.count(['adb', 'shell', 'input', 'tap', '375', '700']))
+        self.assert_no_ready()
 
 
 if __name__ == '__main__':
