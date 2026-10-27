@@ -215,3 +215,22 @@ inspected standard API 33 image lacks ARM64 translation and would require the
 labelled x86 debug variant. The API 35 Google image advertises the
 ARM64 translation required to attempt the normal APK. No new image trial, emulator run,
 security grant or production release is implied by this local correction.
+
+#### Separately approved third accelerated job
+
+After the lifecycle correction passed 92 checks and independent review, the
+owner explicitly approved one further disposable accelerated test. This third
+approval is isolated to the initial creation of
+`qa/iconic-colours-kvm-20261027-3` and workflow
+`colour-approved-kvm-qa-3.yml`, with the validated correction's ancestry.
+Both consumed branches and runs remain preserved; neither is rerun or recreated.
+
+The exact public repository, owner actor, creation event, attempt 1 and sole
+matching public run-history guards remain mandatory. Only this job's existing
+non-root runner UID receives temporary read/write access to the ordinary
+virtualization device after build gates. Baseline checks, bounded runtime,
+normal guest shell, exact ACL/metadata restoration and always-run cleanup are
+unchanged. No app code, production bytes, timeout, network, secret, persistent
+group or device-wide permission change is included. A terminal third job
+consumes this specific approval; no fourth grant is authorized. Protected
+production release approval remains separate and owner-only.

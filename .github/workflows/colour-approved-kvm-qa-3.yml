@@ -1,16 +1,16 @@
-name: Second approved accelerated colour QA
-run-name: 'Second approved one-job colour QA at ${{ github.sha }}'
+name: Third approved accelerated colour QA
+run-name: 'Third approved one-job colour QA at ${{ github.sha }}'
 
 # One action-time approval, one initial branch-creation job. Never a release trigger.
 'on':
   push:
-    branches: [qa/iconic-colours-kvm-20261027-2]
+    branches: [qa/iconic-colours-kvm-20261027-3]
 
 permissions:
   contents: read
 
 concurrency:
-  group: approved-colour-kvm-20261027-2
+  group: approved-colour-kvm-20261027-3
   cancel-in-progress: false
 
 defaults:
@@ -19,7 +19,7 @@ defaults:
 
 jobs:
   approved_android_ui:
-    if: github.repository == 'JayMandava/bold-keys' && github.event.repository.private == false && github.actor == 'JayMandava' && github.ref == 'refs/heads/qa/iconic-colours-kvm-20261027-2' && github.event.created == true && github.run_attempt == 1
+    if: github.repository == 'JayMandava/bold-keys' && github.event.repository.private == false && github.actor == 'JayMandava' && github.ref == 'refs/heads/qa/iconic-colours-kvm-20261027-3' && github.event.created == true && github.run_attempt == 1
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
