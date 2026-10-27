@@ -97,3 +97,33 @@ launches and all functional assertions retain their normal bounds. Evidence
 copies use separate commands because Android's UiAutomation does not interpret
 shell operators. Optional recording uses a fixed-path script invoked through
 the normal shell, and its output still requires independent decoding/review.
+
+### One explicitly approved accelerated job (2026-10-27)
+
+The separate `One approved accelerated colour QA` workflow is restricted to the
+initial creation push of `qa/iconic-colours-kvm-20261027`, the public upstream
+repository, its owner actor, and run attempt 1. It has no manual or periodic
+trigger; later pushes and reruns cannot consume the one-job permission. A
+fail-closed public workflow-history check also requires exactly this one run
+before granting access. Never delete/recreate this branch or remove its run
+history to reuse the approval.
+
+The owner approved temporary read/write access to `/dev/kvm` for only that
+job's existing non-root runner UID. The guard requires the observed ordinary
+root:kvm, mode 0660, non-extended ACL baseline. Only after build/unit/lint gates
+pass does it add the named runner entry; the existing group/other effective
+permissions remain unchanged. Android and its controller never run as root.
+The runtime uses the normal ARM64 debug APK on the official API 35 Google APIs
+image with verified ARM64 translation and guest shell UID 2000.
+
+An EXIT/signal cleanup and an independent always-run cleanup stop the owned
+emulator, remove the temporary entry and verify the exact original ACL, owner,
+group, mode and device identity. Grant intent is recorded before mutation so
+failed/uncertain grants are still cleaned. Any unexpected external ACL change
+is not overwritten: only this job's named grant is removed, and verification
+fails. The always-run artifact records cleanup evidence even when tests fail.
+The hosted runner is disposable; there are no persistent group, udev, network,
+credential or production-environment changes. No world-writable device mode is
+used. A terminal job failure does not authorize another security grant: any
+new accelerated job needs a fresh action-time approval. Production signing
+still requires the owner's separate protected-release approval.
