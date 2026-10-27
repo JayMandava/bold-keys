@@ -153,3 +153,20 @@ bounded SIGINT/finalization wait follows the action. Startup/finalization
 warnings remain separate from functional assertions; byte output is **not** a
 successful video claim. Decode each resulting file and inspect that its real
 action is actually present before editing or publishing it.
+
+#### Separately approved second accelerated job
+
+After the first attempt stopped and exact cleanup was verified, the owner gave
+fresh action-time approval on 2026-10-27 at 03:17 UTC for **one additional**
+disposable accelerated test with the same temporary runner-only access and
+cleanup. This is isolated as the initial creation of
+`qa/iconic-colours-kvm-20261027-2` and workflow
+`colour-approved-kvm-qa-2.yml`. It includes the validated HOME/focus/capture
+corrections. The first branch/run is retained; it is not rerun or recreated.
+
+Only the exact new branch, first creation event, attempt 1 and sole public
+workflow-history entry may reach the grant. The ordinary device baseline,
+build-before-grant, runner UID-only ACL, normal guest shell, bounded runtime,
+exact cleanup and always-run evidence checks are unchanged. A terminal failure
+of this second job likewise consumes this additional approval; no third grant
+is authorized. Production approval is still a separate owner-only gate.
