@@ -234,3 +234,49 @@ unchanged. No app code, production bytes, timeout, network, secret, persistent
 group or device-wide permission change is included. A terminal third job
 consumes this specific approval; no fourth grant is authorized. Protected
 production release approval remains separate and owner-only.
+
+#### Third run outcome and test-input synchronization correction
+
+Run [40493503355](https://github.com/JayMandava/bold-keys/actions/runs/40493503355)
+at `bfc07d1b72446254642be13f28f7cb35d30af86d` passed the provisioning/HOME
+readiness gate and installed the normal ARM64 debug APK on API 35 with native
+translation. Four instrumentation tests ran: the large-text/backlight/real-app
+Red typing test passed, and the other three failed their initial text checks.
+This is **not a full keyboard runtime pass**. The complete colour/input matrix,
+trackpad, private-field and landscape gates remain unpassed.
+
+The recorded event timeline identifies an input-driver race. In the first two
+tests, Q was injected about 200 ms before IME `onShown`; the existing
+outside-touch handler then hid the keyboard. In the third, the first T was
+injected before IME `onShown`, and the editor contained `eh`, not `teh`. The
+later real TryCard successfully received `Make it yours.` after the keyboard
+was settled. No product regression is established by these failures, but that
+does not certify the unreached behaviour. Original logs, screenshots and all
+four results are preserved without changing their failed status.
+
+The correction observes the real client window's
+[IME animation lifecycle](https://developer.android.com/reference/android/view/WindowInsetsAnimation.Callback)
+before injecting input. A zero-area, non-focusable, inaccessible test observer
+is attached before each Activity starts; it does not replace Compose callbacks,
+consume insets or change keyboard behaviour. Prepared/running IME animations
+must finish, client IME insets must be visible and positive, and the real input
+connection must belong to the focused served editor. Matching keyboard and
+suggestion-strip geometry must then be stable across two distinct Choreographer
+frames. Activity recreation, lost focus, changed editor/geometry and hidden IME
+invalidate readiness. Every key, picker and trackpad action uses this gate.
+There is no probe character, lost-key retry, disabled outside-touch handling or
+weakened expected-text assertion.
+
+The pure state machine is debug-only, with JVM regressions for pre-animation
+end layout, overlapping/cancelled animations, duplicate frame timestamps,
+geometry/editor changes, focus loss, detach and repeated awaits. The observer
+itself exists only in instrumentation. Production source, release settings,
+signer policy and ACL workflow are unchanged. Host tests/builds are not a
+substitute for rerunning the corrected instrumentation on Android.
+
+The third job's cleanup evidence confirms exact original ACL, owner, group,
+mode and device identity restored; the runner-specific grant is absent and the
+owned emulator is stopped. The third approval is consumed. No fourth job or
+grant follows from this fix. Public release and promotion remain on hold;
+debug APK storage and a clearly labelled private Coming Soon preview are
+separate from release readiness.

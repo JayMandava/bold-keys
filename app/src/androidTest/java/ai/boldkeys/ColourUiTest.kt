@@ -1,5 +1,7 @@
 package ai.boldkeys
 
+import android.app.Activity
+import android.app.Application
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.PointF
@@ -13,6 +15,8 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
+import android.view.WindowInsets
+import android.view.inputmethod.InputMethodManager
 import android.view.inspector.WindowInspector
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -45,6 +49,7 @@ class ColourUiTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val context get() = instrumentation.targetContext
     private val device = UiDevice.getInstance(instrumentation)
+    private lateinit var imeObserver: ImeWindowObserver
     private val output get() = File(context.getExternalFilesDir(null), "qa").apply { mkdirs() }
     private val palettes = listOf(KeyColour.RED, KeyColour.BLACK_GOLD, KeyColour.WHITE_GOLD, KeyColour.BLACK, KeyColour.WHITE)
 
@@ -96,6 +101,11 @@ class ColourUiTest {
     }
 
     @Before fun setUp() {
+        // Installed before Activity creation/show requests, including configuration recreations.
+        main {
+            imeObserver = ImeWindowObserver(context.applicationContext as Application, ::imeFrame)
+            imeObserver.register()
+        }
         device.wakeUp()
         device.executeShellCommand("wm dismiss-keyguard")
         device.setOrientationNatural()
@@ -112,6 +122,7 @@ class ColourUiTest {
         runCatching { device.setOrientationNatural() }
         runCatching { device.executeShellCommand("cmd uimode night no") }
         runCatching { device.executeShellCommand("settings put system font_scale 1.0") }
+        if (::imeObserver.isInitialized) main { imeObserver.close() }
     }
 
     private fun descendants(root: View): Sequence<View> = sequence {
@@ -127,15 +138,49 @@ class ColourUiTest {
     }
     private fun keyboard() = imeViews().filterIsInstance<KeyboardView>().single()
     private fun bar() = imeViews().filterIsInstance<SuggestionBar>().single()
-    private fun awaitIme() = waitFor("visible, laid-out real IME") {
-        val views = imeViews()
-        val kb = views.filterIsInstance<KeyboardView>().singleOrNull()
-        val strip = views.filterIsInstance<SuggestionBar>().singleOrNull()
-        kb != null && strip != null && main {
-            val location = IntArray(2); kb.getLocationOnScreen(location)
-            kb.width >= device.displayWidth * 0.8f && location[0] >= 0 && location[1] >= 0 &&
-                location[0] + kb.width <= device.displayWidth && location[1] + kb.height <= device.displayHeight
+    private fun awaitIme() {
+        main { imeObserver.beginAwait() }
+        try {
+            waitFor("bound, visible real IME after animation completion and stable frames") {
+                main { imeObserver.ready() }
+            }
+            Log.i("ColourUiIme", "Input readiness verified: ${main { imeObserver.diagnostic() }}")
+        } catch (error: AssertionError) {
+            throw AssertionError("${error.message}; ${main { imeObserver.diagnostic() }}", error)
+        } finally {
+            main { imeObserver.finishAwait() }
         }
+    }
+
+    /** Sampled only on distinct Choreographer frames, never by injecting a probe key. */
+    private fun imeFrame(activity: Activity, observedImeBottom: Int): ImeSettleState.Frame? {
+        val decor = activity.window.decorView
+        val focused = decor.findFocus() ?: return null
+        if (!decor.hasWindowFocus() || !focused.hasFocus()) return null
+        val clientInsets = decor.rootWindowInsets ?: return null
+        val clientImeBottom = clientInsets.getInsets(WindowInsets.Type.ime()).bottom
+        if (!clientInsets.isVisible(WindowInsets.Type.ime()) || observedImeBottom <= 0 ||
+            clientImeBottom != observedImeBottom) return null
+        val imm = activity.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        if (!imm.isActive(focused)) return null
+        val views = imeViews()
+        val kb = views.filterIsInstance<KeyboardView>().singleOrNull() ?: return null
+        val strip = views.filterIsInstance<SuggestionBar>().singleOrNull() ?: return null
+        val service = kb.context as? BoldKeysService ?: return null
+        val editor = service.currentInputEditorInfo ?: return null
+        if (!service.isInputViewShown || service.currentInputConnection == null ||
+            editor.packageName != context.packageName || editor.fieldId != focused.id) return null
+        val keyLocation = IntArray(2); kb.getLocationOnScreen(keyLocation)
+        val stripLocation = IntArray(2); strip.getLocationOnScreen(stripLocation)
+        val width = device.displayWidth; val height = device.displayHeight
+        if (kb.width < width * 0.8f || keyLocation[0] < 0 || keyLocation[1] < 0 ||
+            keyLocation[0] + kb.width > width || keyLocation[1] + kb.height > height ||
+            stripLocation[0] < 0 || stripLocation[1] < height - observedImeBottom ||
+            stripLocation[0] + strip.width > width || stripLocation[1] + strip.height > keyLocation[1]) return null
+        val identity = "${System.identityHashCode(activity)}:${System.identityHashCode(focused)}:${editor.packageName}:${editor.fieldId}:${editor.inputType}"
+        return ImeSettleState.Frame(identity, listOf(width, height, decor.width, decor.height,
+            observedImeBottom, stripLocation[0], stripLocation[1], strip.width, strip.height,
+            keyLocation[0], keyLocation[1], kb.width, kb.height))
     }
     private fun field(owner: Any, name: String): Any? = owner.javaClass.getDeclaredField(name).apply { isAccessible = true }.get(owner)
 
@@ -150,6 +195,7 @@ class ColourUiTest {
         point(kb, field(cell, "rect") as RectF)
     }
     private fun tap(row: Int, column: Int) {
+        awaitIme()
         val point = keyPoint(row, column)
         assertTrue("Key must be on screen: $row/$column ($point)", point.x in 0f..device.displayWidth.toFloat() && point.y in 0f..device.displayHeight.toFloat())
         assertTrue("Key tap injected", device.click(point.x.toInt(), point.y.toInt()))
@@ -264,6 +310,7 @@ class ColourUiTest {
         finally { event.recycle() }
     }
     private fun dragPadLeft(select: Boolean) {
+        awaitIme()
         val pad = padPoint()
         val distance = main { bar().resources.displayMetrics.density } * 28f // exactly two 13dp cursor steps
         val end = PointF(pad.x - distance, pad.y)
@@ -286,7 +333,7 @@ class ColourUiTest {
         val geometry = KeyboardView::class.java.getDeclaredMethod("pickGeo").apply { isAccessible = true }.invoke(kb)!!
         point(kb, field(geometry, name) as RectF)
     }
-    private fun tapPicker(name: String) { val point = pickerPoint(name); assertTrue(device.click(point.x.toInt(), point.y.toInt())) }
+    private fun tapPicker(name: String) { awaitIme(); val point = pickerPoint(name); assertTrue(device.click(point.x.toInt(), point.y.toInt())) }
     private fun pickerOpen() = main { keyboard().pickerOpen() }
 
     private fun typeText(value: String, paced: Boolean = false) {
