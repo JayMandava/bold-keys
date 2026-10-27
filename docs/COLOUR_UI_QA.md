@@ -299,3 +299,15 @@ authorized. Production source and release bytes remain unchanged; the debug
 state helper and instrumentation observation are test-only. Public APK release
 and Instagram publication remain on hold. Phone connection and certificate
 compatibility checks follow completed cloud QA, not an assumed successful run.
+
+Before the fourth branch was pushed, its artifact upload was narrowed to honour
+the public-download hold. Only allowlisted text reports/results/hash evidence,
+real PNG screenshots and screenrecord MP4s are staged into a fresh public
+evidence directory. Package archives and other binaries are never uploaded:
+this excludes APKs, AABs, Git bundles, ZIP/JARs, native libraries and binary test
+result stores. Renamed package content, symlinks and unexpected capture formats
+are rejected too. The manifest records copied hashes and excluded filenames;
+an unsuccessful staging step prevents upload rather than falling back to raw
+build directories. Build/runtime assertions, local private APKs and exact ACL
+cleanup are unchanged. Earlier authorized artifacts are handled separately;
+this upload policy neither deletes them nor changes source/run history.

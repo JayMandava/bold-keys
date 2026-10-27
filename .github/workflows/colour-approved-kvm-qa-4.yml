@@ -79,20 +79,16 @@ jobs:
           else
             echo 'Checkout unavailable; no grant script could have executed.'
           fi
-      - name: Upload bounded evidence including ACL cleanup (not a release)
+      - name: Stage only allowlisted public evidence, never application binaries
+        id: public_evidence
         if: always()
+        run: python3 tools/qa/stage-public-evidence.py
+      - name: Upload bounded evidence including ACL cleanup (not a release)
+        if: always() && steps.public_evidence.outcome == 'success'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: approved-colour-ui-${{ github.sha }}-${{ github.run_id }}
-          path: |
-            qa-artifacts/
-            app/build/reports/tests/
-            app/build/reports/androidTests/
-            app/build/reports/lint-results-*.html
-            app/build/test-results/
-            app/build/outputs/androidTest-results/
-            app/build/outputs/apk/debug/app-debug.apk
-            app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+          path: qa-public-evidence/
           retention-days: 1
           compression-level: 1
           if-no-files-found: warn
