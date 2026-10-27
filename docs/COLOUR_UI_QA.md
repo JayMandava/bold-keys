@@ -113,8 +113,10 @@ job's existing non-root runner UID. The guard requires the observed ordinary
 root:kvm, mode 0660, non-extended ACL baseline. Only after build/unit/lint gates
 pass does it add the named runner entry; the existing group/other effective
 permissions remain unchanged. Android and its controller never run as root.
-The runtime uses the normal ARM64 debug APK on the official API 35 Google APIs
-image with verified ARM64 translation and guest shell UID 2000.
+The runtime is configured to test the normal ARM64 debug APK on the official
+API 35 Google APIs image. Its ABI/native-bridge properties must advertise ARM64
+translation, and its guest shell must remain UID 2000; these setup checks do
+not prove successful ARM64 app execution.
 
 An EXIT/signal cleanup and an independent always-run cleanup stop the owned
 emulator, remove the temporary entry and verify the exact original ACL, owner,
