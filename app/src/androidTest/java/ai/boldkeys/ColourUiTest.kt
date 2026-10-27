@@ -188,10 +188,17 @@ class ColourUiTest {
         // and require its focused, accessible Home UI; this never dismisses an ANR or bypasses a UI assertion.
         context.startActivity(Intent(context, SetupActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
         waitFor("focused settings home", timeout) {
-            device.currentPackageName == context.packageName &&
+            setupWindowFocused() &&
                 (device.findObject(By.pkg(context.packageName).text("Bold Keys")) != null ||
                     device.findObject(By.pkg(context.packageName).text("Try it")) != null)
         }
+    }
+    private fun setupWindowFocused(): Boolean {
+        // UiDevice.currentPackageName is the last accessibility-event package, not window focus.
+        val focus = device.executeShellCommand("dumpsys window").lineSequence()
+            .map { it.trim() }.singleOrNull { it.startsWith("mCurrentFocus=") } ?: return false
+        return Regex("""mCurrentFocus=Window\{[^}\s]+\s+u\d+\s+ai\.boldkeys/(?:\.SetupActivity|ai\.boldkeys\.SetupActivity)\}""")
+            .matches(focus)
     }
     private fun textOnScreen(label: String): UiObject2 {
         repeat(10) {
@@ -315,19 +322,45 @@ class ColourUiTest {
             writeText("""
                 #!/system/bin/sh
                 mkdir -p "$dir"
-                screenrecord --bit-rate 6000000 --time-limit 60 "$path" >"$dir/$name.log" 2>&1 </dev/null &
+                screenrecord --verbose --bit-rate 6000000 --time-limit 60 "$path" >"$dir/$name.log" 2>&1 </dev/null &
                 echo ${'$'}!
             """.trimIndent() + "\n")
         }
-        val pid = device.executeShellCommand("sh ${startScript.absolutePath}").trim()
+        val notes = StringBuilder("Raw recording path: $path\n")
+        val pid = runCatching { device.executeShellCommand("sh ${startScript.absolutePath}").trim() }.getOrDefault("")
         val started = pid.matches(Regex("[0-9]+"))
+        fun alive() = started && runCatching {
+            device.executeShellCommand("cat /proc/$pid/comm").trim() == "screenrecord"
+        }.getOrDefault(false)
+        val ready = runCatching {
+            check(started) { "Recorder did not return a PID" }
+            val deadline = SystemClock.uptimeMillis() + 10_000
+            var outputBytes = false
+            while (SystemClock.uptimeMillis() < deadline) {
+                val size = device.executeShellCommand("stat -c %s $path").trim().toLongOrNull() ?: 0L
+                // The muxer may reserve MP4 metadata before samples: file bytes never prove recorded frames.
+                if (size > 4096L && alive()) { outputBytes = true; break }
+                SystemClock.sleep(250)
+            }
+            check(outputBytes && alive()) { "No live recorder with file output within ten seconds" }
+            SystemClock.sleep(1000) // genuine preroll before the action; never accelerate captured UI
+            check(alive()) { "Recorder exited during preroll" }
+        }
+        notes.append("Recorder preroll: ").append(ready.exceptionOrNull()?.toString() ?: "file output observed, one second held; frames unverified").append('\n')
         try {
-            action()
+            action() // Functional assertions still execute even if optional recording could not start.
             SystemClock.sleep(1200) // hold the genuine completed UI in the recording
         } finally {
-            if (started) device.executeShellCommand("kill -INT $pid")
-            val status = device.executeShellCommand("ls -l $path")
-            File(output, "recording-$name.txt").writeText("Raw recording path: $path\nRecorder PID returned: $started\n$status\nVerify decoding before using; UI tests do not certify video encoding.\n")
+            val stopped = runCatching {
+                if (alive()) device.executeShellCommand("kill -INT $pid")
+                val deadline = SystemClock.uptimeMillis() + 10_000
+                while (alive() && SystemClock.uptimeMillis() < deadline) SystemClock.sleep(250)
+                check(!alive()) { "Recorder did not finalize within ten seconds; do not use this clip" }
+                device.executeShellCommand("ls -l $path")
+            }
+            notes.append("Recorder finalization: ").append(stopped.fold({ it }, { it.toString() })).append('\n')
+            notes.append("Verify decoding and actual action coverage before using; UI tests do not certify video encoding.\n")
+            File(output, "recording-$name.txt").writeText(notes.toString())
         }
     }
 

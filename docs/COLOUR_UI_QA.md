@@ -127,3 +127,29 @@ credential or production-environment changes. No world-writable device mode is
 used. A terminal job failure does not authorize another security grant: any
 new accelerated job needs a fresh action-time approval. Production signing
 still requires the owner's separate protected-release approval.
+
+#### First accelerated attempt and readiness correction
+
+Run [40438950301](https://github.com/JayMandava/bold-keys/actions/runs/40438950301)
+reached a healthy API 35 Google launcher with ARM64 translation and no ANRs,
+but stopped **before installing/testing Bold Keys**: the readiness helper had
+incorrectly assumed the AOSP launcher package. The job's artifacts verify
+that its temporary runner grant was removed and the exact original device ACL
+and metadata were restored. This consumes that one-job approval; it is not a
+runtime product pass and must not be rerun under the same approval.
+
+The corrected helper asks Android to resolve its current default HOME activity,
+normalizes short/full component names, and requires that exact component to be
+focused with its package present in the real hierarchy. It fails closed on an
+unresolved/ambiguous HOME, another focused activity, unexpected dialogs, or
+instability. Regression fixtures include the actual Google launcher focus from
+that run and AOSP, plus rejection cases. Settings launch checks likewise use
+actual WindowManager focus rather than the last accessibility-event package.
+Neither correction relaxes the product UI assertions or startup health bounds.
+
+Optional raw recording now waits at most ten seconds for a live recorder and
+file output, then holds a one-second genuine preroll before the action. A
+bounded SIGINT/finalization wait follows the action. Startup/finalization
+warnings remain separate from functional assertions; byte output is **not** a
+successful video claim. Decode each resulting file and inspect that its real
+action is actually present before editing or publishing it.

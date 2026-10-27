@@ -9,6 +9,30 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 
+COMPONENT = re.compile(r'([A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+)/([.A-Za-z_$][.A-Za-z0-9_$]*)')
+
+
+def normalized_component(value):
+    match = COMPONENT.fullmatch(value.strip())
+    if not match:
+        raise ValueError('Invalid resolved Android HOME component')
+    package, activity = match.groups()
+    return package + '/' + (package + activity if activity.startswith('.') else activity)
+
+
+def resolved_home(output):
+    candidates = [line.strip() for line in output.splitlines() if COMPONENT.fullmatch(line.strip())]
+    if len(candidates) != 1:
+        raise ValueError('Android did not resolve exactly one default HOME activity')
+    return normalized_component(candidates[0])
+
+
+def home_is_focused(focus, home):
+    # Match the actual resolved component, not an image-specific launcher package.
+    components = [normalized_component(match.group()) for match in COMPONENT.finditer(focus)]
+    return components == [home]
+
+
 def wait_button(xml, focus):
     """Select only the observed System UI ANR's ordinary Wait action."""
     if 'Application Not Responding: com.android.systemui' not in focus:
@@ -66,6 +90,12 @@ def main():
     try:
         if adb('shell', 'id', '-u').strip() != '2000':
             raise RuntimeError('Guest must retain normal shell identity')
+        resolution = adb('shell', 'cmd', 'package', 'resolve-activity', '--brief', '--user', '0',
+                         '-a', 'android.intent.action.MAIN', '-c', 'android.intent.category.HOME')
+        (output / 'resolved-home.txt').write_text(resolution)
+        home = resolved_home(resolution)
+        home_package = home.partition('/')[0]
+        record('Resolved default Android HOME activity', component=home)
         adb('shell', 'input', 'keyevent', 'KEYCODE_HOME')
         while time.monotonic() < deadline:
             window = adb('shell', 'dumpsys', 'window')
@@ -89,12 +119,12 @@ def main():
                 recovered = True
                 home_since = None
                 quiet_since = time.monotonic()
-            elif 'com.android.launcher3/' in focus:
+            elif home_is_focused(focus, home):
                 if home_since is None:
                     home_since = time.monotonic()
                 if time.monotonic() - home_since >= 30 and time.monotonic() - quiet_since >= 60:
                     xml = hierarchy('ready-home')
-                    if not any(n.get('package') == 'com.android.launcher3' for n in ET.fromstring(xml).iter('node')):
+                    if not any(n.get('package') == home_package for n in ET.fromstring(xml).iter('node')):
                         raise RuntimeError('Focused launcher is not present in actual hierarchy')
                     (output / 'ready-home.png').write_bytes(adb('exec-out', 'screencap', '-p', binary=True))
                     record('Ordinary home UI ready; product tests still required', recovered_startup_dialog=recovered)
