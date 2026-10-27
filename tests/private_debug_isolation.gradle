@@ -1,0 +1,23 @@
+gradle.projectsEvaluated {
+    def app = gradle.rootProject.project(':app')
+    app.tasks.register('assertPrivateDebugIsolation') {
+        doLast {
+            def enabled = gradle.startParameter.projectProperties['boldDebug'] == 'true'
+            assert app.android.defaultConfig.applicationId == 'ai.boldkeys'
+            assert app.android.buildTypes.debug.applicationIdSuffix == null
+            assert app.android.buildTypes.debug.signingConfig.name == 'debug'
+            assert app.android.buildTypes.release.applicationIdSuffix == null
+            assert app.android.buildTypes.release.signingConfig == null
+            assert !app.android.buildTypes.release.debuggable
+            assert app.android.buildTypes.release.ndk.abiFilters == ['arm64-v8a'] as Set
+            if (enabled) {
+                assert app.android.buildTypes.privateDebug.applicationIdSuffix == '.debug'
+                assert app.android.buildTypes.privateDebug.signingConfig == null
+                assert app.android.buildTypes.privateDebug.debuggable
+                assert app.android.buildTypes.privateDebug.ndk.abiFilters == ['arm64-v8a'] as Set
+            } else {
+                assert app.android.buildTypes.collect { it.name }.sort() == ['debug', 'release']
+            }
+        }
+    }
+}

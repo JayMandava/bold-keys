@@ -13,6 +13,13 @@ val unsignedRelease = when (providers.gradleProperty("unsignedRelease").orElse("
     else -> throw GradleException("unsignedRelease must be exactly true or false.")
 }
 
+// Separate app is opt-in; ordinary debug/release variants retain their identities.
+val boldDebug = when (providers.gradleProperty("boldDebug").orElse("false").get()) {
+    "true" -> true
+    "false" -> false
+    else -> throw GradleException("boldDebug must be exactly true or false.")
+}
+
 // Explicit, debug-only fallback for cloud emulators without ARM translation.
 // This never changes the release ABI, compiler flags, signing or application code.
 val qaX86Debug = when (providers.gradleProperty("qaX86Debug").orElse("false").get()) {
@@ -114,6 +121,15 @@ android {
             ndk { abiFilters += if (qaX86Debug) "x86_64" else "arm64-v8a" }
             externalNativeBuild.cmake {
                 arguments += if (qaX86Debug) listOf("-DGGML_NATIVE=OFF") else arm64CompilerArguments
+            }
+        }
+        if (boldDebug) {
+            create("privateDebug") {
+                initWith(getByName("debug"))
+                applicationIdSuffix = ".debug"
+                // Never use AGP's generated debug key. Signing is external and pinned.
+                signingConfig = null
+                matchingFallbacks += "debug"
             }
         }
         release {
