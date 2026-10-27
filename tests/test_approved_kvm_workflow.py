@@ -22,7 +22,7 @@ KVM = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(KVM)
 STOP_OWNED = KVM.stop_owned_emulator
 DEVICE_METADATA = KVM.metadata
-WORKFLOW = (ROOT / '.github/workflows/colour-approved-kvm-qa-3.yml').read_text()
+WORKFLOW = (ROOT / '.github/workflows/colour-approved-kvm-qa-4.yml').read_text()
 SCRIPT = (ROOT / 'tools/qa/run-approved-kvm-ui.sh').read_text()
 BEFORE = {'uid': 0, 'gid': 108, 'mode': 0o660, 'rdev': 0x0A00E8}
 UID = 1001
@@ -90,14 +90,20 @@ class AccessLifecycleTests(unittest.TestCase):
                     KVM.context()
         self.run.assert_not_called()
 
-    def test_consumed_first_approval_branch_cannot_use_third_grant(self):
+    def test_consumed_first_approval_branch_cannot_use_fourth_grant(self):
         with patch.dict(os.environ, {'GITHUB_REF': 'refs/heads/qa/iconic-colours-kvm-20261027'}):
             with self.assertRaises(RuntimeError):
                 KVM.context()
         self.run.assert_not_called()
 
-    def test_consumed_second_approval_branch_cannot_use_third_grant(self):
+    def test_consumed_second_approval_branch_cannot_use_fourth_grant(self):
         with patch.dict(os.environ, {'GITHUB_REF': 'refs/heads/qa/iconic-colours-kvm-20261027-2'}):
+            with self.assertRaises(RuntimeError):
+                KVM.context()
+        self.run.assert_not_called()
+
+    def test_consumed_third_approval_branch_cannot_use_fourth_grant(self):
+        with patch.dict(os.environ, {'GITHUB_REF': 'refs/heads/qa/iconic-colours-kvm-20261027-3'}):
             with self.assertRaises(RuntimeError):
                 KVM.context()
         self.run.assert_not_called()
@@ -273,8 +279,8 @@ class AccessLifecycleTests(unittest.TestCase):
         self.urlopen.return_value = io.StringIO(json.dumps(data))
         KVM.verify_sole_run(RUN)
         request = self.urlopen.call_args.args[0]
-        self.assertTrue(request.full_url.startswith('https://api.github.com/repos/JayMandava/bold-keys/actions/workflows/colour-approved-kvm-qa-3.yml/runs?'))
-        self.assertIn('qa%2Ficonic-colours-kvm-20261027-3', request.full_url)
+        self.assertTrue(request.full_url.startswith('https://api.github.com/repos/JayMandava/bold-keys/actions/workflows/colour-approved-kvm-qa-4.yml/runs?'))
+        self.assertIn('qa%2Ficonic-colours-kvm-20261027-4', request.full_url)
         self.assertFalse(any(key.lower() == 'authorization' for key in request.headers))
         self.assertEqual(20, self.urlopen.call_args.kwargs['timeout'])
         self.assertTrue((self.root / 'qa-artifacts/one-job-approval.json').is_file())
@@ -362,7 +368,7 @@ class AccessLifecycleTests(unittest.TestCase):
 
 class ApprovedWorkflowTests(unittest.TestCase):
     def test_single_initial_owner_creation_job_not_dispatch_or_rerun(self):
-        self.assertIn('branches: [qa/iconic-colours-kvm-20261027-3]', WORKFLOW)
+        self.assertIn('branches: [qa/iconic-colours-kvm-20261027-4]', WORKFLOW)
         for guard in ("github.repository == 'JayMandava/bold-keys'", 'github.event.repository.private == false',
                       "github.actor == 'JayMandava'", "github.ref == '" + KVM.REF + "'",
                       'github.event.created == true', 'github.run_attempt == 1'):

@@ -280,3 +280,22 @@ owned emulator is stopped. The third approval is consumed. No fourth job or
 grant follows from this fix. Public release and promotion remain on hold;
 debug APK storage and a clearly labelled private Coming Soon preview are
 separate from release readiness.
+
+
+#### Separately approved fourth accelerated job
+
+After the test-input correction passed host tests, lint, APK compilation and
+independent review, the owner approved one further disposable accelerated test
+and its test-only public source push. This fourth approval is isolated to the
+initial creation of `qa/iconic-colours-kvm-20261027-4` and workflow
+`colour-approved-kvm-qa-4.yml`, including correction ancestor
+`2f2421c5055808a3923eef37335b0d29413f417c`.
+
+The three consumed branches/jobs remain preserved, never rerun or recreated.
+Exact actor/repository/ref/creation/attempt/public-history guards, build-before-
+grant, one non-root runner UID's temporary device ACL, runtime budgets and
+exact restoration with always-cleanup are unchanged. No fifth job or grant is
+authorized. Production source and release bytes remain unchanged; the debug
+state helper and instrumentation observation are test-only. Public APK release
+and Instagram publication remain on hold. Phone connection and certificate
+compatibility checks follow completed cloud QA, not an assumed successful run.
