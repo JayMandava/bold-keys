@@ -55,6 +55,7 @@ class ColourUiTest {
 
     @get:Rule val evidence = object : TestWatcher() {
         override fun failed(error: Throwable, description: Description) {
+            runCatching { captureSyntheticEditorState("FAILED-${description.methodName}") }
             runCatching { capture("FAILED-${description.methodName}") }
             File(output, "FAILED-${description.methodName}.txt").writeText(error.stackTraceToString())
             result(description.methodName, "failed", error.toString())
@@ -297,35 +298,65 @@ class ColourUiTest {
     private fun selection() = main { editor().selectionStart to editor().selectionEnd }
     private fun expectText(expected: String) = waitFor("editor text $expected") { text() == expected }
 
+    private fun captureSyntheticEditorState(name: String) {
+        val snapshot = main {
+            val host = KeyboardQaActivity.current.get() ?: return@main null
+            JSONObject().put("kind", "synthetic-editor-failure-state").put("observed_at", SystemClock.uptimeMillis())
+                .put("theme", Prefs.theme(context)).put("text", host.editor.text.toString())
+                .put("selection_start", host.editor.selectionStart).put("selection_end", host.editor.selectionEnd)
+                .put("editor_focused", host.editor.hasFocus()).put("window_focused", host.window.decorView.hasWindowFocus())
+        } ?: return
+        File(output, "$name-editor.json").writeText(snapshot.toString(2) + "\n")
+    }
+
     private fun padPoint(): PointF = main {
         val view = bar()
         val rect = SuggestionBar::class.java.getDeclaredMethod("padRect").apply { isAccessible = true }.invoke(view) as RectF
         point(view, rect)
     }
-    private fun touch(action: Int, positions: List<PointF>, downAt: Long) {
-        val properties = positions.indices.map { MotionEvent.PointerProperties().apply { id = it; toolType = MotionEvent.TOOL_TYPE_FINGER } }.toTypedArray()
+    private fun touch(action: Int, positions: List<PointF>, ids: List<Int>, downAt: Long, eventAt: Long) {
+        require(positions.size == ids.size && ids.distinct().size == ids.size)
+        val properties = ids.map { pointerId -> MotionEvent.PointerProperties().apply { id = pointerId; toolType = MotionEvent.TOOL_TYPE_FINGER } }.toTypedArray()
         val coordinates = positions.map { p -> MotionEvent.PointerCoords().apply { x = p.x; y = p.y; pressure = 1f; size = 1f } }.toTypedArray()
-        val event = MotionEvent.obtain(downAt, SystemClock.uptimeMillis(), action, positions.size, properties, coordinates, 0, 0, 1f, 1f, 0, 0, InputDevice.SOURCE_TOUCHSCREEN, 0)
+        val event = MotionEvent.obtain(downAt, eventAt, action, positions.size, properties, coordinates, 0, 0, 1f, 1f, 0, 0, InputDevice.SOURCE_TOUCHSCREEN, 0)
         try { assertTrue("Real touchscreen event injected", instrumentation.uiAutomation.injectInputEvent(event, true)) }
         finally { event.recycle() }
     }
     private fun dragPadLeft(select: Boolean) {
         awaitIme()
         val pad = padPoint()
-        val distance = main { bar().resources.displayMetrics.density } * 28f // exactly two 13dp cursor steps
-        val end = PointF(pad.x - distance, pad.y)
-        val down = SystemClock.uptimeMillis()
-        if (select) {
-            val shift = keyPoint(3, 0)
-            touch(MotionEvent.ACTION_DOWN, listOf(shift), down)
-            touch(MotionEvent.ACTION_POINTER_DOWN or (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT), listOf(shift, pad), down)
-            touch(MotionEvent.ACTION_MOVE, listOf(shift, end), down)
-            touch(MotionEvent.ACTION_POINTER_UP or (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT), listOf(shift, end), down)
-            touch(MotionEvent.ACTION_UP, listOf(shift), down)
-        } else {
-            touch(MotionEvent.ACTION_DOWN, listOf(pad), down)
-            touch(MotionEvent.ACTION_MOVE, listOf(end), down)
-            touch(MotionEvent.ACTION_UP, listOf(end), down)
+        val shift = if (select) keyPoint(3, 0) else null
+        val density = main { bar().resources.displayMetrics.density }
+        fun positions(sample: TrackpadGesturePlan.Sample) = sample.pointers.map { pointer ->
+            if (pointer.role == TrackpadGesturePlan.Role.SHIFT) checkNotNull(shift)
+            else PointF(pad.x + sample.padOffsetDp * density, pad.y)
+        }
+        val trace = main { TrackpadTouchTrace(bar(), keyboard(), editor(), Prefs.theme(context), select) }
+        val traceFile = File(output, "trackpad-${Prefs.theme(context)}-${if (select) "select" else "move"}-${SystemClock.uptimeMillis()}.json")
+        var last: TrackpadGesturePlan.TimedSample? = null
+        var completed = false
+        try {
+            TrackpadGesturePlan.perform(select, SystemClock::uptimeMillis, SystemClock::sleep) { sample ->
+                val action = when (sample.sample.action) {
+                    TrackpadGesturePlan.Action.DOWN -> MotionEvent.ACTION_DOWN
+                    TrackpadGesturePlan.Action.POINTER_DOWN -> MotionEvent.ACTION_POINTER_DOWN or (sample.sample.actionIndex shl MotionEvent.ACTION_POINTER_INDEX_SHIFT)
+                    TrackpadGesturePlan.Action.MOVE -> MotionEvent.ACTION_MOVE
+                    TrackpadGesturePlan.Action.POINTER_UP -> MotionEvent.ACTION_POINTER_UP or (sample.sample.actionIndex shl MotionEvent.ACTION_POINTER_INDEX_SHIFT)
+                    TrackpadGesturePlan.Action.UP -> MotionEvent.ACTION_UP
+                }
+                val points = positions(sample.sample)
+                last = sample
+                trace.injected(sample, action, points.map { it.x to it.y })
+                touch(action, points, sample.sample.pointers.map { it.id }, sample.downTime, sample.eventTime)
+            }
+            completed = true
+        } finally {
+            // An interrupted gesture is cancelled, never retried or corrected with another drag.
+            if (!completed) last?.let { sample ->
+                runCatching { touch(MotionEvent.ACTION_CANCEL, positions(sample.sample), sample.sample.pointers.map { it.id }, sample.downTime, SystemClock.uptimeMillis()) }
+                    .onFailure { Log.e("ColourUiTrackpad", "Could not cancel interrupted gesture", it) }
+            }
+            try { main { trace.close() } } finally { traceFile.writeText(trace.json()) }
         }
     }
     private fun pickerPoint(name: String): PointF = main {

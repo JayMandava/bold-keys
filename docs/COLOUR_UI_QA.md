@@ -311,3 +311,42 @@ an unsuccessful staging step prevents upload rather than falling back to raw
 build directories. Build/runtime assertions, local private APKs and exact ACL
 cleanup are unchanged. Earlier authorized artifacts are handled separately;
 this upload policy neither deletes them nor changes source/run history.
+
+#### Fourth run: three tests pass; final White gesture overshoots
+
+Run [40511992713](https://github.com/JayMandava/bold-keys/actions/runs/40511992713)
+at `a52eecf939ab1fd86a7747291d6ce63168cb68ff` passed the new IME-settle gate.
+Tests b, c and d passed, covering portrait/landscape, explicit and automatic
+light/dark palettes, text/search/email/URL/password/number fields, picker reset,
+larger text, backlight independence and genuine Red TryCard typing.
+
+Test a completed its entire sequence for Red, Black & Gold, White & Gold and
+Black, including cursor movement, Shift-selection, delete, picker interactions
+and real TryCard captures. On the fifth, classic White iteration, the first
+trackpad swipe moved the caret to index 0 in `qWr`, rather than expected index
+1. The keyboard remained visible and settled. It was not an unresponsive
+trackpad, nor a failure of the first/new palette. The overall suite remains
+**failed: three passed, one failed**.
+
+Both independent reviews identify a test-driver explanation consistent with
+the evidence, but not proven by a delivered-event trace: the harness injected
+an effectively instantaneous single 28dp MOVE. Android 15's
+[input resampling](https://android.googlesource.com/platform/frameworks/native/+/refs/heads/android15-release/libs/input/InputConsumer.cpp)
+can extrapolate a sufficiently close sample pair by up to 50%, turning that
+jump into 42dp and crossing three 13dp cursor steps. The captured caret position
+matches this mechanism; the run did not log delivered MotionEvents, so this is
+an inference, not a confirmed product defect. No colour-dependent input path
+was found.
+
+The next local correction is test-only: a small, physically paced multi-sample
+swipe along the same 28dp path, with actual monotonic event gaps and an endpoint
+hold, plus passive delivered-touch/selection diagnostics. Exact two-character
+movement and selection assertions remain unchanged; there is no retry,
+production sensitivity change, resampling-property change or fabricated pass.
+Runtime validation of that correction is still required.
+
+Fourth-run evidence verifies exact ACL/owner/group/mode/device restoration,
+absent runner grant and stopped emulator. Its 162-file evidence manifest was
+independently hash-checked, with no application binary uploaded. This fourth
+approval is consumed; no fifth job/grant is authorized. Genuine palette frames
+can support a private Coming Soon preview, but not a full-QA or release claim.
