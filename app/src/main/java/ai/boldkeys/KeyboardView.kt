@@ -181,6 +181,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
 
     /** The keyboard's body: it ends in the same smile as the rows, with rounded corners, so it meets the black navigation bar as one curved shape. */
     private val body = Path()
+    private val frame = Path()
     private var frameShader: Shader? = null
     private fun updateFrameShader() {
         frameShader = if (th.hasColouredFrame && height > 0)
@@ -191,16 +192,21 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
 
     private fun buildBody() {
         body.reset()
+        frame.reset()
         if (width == 0) return
         val w = width.toFloat()
         val y0 = padTop + 4 * (keyH + rowGap) - rowGap / 2 + dp(2.5f) // just under the last silver ridge
         val r = dp(20f)
-        body.moveTo(0f, 0f); body.lineTo(w, 0f)
+        body.moveTo(w, 0f)
         body.lineTo(w, y0 - r)
         body.quadTo(w, ridgeY(y0, w - r * 0.35f), w - r, ridgeY(y0, w - r))
         var x = w - r
         while (x > r) { x -= w / 24f; body.lineTo(x.coerceAtLeast(r), ridgeY(y0, x.coerceAtLeast(r))) }
         body.quadTo(0f, ridgeY(y0, r * 0.35f), 0f, y0 - r)
+        body.lineTo(0f, 0f)
+        // Keep the coloured sides and curved bottom, without an extra straight
+        // border below the trackpad. The shared row ridge is the top separator.
+        frame.set(body)
         body.close()
     }
 
@@ -239,7 +245,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         if (th.hasColouredFrame) {
             line.strokeWidth = dp(2.2f)
             line.shader = frameShader
-            canvas.drawPath(body, line)
+            canvas.drawPath(frame, line)
             line.shader = null
         }
         if (picker != Picker.NONE) { drawPicker(canvas); return } // the picker covers the keys: they are not drawn at all, so scrolling it costs only the picker

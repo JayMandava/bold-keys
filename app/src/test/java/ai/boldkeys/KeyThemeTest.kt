@@ -146,6 +146,10 @@ class KeyThemeTest {
                 // ViewGroup clips each child. drawColor ignores translation without this clip.
                 canvas.clipRect(0, 0, width, keyboard.height); keyboard.draw(canvas); canvas.restore()
                 assertNotEquals("Trackpad must render above the keys", Prefs.keyTheme(activity).bg, bmp.getPixel(width / 2, bar.height / 2))
+                for (x in listOf(width / 4, width / 2, width * 3 / 4)) {
+                    assertEquals("${colour.id}: no extra straight border below the trackpad",
+                        Prefs.keyTheme(activity).bg, bmp.getPixel(x, bar.height))
+                }
                 File(output, "${colour.id}-$width.png").outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
                 val pixels = IntArray(width * bmp.height); bmp.getPixels(pixels, 0, width, 0, 0, width, bmp.height)
                 images += pixels.contentHashCode()

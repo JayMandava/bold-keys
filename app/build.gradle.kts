@@ -149,6 +149,13 @@ android {
     testOptions { unitTests { isIncludeAndroidResources = true } }
 }
 
+// Private QA updates retain their package/signer while leaving production code 10 unchanged.
+androidComponents {
+    onVariants(selector().withBuildType("privateDebug")) { variant ->
+        variant.outputs.forEach { it.versionCode.set(11) }
+    }
+}
+
 dependencies {
     implementation(platform("androidx.compose:compose-bom:2025.09.00"))
     implementation("androidx.compose.material3:material3:1.5.0-alpha04")
