@@ -49,7 +49,7 @@ class TeaserSupplementCaptureTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val context get() = instrumentation.targetContext
     private val device = UiDevice.getInstance(instrumentation)
-    private lateinit var imeObserver: ImeWindowObserver
+    private lateinit var imeObserver: CaptureImeWindowObserver
     private val output get() = File(context.getExternalFilesDir(null), "qa").apply { mkdirs() }
     private val palettes = listOf(KeyColour.RED, KeyColour.BLACK_GOLD, KeyColour.WHITE_GOLD, KeyColour.BLACK, KeyColour.WHITE)
 
@@ -74,6 +74,7 @@ class TeaserSupplementCaptureTest {
             put("version_name", info.versionName); put("version_code", info.longVersionCode)
             put("device_abis", android.os.Build.SUPPORTED_ABIS.joinToString(","))
             put("sdk", android.os.Build.VERSION.SDK_INT)
+            put("ime_last_rejection",imeRejection)
             put("optional_context_model_enabled",Prefs.contextModel(context));put("optional_AI_runtime_demonstrated",false)
             put("evidence_kind", "real_android_windows_and_injected_touch")
             if (error != null) put("failure", error)
@@ -112,7 +113,7 @@ class TeaserSupplementCaptureTest {
         Prefs.put(context,"contextModel",false)
         // Installed before Activity creation/show requests, including configuration recreations.
         main {
-            imeObserver = ImeWindowObserver(context.applicationContext as Application, ::imeFrame)
+            imeObserver = CaptureImeWindowObserver(context.applicationContext as Application, ::imeFrame)
             imeObserver.register()
         }
         device.wakeUp()
@@ -169,38 +170,40 @@ class TeaserSupplementCaptureTest {
             }
             Log.i("ColourUiIme", "Input readiness verified: ${main { imeObserver.diagnostic() }}")
         } catch (error: AssertionError) {
-            throw AssertionError("${error.message}; ${main { imeObserver.diagnostic() }}", error)
+            throw AssertionError("${error.message}; ${main { imeObserver.diagnostic() }}; lastRejection=$imeRejection", error)
         } finally {
             main { imeObserver.finishAwait() }
         }
     }
 
     /** Sampled only on distinct Choreographer frames, never by injecting a probe key. */
-    private fun imeFrame(activity: Activity, observedImeBottom: Int): ImeSettleState.Frame? {
-        val decor = activity.window.decorView
-        val focused = decor.findFocus() ?: return null
-        if (!decor.hasWindowFocus() || !focused.hasFocus()) return null
-        val clientInsets = decor.rootWindowInsets ?: return null
+    @Volatile private var imeRejection="no frame sampled"
+    private fun rejectIme(reason:String):ImeSettleState.Frame? { imeRejection=reason;return null }
+    private fun imeFrame(decor: ViewGroup, observedImeBottom: Int): ImeSettleState.Frame? {
+        val focused = decor.findFocus() ?: return rejectIme("focused client view missing")
+        if (!decor.hasWindowFocus() || !focused.hasFocus()) return rejectIme("client window/view lacks focus")
+        val clientInsets = decor.rootWindowInsets ?: return rejectIme("client insets missing")
         val clientImeBottom = clientInsets.getInsets(WindowInsets.Type.ime()).bottom
         if (!clientInsets.isVisible(WindowInsets.Type.ime()) || observedImeBottom <= 0 ||
-            clientImeBottom != observedImeBottom) return null
-        val imm = activity.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as InputMethodManager
-        if (!imm.isActive(focused)) return null
+            clientImeBottom != observedImeBottom) return rejectIme("client IME insets not visible/mismatched")
+        val imm = decor.context.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        if (!imm.isActive(focused)) return rejectIme("focused client is not active input editor")
         val views = imeViews()
-        val kb = views.filterIsInstance<KeyboardView>().singleOrNull() ?: return null
-        val strip = views.filterIsInstance<SuggestionBar>().singleOrNull() ?: return null
-        val service = kb.context as? BoldKeysService ?: return null
-        val editor = service.currentInputEditorInfo ?: return null
+        val kb = views.filterIsInstance<KeyboardView>().singleOrNull() ?: return rejectIme("missing or ambiguous visible IME keyboard")
+        val strip = views.filterIsInstance<SuggestionBar>().singleOrNull() ?: return rejectIme("missing or ambiguous visible suggestion bar")
+        val service = kb.context as? BoldKeysService ?: return rejectIme("keyboard service context missing")
+        val editor = service.currentInputEditorInfo ?: return rejectIme("EditorInfo missing")
         if (!service.isInputViewShown || service.currentInputConnection == null ||
-            editor.packageName != context.packageName || (focused is android.widget.EditText && editor.fieldId != focused.id)) return null
+            editor.packageName != context.packageName || (focused is android.widget.EditText && editor.fieldId != focused.id)) return rejectIme("unbound or wrong-package/client input connection")
         val keyLocation = IntArray(2); kb.getLocationOnScreen(keyLocation)
         val stripLocation = IntArray(2); strip.getLocationOnScreen(stripLocation)
         val width = device.displayWidth; val height = device.displayHeight
         if (kb.width < width * 0.8f || keyLocation[0] < 0 || keyLocation[1] < 0 ||
             keyLocation[0] + kb.width > width || keyLocation[1] + kb.height > height ||
             stripLocation[0] < 0 || stripLocation[1] < height - observedImeBottom ||
-            stripLocation[0] + strip.width > width || stripLocation[1] + strip.height > keyLocation[1]) return null
-        val identity = "${System.identityHashCode(activity)}:${System.identityHashCode(focused)}:${editor.packageName}:${editor.fieldId}:${editor.inputType}"
+            stripLocation[0] + strip.width > width || stripLocation[1] + strip.height > keyLocation[1]) return rejectIme("IME geometry out of bounds or inconsistent")
+        val identity = "${System.identityHashCode(decor)}:${System.identityHashCode(focused)}:${editor.packageName}:${editor.fieldId}:${editor.inputType}"
+        imeRejection="accepted focused bound window frame"
         return ImeSettleState.Frame(identity, listOf(width, height, decor.width, decor.height,
             observedImeBottom, stripLocation[0], stripLocation[1], strip.width, strip.height,
             keyLocation[0], keyLocation[1], kb.width, kb.height))
@@ -360,13 +363,15 @@ class TeaserSupplementCaptureTest {
         val rect = SuggestionBar::class.java.getDeclaredMethod("padRect").apply { isAccessible = true }.invoke(view) as RectF
         point(view, rect)
     }
-    private fun touch(action: Int, positions: List<PointF>, ids: List<Int>, downAt: Long, eventAt: Long) {
+    private fun injectTouch(action: Int, positions: List<PointF>, ids: List<Int>, downAt: Long, eventAt: Long):Boolean {
         require(positions.size == ids.size && ids.distinct().size == ids.size)
         val properties = ids.map { pointerId -> MotionEvent.PointerProperties().apply { id = pointerId; toolType = MotionEvent.TOOL_TYPE_FINGER } }.toTypedArray()
         val coordinates = positions.map { p -> MotionEvent.PointerCoords().apply { x = p.x; y = p.y; pressure = 1f; size = 1f } }.toTypedArray()
         val event = MotionEvent.obtain(downAt, eventAt, action, positions.size, properties, coordinates, 0, 0, 1f, 1f, 0, 0, InputDevice.SOURCE_TOUCHSCREEN, 0)
-        try { assertTrue("Real touchscreen event injected", instrumentation.uiAutomation.injectInputEvent(event, true)) }
-        finally { event.recycle() }
+        return try { instrumentation.uiAutomation.injectInputEvent(event, true) } finally { event.recycle() }
+    }
+    private fun touch(action: Int, positions: List<PointF>, ids: List<Int>, downAt: Long, eventAt: Long) {
+        assertTrue("Real touchscreen event injected: action=$action",injectTouch(action,positions,ids,downAt,eventAt))
     }
     private fun dragPadLeft(select: Boolean) {
         awaitIme()
@@ -671,20 +676,48 @@ class TeaserSupplementCaptureTest {
     private fun shortcutPage(letter:String) {
         launchSettings();textOnScreen("Speed key").click();textOnScreen(letter).click()
         waitFor("shortcut dialog") { device.findObject(By.text("Speed key + $letter"))!=null }
+        main { imeObserver.observeWindows() } // install Dialog sibling probe before focusing its field
     }
-    private fun speedLetter(letter:Char) {
+    private fun focusedPackage():String? = device.executeShellCommand("dumpsys window").lineSequence()
+        .firstOrNull { it.trim().startsWith("mCurrentFocus=") }
+        ?.let { Regex("u[0-9]+ ([A-Za-z0-9_.]+)/").find(it)?.groupValues?.get(1) }
+    private fun speedLetter(letter:Char,expectedExternal:String?=null) {
         awaitIme()
         val rows=Layouts.rows(Prefs.layout(context))
         val row=rows.indexOfFirst { line -> line.any { it.label==letter.toString() } }
         val column=rows[row].indexOfFirst { it.label==letter.toString() }
         val speed=keyPoint(3,4);val target=keyPoint(row,column);val down=SystemClock.uptimeMillis()
+        val before=focusedPackage();val events=org.json.JSONArray()
+        check(before==context.packageName) { "Speed gesture must start in the verified own editor window" }
+        fun deliver(action:Int,points:List<PointF>) {
+            // Security/permission exceptions propagate; only a false return caused
+            // by a separately verified expected window handoff is permissible.
+            val attempt=runCatching { injectTouch(action,points,points.indices.toList(),down,SystemClock.uptimeMillis()) }
+            val observation=JSONObject().put("action",action).put("delivered",attempt.getOrDefault(false))
+                .put("injection_exception",attempt.exceptionOrNull()?.javaClass?.simpleName ?: JSONObject.NULL)
+                .put("foreground_before",before ?: JSONObject.NULL).put("foreground_after",focusedPackage() ?: JSONObject.NULL)
+            events.put(observation)
+            val delivered=attempt.getOrThrow()
+            if(!delivered && expectedExternal!=null && action!=MotionEvent.ACTION_DOWN)
+                waitFor("expected external window handoff",5000) { focusedPackage()==expectedExternal }
+            val after=focusedPackage();observation.put("foreground_after_wait",after ?: JSONObject.NULL)
+            CaptureHarnessRules.requireDelivery(delivered,if(action==MotionEvent.ACTION_DOWN) null else expectedExternal,after,before)
+        }
         try {
-            touch(MotionEvent.ACTION_DOWN,listOf(speed),down);SystemClock.sleep(120)
-            touch(MotionEvent.ACTION_POINTER_DOWN or (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT),listOf(speed,target),down)
+            deliver(MotionEvent.ACTION_DOWN,listOf(speed));SystemClock.sleep(120)
+            deliver(MotionEvent.ACTION_POINTER_DOWN or (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT),listOf(speed,target))
             SystemClock.sleep(100)
-            touch(MotionEvent.ACTION_POINTER_UP or (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT),listOf(speed,target),down)
-            touch(MotionEvent.ACTION_UP,listOf(speed),down)
-        } finally { touch(MotionEvent.ACTION_CANCEL,listOf(speed),down) }
+            deliver(MotionEvent.ACTION_POINTER_UP or (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT),listOf(speed,target))
+            deliver(MotionEvent.ACTION_UP,listOf(speed))
+        } finally {
+            // Best-effort release cannot replace the original failure. A lost
+            // IME window after a successful App/Link launch has no touch target.
+            val cleanup=runCatching { injectTouch(MotionEvent.ACTION_CANCEL,listOf(speed),listOf(0),down,SystemClock.uptimeMillis()) }
+            events.put(JSONObject().put("action",MotionEvent.ACTION_CANCEL)
+                .put("delivered",cleanup.getOrDefault(false)).put("cleanup_error",cleanup.exceptionOrNull()?.javaClass?.simpleName ?: JSONObject.NULL))
+            File(output,"result-speed-$letter-events.json").writeText(events.toString(2)+"\n")
+            mirrorEvidence()
+        }
     }
     @Test fun g_configureAndRunTextShortcut() {
         prepareNotes(KeyColour.BLACK);shortcutPage("B")
@@ -709,8 +742,8 @@ class TeaserSupplementCaptureTest {
             textOnScreen("App").click();textOnScreen(label).click()
             waitFor("App assignment saved") { Shortcuts.get(context,'A')?.let { it.type==Shortcut.APP && it.value=="com.android.settings" }==true }
             capture("supp-shortcut-app-configured")
-            notesWithCurrentSettings();speedLetter('A')
-            waitFor("stock Settings launched by speed gesture") { device.currentPackageName=="com.android.settings" }
+            notesWithCurrentSettings();speedLetter('A',"com.android.settings")
+            waitFor("stock Settings launched by speed gesture") { focusedPackage()=="com.android.settings" }
             capture("supp-shortcut-app-result")
         }
     }
@@ -726,8 +759,8 @@ class TeaserSupplementCaptureTest {
             typeText("www.android.com",paced=true);device.pressBack();textOnScreen("Save").click()
             waitFor("Link assignment saved") { Shortcuts.get(context,'C')?.let { it.type==Shortcut.LINK && it.value=="www.android.com" }==true }
             capture("supp-shortcut-link-configured")
-            notesWithCurrentSettings();speedLetter('C')
-            waitFor("HTTPS handler launched") { device.currentPackageName==browser }
+            notesWithCurrentSettings();speedLetter('C',browser)
+            waitFor("HTTPS handler launched") { focusedPackage()==browser }
             waitFor("official URL intent delivered") { device.executeShellCommand("dumpsys activity activities").contains("dat=$uri") }
             check(device.findObject(By.textContains("Welcome to Chrome"))==null) { "Browser onboarding obscures link result; no page-load claim" }
             capture("supp-shortcut-link-result") // handler/intent only; no page/network performance assertion
@@ -766,6 +799,14 @@ class TeaserSupplementCaptureTest {
     }
     @Test fun l_doubleSpaceAndSentenceCapital() {
         prepareNotes(KeyColour.BLACK);engineReady("en")
+        // The product follows the editor's cursor-caps request. The default QA
+        // field omitted CAP_SENTENCES, so expecting automatic Shift was invalid.
+        main {
+            editor().inputType=editor().inputType or android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+            (context.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as InputMethodManager).restartInput(editor())
+        }
+        awaitIme()
+        assertTrue(main { (keyboard().context as BoldKeysService).currentInputEditorInfo!!.inputType and android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES != 0 })
         recording("supp-double-space") {
             typeText("hello",paced=true);tap(3,2);SystemClock.sleep(100);tap(3,2)
             expectText("hello. ")
@@ -830,25 +871,45 @@ class TeaserSupplementCaptureTest {
             waitFor("finger fling and glide settled") { main { field(keyboard(),"gliding")==false && field(keyboard(),"flinging")==false } }
             capture("supp-picker-finger")
             val before=main { field(keyboard(),"pickScroll") as Float }
-            val pad=padPoint();device.swipe(pad.x.toInt(),pad.y.toInt(),pad.x.toInt(),(pad.y-60).toInt(),20)
+            val pad=padPoint();val density=context.resources.displayMetrics.density
+            val direction=if(before>0f) -1 else 1
+            val down=SystemClock.uptimeMillis()
+            touch(MotionEvent.ACTION_DOWN,listOf(pad),down)
+            try {
+                for(offset in CaptureHarnessRules.verticalOffsets(direction).drop(1)) {
+                    SystemClock.sleep(35)
+                    touch(MotionEvent.ACTION_MOVE,listOf(PointF(pad.x,pad.y+offset*density)),down)
+                }
+                touch(MotionEvent.ACTION_UP,listOf(PointF(pad.x,pad.y+direction*32*density)),down)
+            } finally { runCatching { touch(MotionEvent.ACTION_CANCEL,listOf(pad),down) } }
             waitFor("actual picker trackpad scroll") { main { kotlin.math.abs((field(keyboard(),"pickScroll") as Float)-before)>1 } }
             capture("supp-picker-trackpad");tapPicker("close");assertFalse(pickerOpen());expectText("")
         }
     }
 
+    private fun liveColourControls(count:Int):List<UiObject2> {
+        textOnScreen("Brightness")
+        val candidates=device.findObjects(By.clickable(true))
+        val bounds=candidates.map { it.visibleBounds.let { b -> CaptureHarnessRules.Bounds(b.left,b.top,b.right,b.bottom) } }
+        val brightness=checkNotNull(device.findObject(By.text("Brightness"))).visibleBounds
+        // Re-query section after scrolling: all coordinates come from live UI.
+        val top=device.findObject(By.text("Backlight"))?.visibleBounds?.bottom ?: 0
+        val indices=CaptureHarnessRules.swatchIndices(bounds,top,brightness.top,count)
+        File(output,"result-backlight-control-bounds.json").writeText(JSONObject()
+            .put("section_top",top).put("brightness_top",brightness.top)
+            .put("candidates",org.json.JSONArray(bounds.map { listOf(it.left,it.top,it.right,it.bottom) }))
+            .put("matched_indices",org.json.JSONArray(indices)).toString(2))
+        check(indices.size==count) { "No unique complete live colour row; inspect bounds evidence (nominal layout size is not accessibility touch bounds)" }
+        return indices.map { candidates[it] }
+    }
     @Test fun r_backlightColours() {
         baseSettings("Appearance")
         recording("supp-backlight-colours") {
             choice("On") { Prefs.backlightMode(context)=="on" }
             textOnScreen("Brightness") // scroll swatches and slider into view
             val colours=Prefs.BACKLIGHT_COLORS.keys.toList()
-            val density=context.resources.displayMetrics.density
             for ((index,id) in colours.withIndex()) {
-                val swatches=device.findObjects(By.clickable(true)).filter {
-                    val b=it.visibleBounds
-                    kotlin.math.abs(b.width()-40*density)<4 && kotlin.math.abs(b.height()-40*density)<4
-                }.sortedBy { it.visibleBounds.centerX() }
-                assertEquals("Exactly four live 40dp colour controls",colours.size,swatches.size)
+                val swatches=liveColourControls(colours.size)
                 swatches[index].click();waitFor("saved $id backlight") { Prefs.backlightColor(context)==id }
                 capture("supp-backlight-colour-$id")
             }

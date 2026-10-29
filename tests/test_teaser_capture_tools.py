@@ -29,10 +29,36 @@ RUNTIME = (ROOT / 'tools/capture/run-capture.sh').read_text()
 
 
 class WorkflowTests(unittest.TestCase):
+    def test_failed_shot_repairs_keep_real_assertions_and_add_diagnostics(self):
+        source = (ROOT / 'tools/capture/androidTest/ai/boldkeys/TeaserSupplementCaptureTest.kt').read_text()
+        observer = (ROOT / 'tools/capture/androidTest/ai/boldkeys/CaptureImeWindowObserver.kt').read_text()
+        self.assertIn('CaptureImeWindowObserver', source)
+        self.assertIn('WindowInspector.getGlobalWindowViews()', observer)
+        self.assertIn('state.frame(frameTimeNanos, frame)', observer)
+        self.assertIn('WindowInsetsAnimation.Callback', observer)
+        self.assertIn('TYPE_TEXT_FLAG_CAP_SENTENCES', source)
+        self.assertIn('expectText("hello. Hello")', source)
+        self.assertIn('CaptureHarnessRules.verticalOffsets(direction)', source)
+        self.assertNotIn('pad.y-60', source)
+        self.assertIn('CaptureHarnessRules.swatchIndices', source)
+        self.assertNotIn('Exactly four live 40dp', source)
+        self.assertIn('CaptureHarnessRules.requireDelivery', source)
+        self.assertIn('attempt.getOrThrow()', source)
+        self.assertIn('result-speed-$letter-events.json', source)
+        self.assertIn('expected external window handoff', source)
+
     def test_supplemental_run_selects_only_independent_new_shots(self):
         source = (ROOT / 'tools/capture/androidTest/ai/boldkeys/TeaserSupplementCaptureTest.kt').read_text()
         plan = json.loads((ROOT / 'tools/capture/feature-plan.json').read_text())
-        self.assertEqual(len(plan['clips']), len(re.findall(r'@Test fun ', source)))
+        selection = re.search(r"Arguments.class=([^']+)'", RUNTIME).group(1).split(',')
+        self.assertEqual(plan['runner_selection'], selection)
+        self.assertEqual(6, len(selection))
+        self.assertEqual(6, len(plan['clips']))
+        actual_methods = set(re.findall(r'@Test fun ([A-Za-z0-9_]+)', source))
+        selected_methods = [item.split('#')[1] for item in selection]
+        self.assertEqual({'g_configureAndRunTextShortcut','h_configureAndRunAppShortcut','i_configureAndRunLinkShortcut','l_doubleSpaceAndSentenceCapital','q_pickerFingerAndTrackpadScroll','r_backlightColours'}, set(selected_methods))
+        self.assertTrue(set(selected_methods) <= actual_methods)
+        self.assertTrue(all(item.startswith('ai.boldkeys.TeaserSupplementCaptureTest#') for item in selection))
         self.assertIn('Arguments.class=ai.boldkeys.TeaserSupplementCaptureTest', RUNTIME)
         self.assertNotIn('Arguments.class=ai.boldkeys.TeaserCaptureTest,', RUNTIME)
         for feature in ('Shortcuts.get', 'small_height', 'xl_height', 'engineReady(lang)',
@@ -41,12 +67,12 @@ class WorkflowTests(unittest.TestCase):
         self.assertNotIn('Shortcuts.set(', source)
         self.assertNotIn('ContextModels.download', source)
         self.assertIn('Prefs.put(context,"contextModel",false)', source)
-        self.assertEqual(15, plan['retained_evidence']['valid_clips'])
+        self.assertEqual(32, plan['retained_evidence']['valid_clips'])
 
     def test_single_owner_initial_push_only_and_bounded(self):
-        self.assertIn('branches: [qa/bold-teaser-capture-20261029-3]', WORKFLOW)
+        self.assertIn('branches: [qa/bold-teaser-capture-20261029-4]', WORKFLOW)
         for guard in ("github.actor == 'JayMandava'", 'github.event.created == true', 'github.run_attempt == 1',
-                      "github.ref == 'refs/heads/qa/bold-teaser-capture-20261029-3'", 'github.event.repository.private == false'):
+                      "github.ref == 'refs/heads/qa/bold-teaser-capture-20261029-4'", 'github.event.repository.private == false'):
             self.assertIn(guard, WORKFLOW)
         for trigger in ('workflow_dispatch:', 'pull_request:', 'pull_request_target:', 'schedule:', 'workflow_run:'):
             self.assertNotIn(trigger, WORKFLOW)
@@ -105,7 +131,7 @@ class WorkflowTests(unittest.TestCase):
     def test_capture_manifest_does_not_claim_unexecuted_runtime(self):
         plan = json.loads((ROOT / 'tools/capture/feature-plan.json').read_text())
         self.assertEqual(SOURCE.BASE, plan['product_source_sha'])
-        self.assertEqual(23, len(plan['clips']))
+        self.assertEqual(6, len(plan['clips']))
         self.assertEqual(0, sum(x['classification'] == 'development-preview' for x in plan['clips']))
         self.assertTrue(all(x['status'] == 'planned_not_runtime_verified' for x in plan['clips']))
 

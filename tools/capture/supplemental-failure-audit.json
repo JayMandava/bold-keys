@@ -1,0 +1,76 @@
+{
+  "run_id": 40830730964,
+  "capture_commit": "fefeda4b0590d1321110c99a02a5c7c828907c57",
+  "product_source": "ce23cf74526b4864201d38503d2c9ad233d1787d",
+  "artifact_id": 12879940015,
+  "artifact_sha256": "a6c5e3b22644fee10151a902884d6726d2cf420276c14389428900cd53301b83",
+  "retained": {
+    "original_passed_clips": 15,
+    "supplemental_passed_clips": 17,
+    "supplemental_decoded_clips": 23,
+    "media_changed": false
+  },
+  "failures": [
+    {
+      "tests": [
+        "g_configureAndRunTextShortcut",
+        "i_configureAndRunLinkShortcut"
+      ],
+      "log": "SetupActivity: visible=true bottom=889 prepared=0 running=0 stableFrames=0 ready=false sampleError=null",
+      "cause": "Original observer only tracks Activity decor; ShortcutDialog is a separate focused window. Old logs do not identify the precise rejected imeFrame predicate.",
+      "fix": "New capture-only WindowInspector observer tracks eligible focused own Activity/Dialog roots, with unchanged passive animation/inset and bound-IME stable-frame checks; installs Dialog probe before field focus. Add explicit frame-rejection diagnostic.",
+      "prefix_proved": "Dialog navigation/field focus was reached; new Text/Link assignment was not saved. Existing original snippet execution remains valid.",
+      "runtime_status": "Local compile/regressions only; modal readiness repair not yet Android-verified."
+    },
+    {
+      "tests": [
+        "h_configureAndRunAppShortcut"
+      ],
+      "log": "java.lang.AssertionError: Real touchscreen event injected",
+      "cause": "Exact event unknown. Gesture can launch external app before release; unconditional asserting CANCEL in finally could mask primary error. No per-event old trace.",
+      "fix": "Always require initial DOWN delivery, retain permission exceptions, permit false return on later events only with independently verified expected external focused-window transition from own editor. Best-effort CANCEL does not replace primary failure. Export event/delivery/focus/exception diagnostics; target App/Link postconditions remain mandatory.",
+      "prefix_proved": "App choice was saved and asserted before the touch failure; launch completion unverified.",
+      "runtime_status": "Event-policy regressions pass; actual App handoff still unavailable as validated footage."
+    },
+    {
+      "tests": [
+        "l_doubleSpaceAndSentenceCapital"
+      ],
+      "log": "Timed out waiting for auto capital for next sentence",
+      "cause": "QA default editor inputType lacks TYPE_TEXT_FLAG_CAP_SENTENCES. Service passes inputType to getCursorCapsMode; unflagged editor correctly requests zero caps. Robolectric actual-editor test confirms flagged/unflagged contract.",
+      "fix": "Stage a normal sentence-capable QA input field and restart/bind input before recording; keep ONCE and exact hello. Hello assertions. No product change.",
+      "prefix_proved": "Exact hello. whitespace double-space replacement succeeded before capital assertion.",
+      "runtime_status": "Contract regression passes; combined capital footage not yet verified."
+    },
+    {
+      "tests": [
+        "q_pickerFingerAndTrackpadScroll"
+      ],
+      "log": "Timed out waiting for actual picker trackpad scroll",
+      "cause": "60px drag is 22.857dp at420dpi; SuggestionBar vertical quantum is26dp (68.25px), so original drag emits no vertical callback.",
+      "fix": "Paced real32dp drag in4dp steps, direction away from current edge; preserve real pickScroll-change assertion and wait for finger fling to settle.",
+      "prefix_proved": "Finger scrolling and its settled-state assertion succeeded.",
+      "runtime_status": "Threshold/gesture regressions pass; trackpad picker footage still unverified."
+    },
+    {
+      "tests": [
+        "r_backlightColours"
+      ],
+      "log": "Exactly four live40dp colour controls expected4 but was0",
+      "cause": "Locator equated nominal40dp visual size with accessibility touch bounds. Old accessibility rectangles were not exported, so expanded bounds versus viewport clipping cannot be distinguished.",
+      "fix": "Find one unambiguous row of four live square clickable bounds before Brightness, accepting expanded hit bounds and rejecting missing/clipped/ambiguous rows; still assert each saved colour and final live glowRgb. Export candidate rectangles.",
+      "prefix_proved": "Backlight On selected; no colour-swatch click completed. Separate basic backlight Off/On/brightness test passed.",
+      "runtime_status": "40/48dp and density-scaled geometry regressions pass; four-colour control footage not yet verified."
+    }
+  ],
+  "cleanup": "Native job logs show exact cleanup PASS twice at07:02:15UTC; parent materialized cleanup JSON confirms restored exact baseline, grant absent, emulator_stop_error null.",
+  "restrictions": "Local uncommitted capture-tool changes only. No app/product source changes, push, new run, emulator, permissions, credentials, model downloads or media edits. Fresh approval required for any further capture.",
+  "validation": {
+    "jvm_tests": 66,
+    "jvm_failures": 0,
+    "new_focused_tests": 7,
+    "python_tests": 187,
+    "instrumentation_compiles": true,
+    "exact_product_source_verified": true
+  }
+}

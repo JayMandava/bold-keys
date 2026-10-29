@@ -3,48 +3,6 @@
   "public_release_reference": "v0.6.1",
   "clips": [
     {
-      "clip": "supp-german.mp4",
-      "classification": "public",
-      "feature": "German QWERTZ/Auto and fur → für",
-      "verification_scope": "Independent Android test with actual touchscreen actions, saved-state/editor/render assertions and real screenrecord; see TeaserSupplementCaptureTest.kt",
-      "status": "planned_not_runtime_verified"
-    },
-    {
-      "clip": "supp-french.mp4",
-      "classification": "public",
-      "feature": "French AZERTY/Auto and ete → été",
-      "verification_scope": "Independent Android test with actual touchscreen actions, saved-state/editor/render assertions and real screenrecord; see TeaserSupplementCaptureTest.kt",
-      "status": "planned_not_runtime_verified"
-    },
-    {
-      "clip": "supp-language-override.mp4",
-      "classification": "public",
-      "feature": "Explicit French/German/English overrides and QWERTY output",
-      "verification_scope": "Independent Android test with actual touchscreen actions, saved-state/editor/render assertions and real screenrecord; see TeaserSupplementCaptureTest.kt",
-      "status": "planned_not_runtime_verified"
-    },
-    {
-      "clip": "supp-key-size.mp4",
-      "classification": "public",
-      "feature": "All four settings; measured Small versus XL live IME",
-      "verification_scope": "Independent Android test with actual touchscreen actions, saved-state/editor/render assertions and real screenrecord; see TeaserSupplementCaptureTest.kt",
-      "status": "planned_not_runtime_verified"
-    },
-    {
-      "clip": "supp-backlight.mp4",
-      "classification": "public",
-      "feature": "Off/On live glow, brightness and Auto settings",
-      "verification_scope": "Independent Android test with actual touchscreen actions, saved-state/editor/render assertions and real screenrecord; see TeaserSupplementCaptureTest.kt",
-      "status": "planned_not_runtime_verified"
-    },
-    {
-      "clip": "supp-haptic-settings.mp4",
-      "classification": "public",
-      "feature": "Saved Off/3ms/Double patterns and Try control; no physical feel claim",
-      "verification_scope": "Independent Android test with actual touchscreen actions, saved-state/editor/render assertions and real screenrecord; see TeaserSupplementCaptureTest.kt",
-      "status": "planned_not_runtime_verified"
-    },
-    {
       "clip": "supp-shortcut-text.mp4",
       "classification": "public",
       "feature": "Configure and execute neutral text snippet",
@@ -66,51 +24,9 @@
       "status": "planned_not_runtime_verified"
     },
     {
-      "clip": "supp-personal-dictionary.mp4",
-      "classification": "public",
-      "feature": "Add, suggest, remove and confirmed clear in disposable guest",
-      "verification_scope": "Independent Android test with actual touchscreen actions, saved-state/editor/render assertions and real screenrecord; see TeaserSupplementCaptureTest.kt",
-      "status": "planned_not_runtime_verified"
-    },
-    {
-      "clip": "supp-next-word.mp4",
-      "classification": "public",
-      "feature": "Next-word suggestion accepted by trackpad tap",
-      "verification_scope": "Independent Android test with actual touchscreen actions, saved-state/editor/render assertions and real screenrecord; see TeaserSupplementCaptureTest.kt",
-      "status": "planned_not_runtime_verified"
-    },
-    {
       "clip": "supp-double-space.mp4",
       "classification": "public",
       "feature": "Double-space full stop and sentence capital",
-      "verification_scope": "Independent Android test with actual touchscreen actions, saved-state/editor/render assertions and real screenrecord; see TeaserSupplementCaptureTest.kt",
-      "status": "planned_not_runtime_verified"
-    },
-    {
-      "clip": "supp-british-spelling.mp4",
-      "classification": "public",
-      "feature": "British and American actual correction",
-      "verification_scope": "Independent Android test with actual touchscreen actions, saved-state/editor/render assertions and real screenrecord; see TeaserSupplementCaptureTest.kt",
-      "status": "planned_not_runtime_verified"
-    },
-    {
-      "clip": "supp-alt-lock.mp4",
-      "classification": "public",
-      "feature": "Hold Alt lock, multi-symbol output, unlock and single Shift",
-      "verification_scope": "Independent Android test with actual touchscreen actions, saved-state/editor/render assertions and real screenrecord; see TeaserSupplementCaptureTest.kt",
-      "status": "planned_not_runtime_verified"
-    },
-    {
-      "clip": "supp-emoticon.mp4",
-      "classification": "public",
-      "feature": "Text face conversion and Backspace undo",
-      "verification_scope": "Independent Android test with actual touchscreen actions, saved-state/editor/render assertions and real screenrecord; see TeaserSupplementCaptureTest.kt",
-      "status": "planned_not_runtime_verified"
-    },
-    {
-      "clip": "supp-currency.mp4",
-      "classification": "public",
-      "feature": "Choose rupee sign and type it without volume change",
       "verification_scope": "Independent Android test with actual touchscreen actions, saved-state/editor/render assertions and real screenrecord; see TeaserSupplementCaptureTest.kt",
       "status": "planned_not_runtime_verified"
     },
@@ -127,53 +43,37 @@
       "feature": "All four swatches saved; final colour applied to live IME",
       "verification_scope": "Independent Android test with actual touchscreen actions, saved-state/editor/render assertions and real screenrecord; see TeaserSupplementCaptureTest.kt",
       "status": "planned_not_runtime_verified"
-    },
-    {
-      "clip": "supp-match-phone.mp4",
-      "classification": "public",
-      "feature": "System dark/light changes reflected on connected IME",
-      "verification_scope": "Independent Android test with actual touchscreen actions, saved-state/editor/render assertions and real screenrecord; see TeaserSupplementCaptureTest.kt",
-      "status": "planned_not_runtime_verified"
-    },
-    {
-      "clip": "supp-tone-key-settings.mp4",
-      "classification": "public",
-      "feature": "Default tone preference and emoji-off right Shift fallback",
-      "verification_scope": "Independent Android test with actual touchscreen actions, saved-state/editor/render assertions and real screenrecord; see TeaserSupplementCaptureTest.kt",
-      "status": "planned_not_runtime_verified"
-    },
-    {
-      "clip": "supp-sensitive-fields.mp4",
-      "classification": "public",
-      "feature": "Email/password suppress suggestions/correction; URI suppresses rewriting while allowing suggestions",
-      "verification_scope": "Independent Android test with actual touchscreen actions, saved-state/editor/render assertions and real screenrecord; see TeaserSupplementCaptureTest.kt",
-      "status": "planned_not_runtime_verified"
-    },
-    {
-      "clip": "supp-automatic-learning.mp4",
-      "classification": "public",
-      "feature": "Unknown neutral word learned after real typing twice",
-      "verification_scope": "Independent touchscreen test with exact editor/dictionary assertions",
-      "status": "planned_not_runtime_verified"
-    },
-    {
-      "clip": "supp-suggestion-tap.mp4",
-      "classification": "public",
-      "feature": "Accept actual completion by tapping suggestion strip",
-      "verification_scope": "Independent touchscreen test with exact editor/dictionary assertions",
-      "status": "planned_not_runtime_verified"
     }
   ],
   "retained_evidence": {
-    "run": 40824867852,
-    "artifact": 12876303884,
-    "valid_clips": 15,
-    "rerecord": false
+    "valid_clips": 32,
+    "rerecord": false,
+    "runs": [
+      {
+        "run": 40824867852,
+        "artifact": 12876303884,
+        "valid_clips": 15
+      },
+      {
+        "run": 40830730964,
+        "artifact": 12879940015,
+        "valid_clips": 17
+      }
+    ]
   },
   "excluded_claims": [
     "AI optional and off; no model download or inference demonstration",
     "No physical haptic feel, audible output, light-sensor response, phone performance or voice typing",
     "URL fields allow suggestions in current source; no claim that URI suggestions are disabled"
   ],
-  "rendering": "Original real PNG/MP4 plus runtime bounds/coverage masks; no key-pixel replacement or chroma-key of black keys."
+  "rendering": "Original real PNG/MP4 plus runtime bounds/coverage masks; no key-pixel replacement or chroma-key of black keys.",
+  "runner_selection": [
+    "ai.boldkeys.TeaserSupplementCaptureTest#g_configureAndRunTextShortcut",
+    "ai.boldkeys.TeaserSupplementCaptureTest#h_configureAndRunAppShortcut",
+    "ai.boldkeys.TeaserSupplementCaptureTest#i_configureAndRunLinkShortcut",
+    "ai.boldkeys.TeaserSupplementCaptureTest#l_doubleSpaceAndSentenceCapital",
+    "ai.boldkeys.TeaserSupplementCaptureTest#q_pickerFingerAndTrackpadScroll",
+    "ai.boldkeys.TeaserSupplementCaptureTest#r_backlightColours"
+  ],
+  "execution_status": "local_only_pending_fresh_approval"
 }

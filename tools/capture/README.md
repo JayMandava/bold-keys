@@ -9,7 +9,7 @@ Extra instrumentation and pure gesture tests are added only through
 ## Execution boundary
 
 The locally prepared supplemental workflow would run only on the first owner-created push of
-`qa/bold-teaser-capture-20261029-3`, attempt 1, in the public upstream repository.
+`qa/bold-teaser-capture-20261029-4`, attempt 1, in the public upstream repository.
 It has no manual, scheduled, PR, or downstream trigger. Do not delete/recreate
 the branch, rerun the job, or reuse historical approval. A fresh owner approval
 is required for another privileged execution.
@@ -92,11 +92,13 @@ the next. All valid existing media stays unchanged. The published trigger is
 spent; neither this local repair nor the plan authorizes another run.
 
 
-The proposed branch-3 run captures 23 supplemental shots only. It keeps the same
+The completed branch-3 run retained 17 successful supplemental shots. The local
+branch-4 configuration selects only the six repaired failures; the 32 valid clips
+from both completed runs stay unchanged. It keeps the same
 45-minute job, 32-minute access phase and 20-minute test bound, pinned actions,
 UID-only grant, exact cleanup and one-day artifact retention. There is no dispatch
 trigger. Publication and execution require fresh owner approval. Do not recreate
-branch 1 or 2, or rerun either previous workflow. No source or APK release is involved.
+branch 1, 2 or 3, or rerun a previous workflow. No source or APK release is involved.
 
 The optional AI model stays off and is not downloaded. Link capture uses only
 https://www.android.com and asserts a resolved browser plus delivered intent, not
@@ -105,3 +107,10 @@ unusable; it is never accepted as successful link proof. URL fields may offer
 suggestions in current source while suppressing rewriting; email/password fields
 suppress suggestions. Haptic and ambient-sensor controls do not prove physical feel
 or ambient response.
+
+Current exact selection: Text shortcut, App shortcut, Link shortcut, sentence
+capital/double-space, picker trackpad scrolling and backlight-colour controls.
+`feature-plan.json.runner_selection` and the shell runner argument must agree;
+regressions enforce exactly these six independent methods. New Dialog-window,
+editor-contract, gesture-threshold and live-control-locator repairs are compiled
+but await Android runtime validation. No further capture is currently authorized.
