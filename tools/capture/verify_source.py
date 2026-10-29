@@ -1,9 +1,9 @@
-"""Read-only product-source gate for the approved, capture-only branch."""
+"""Read-only product-source gate for the reviewed URL-fix and capture branch."""
 from pathlib import Path
 import json
 import subprocess
 
-BASE = 'ce23cf74526b4864201d38503d2c9ad233d1787d'
+BASE = 'e75b623f2cdac7b496e3f04695dd783d6f9fa0ca'
 PRODUCT_PATHS = ('app', 'third_party', '.gitmodules', 'build.gradle.kts',
                  'settings.gradle.kts', 'gradle.properties', 'gradle', 'gradlew', 'gradlew.bat')
 
@@ -23,7 +23,9 @@ def verify():
     if git('diff', '--name-only', 'HEAD', '--', *PRODUCT_PATHS):
         raise RuntimeError('Uncommitted product source changes')
     return {'product_source_sha': BASE, 'capture_commit': git('rev-parse', 'HEAD'),
-            'product_tree_objects': actual, 'unchanged_product_source': True}
+            'product_tree_objects': actual, 'unchanged_product_source': True,
+            'previous_product_source_sha': 'ce23cf74526b4864201d38503d2c9ad233d1787d',
+            'approved_fix': 'URI Link field and URI-only English i capitalisation guard'}
 
 
 if __name__ == '__main__':

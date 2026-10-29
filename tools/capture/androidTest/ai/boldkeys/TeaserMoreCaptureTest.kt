@@ -210,7 +210,7 @@ class TeaserMoreCaptureTest {
             val kb = views.filterIsInstance<KeyboardView>().singleOrNull()
             val strip = views.filterIsInstance<SuggestionBar>().singleOrNull()
             val editor = KeyboardQaActivity.current.get()?.editor?.takeIf { it.isShown }
-            val report = JSONObject().put("product_source_sha", "ce23cf74526b4864201d38503d2c9ad233d1787d")
+            val report = JSONObject().put("product_source_sha", "e75b623f2cdac7b496e3f04695dd783d6f9fa0ca")
                 .put("density", context.resources.displayMetrics.density)
                 .put("screen_width", device.displayWidth).put("screen_height",device.displayHeight)
                 .put("editor_kind", "actual dark debug EditText; neutral Notes heading; no injected text during recordings")

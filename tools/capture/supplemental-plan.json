@@ -1,32 +1,24 @@
 {
-  "status": "two_shot_local_configuration_pending_fresh_approval",
-  "product_source_sha": "ce23cf74526b4864201d38503d2c9ad233d1787d",
+  "status": "approved_one_url_fix_capture_preflight",
+  "product_source_sha": "e75b623f2cdac7b496e3f04695dd783d6f9fa0ca",
   "retained_capture": {
-    "valid_clips": 36,
+    "valid_clips": 37,
     "unchanged": true,
     "runs": [
       40824867852,
       40830730964,
-      40834945001
+      40834945001,
+      40838039709
     ]
   },
-  "execution_boundary": "Local only. Only Text and Link configuration/execution methods selected. No push, run, emulator or permissions until fresh approval. All four previous capture refs are spent.",
+  "execution_boundary": "Exactly one fresh owner-approved focused Link run. Prior refs spent. Same runner-only ACL and exact cleanup. No further attempt without fresh approval.",
   "clips": [
-    {
-      "clip": "supp-shortcut-text.mp4",
-      "classification": "public",
-      "feature": "Configure and execute neutral text snippet",
-      "verification_scope": "Independent Android test with actual touchscreen actions, saved-state/editor/render assertions and real screenrecord; see TeaserSupplementCaptureTest.kt",
-      "status": "planned_not_runtime_verified",
-      "runner_test": "ai.boldkeys.TeaserSupplementCaptureTest#g_configureAndRunTextShortcut"
-    },
     {
       "clip": "supp-shortcut-link.mp4",
       "classification": "public",
       "feature": "Configure official Android URL and assert delivered browser intent; no page-load claim",
       "verification_scope": "Independent Android test with actual touchscreen actions, saved-state/editor/render assertions and real screenrecord; see TeaserSupplementCaptureTest.kt",
-      "status": "planned_not_runtime_verified",
-      "runner_test": "ai.boldkeys.TeaserSupplementCaptureTest#i_configureAndRunLinkShortcut"
+      "status": "planned_not_runtime_verified"
     }
   ],
   "independence": "Separate @Test per supplemental shot; do not put appearance behind a failing typing recording. Per-shot state restore in finally; failed startup must not abort unrelated test methods.",
@@ -37,32 +29,26 @@
   },
   "uncovered_runtime": "Supplemental class implemented locally, not executed on Android. Hardware sensor/haptic/audio/performance claims excluded. Optional model unavailable/off. Browser onboarding or unresolved safe handler can fail only Link/App shot, without hiding remaining independent tests.",
   "validation": {
-    "jvm_tests": 73,
+    "debug_unit_tests": 80,
+    "release_unit_tests": 31,
+    "python_tests": 189,
     "failures": 0,
-    "python_tests": 188,
-    "recorder_regressions": 7,
-    "bundled_fixture_tests": 4,
-    "independent_capture_methods": 23,
-    "instrumentation_compiles": true,
-    "product_source": "ce23cf74526b4864201d38503d2c9ad233d1787d",
-    "runtime_executed": false,
-    "selected_capture_methods": 2,
-    "new_focused_regressions": 7,
-    "runtime_executed_for_repair": false,
-    "new_zero_inset_regressions": 7
+    "lintDebug": "passed",
+    "instrumentation_compilation": "passed",
+    "selected_capture_methods": 1
   },
   "implemented_class": "TeaserSupplementCaptureTest",
   "workflow_plan": {
-    "branch": "qa/bold-teaser-capture-20261029-5",
+    "branch": "qa/bold-url-fix-capture-20261029-1",
     "workflow": ".github/workflows/teaser-capture-once.yml",
-    "trigger": "Exactly one owner-created branch push; created=true; attempt1; exact owner/repository/ref; no dispatch or reruns",
+    "trigger": "Exactly one owner-created qa/bold-url-fix-capture-20261029-1 branch push, created=true, attempt1, no dispatch",
     "bounds": "45-minute job;32-minute grant phase;10-minute boot;20-minute instrumentation;60-second recorder per shot",
     "artifact": "Only allowlisted PNG/MP4/JSON demo/evidence;retention1day;no APKs/signers",
     "delivery": "Native GitHub artifact file reference -> editor Library prepare_materialize -> attributes/hash/CRC; no raw artifact URL in worker",
-    "publication": "Not published. Verify remote ref absent before any approved push; no further capture approved."
+    "publication": "Approved exactly one source-fix branch creation push/attempt1; no main/tags/release/APK artifacts"
   },
   "runner_selection": [
-    "ai.boldkeys.TeaserSupplementCaptureTest#g_configureAndRunTextShortcut",
     "ai.boldkeys.TeaserSupplementCaptureTest#i_configureAndRunLinkShortcut"
-  ]
+  ],
+  "previous_product_source_sha": "ce23cf74526b4864201d38503d2c9ad233d1787d"
 }

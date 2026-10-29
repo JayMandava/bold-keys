@@ -1,0 +1,33 @@
+{
+  "product_source_sha": "e75b623f2cdac7b496e3f04695dd783d6f9fa0ca",
+  "previous_product_source_sha": "ce23cf74526b4864201d38503d2c9ad233d1787d",
+  "branch": "qa/bold-url-fix-capture-20261029-1",
+  "approved_product_changes": [
+    "SetupActivity Link field KeyboardType.Uri with autoCorrect=false retained",
+    "BoldKeysService standalone-English-i rewrite guarded by !urlLike after pre-fix reproduction"
+  ],
+  "pre_fix_reproduction": "URI i. -> I. reproduced in unmodified service before guard; log uri-i-before-fix.log",
+  "validation": {
+    "debug_unit_tests": 80,
+    "release_unit_tests": 31,
+    "python_tests": 189,
+    "failures": 0,
+    "lintDebug": "passed",
+    "instrumentation_compilation": "passed"
+  },
+  "runtime_selection": [
+    "ai.boldkeys.TeaserSupplementCaptureTest#i_configureAndRunLinkShortcut"
+  ],
+  "runtime_assertions": [
+    "global autocorrect On",
+    "ordinary Notes teh -> the",
+    "real Link EditorInfo URI and AUTO_CORRECT flag absent",
+    "exact character-by-character InputConnection readback",
+    "exact saved Link value",
+    "exact reopened Link value",
+    "expected browser focused and official URL intent delivered",
+    "page loading not claimed; no onboarding agreements accepted"
+  ],
+  "retained_passed_clips": 37,
+  "approval": "Exactly one initial owner-created branch push/attempt1. No extra privileged run without fresh approval. Same45min cap/runner-only ACL/exact cleanup/one-day demo artifacts; no main/tags/release/APK/signing-secret uploads."
+}

@@ -29,6 +29,23 @@ RUNTIME = (ROOT / 'tools/capture/run-capture.sh').read_text()
 
 
 class WorkflowTests(unittest.TestCase):
+    def test_link_literal_fixture_checks_real_entry_before_saving(self):
+        source = (ROOT / 'tools/capture/androidTest/ai/boldkeys/TeaserSupplementCaptureTest.kt').read_text()
+        link = source.split('@Test fun i_configureAndRunLinkShortcut()',1)[1].split('@Test fun j_',1)[0]
+        self.assertNotIn('textOnScreen("Autocorrect").click()', link)
+        self.assertIn('check(Prefs.autocorrect(context))', link)
+        self.assertIn('expectText("the ")', link)
+        self.assertIn('Saved URL reopened exactly', link)
+        self.assertIn('typeLiteralViaTouch("www.android.com","link")', link)
+        self.assertNotIn('typeText("www.android.com"', link)
+        self.assertLess(link.index('typeLiteralViaTouch'), link.index('textOnScreen("Save").click()'))
+        self.assertIn('it.value=="www.android.com"', link)
+        self.assertIn("speedLetter('C',browser)", link)
+        self.assertNotIn('Shortcuts.set(', link)
+        self.assertNotIn('commitText(', link)
+        self.assertIn('connection.getTextBeforeCursor', source)
+        self.assertIn('result-$report-literal-input.json', source)
+
     def test_zero_client_overlap_uses_independent_ime_window_geometry(self):
         source = (ROOT / 'tools/capture/androidTest/ai/boldkeys/TeaserSupplementCaptureTest.kt').read_text()
         observer = (ROOT / 'tools/capture/androidTest/ai/boldkeys/CaptureImeWindowObserver.kt').read_text()
@@ -65,11 +82,11 @@ class WorkflowTests(unittest.TestCase):
         plan = json.loads((ROOT / 'tools/capture/feature-plan.json').read_text())
         selection = re.search(r"Arguments.class=([^']+)'", RUNTIME).group(1).split(',')
         self.assertEqual(plan['runner_selection'], selection)
-        self.assertEqual(2, len(selection))
-        self.assertEqual(2, len(plan['clips']))
+        self.assertEqual(1, len(selection))
+        self.assertEqual(1, len(plan['clips']))
         actual_methods = set(re.findall(r'@Test fun ([A-Za-z0-9_]+)', source))
         selected_methods = [item.split('#')[1] for item in selection]
-        self.assertEqual({'g_configureAndRunTextShortcut','i_configureAndRunLinkShortcut'}, set(selected_methods))
+        self.assertEqual({'i_configureAndRunLinkShortcut'}, set(selected_methods))
         self.assertTrue(set(selected_methods) <= actual_methods)
         self.assertTrue(all(item.startswith('ai.boldkeys.TeaserSupplementCaptureTest#') for item in selection))
         self.assertIn('Arguments.class=ai.boldkeys.TeaserSupplementCaptureTest', RUNTIME)
@@ -80,12 +97,12 @@ class WorkflowTests(unittest.TestCase):
         self.assertNotIn('Shortcuts.set(', source)
         self.assertNotIn('ContextModels.download', source)
         self.assertIn('Prefs.put(context,"contextModel",false)', source)
-        self.assertEqual(36, plan['retained_evidence']['valid_clips'])
+        self.assertEqual(37, plan['retained_evidence']['valid_clips'])
 
     def test_single_owner_initial_push_only_and_bounded(self):
-        self.assertIn('branches: [qa/bold-teaser-capture-20261029-5]', WORKFLOW)
+        self.assertIn('branches: [qa/bold-url-fix-capture-20261029-1]', WORKFLOW)
         for guard in ("github.actor == 'JayMandava'", 'github.event.created == true', 'github.run_attempt == 1',
-                      "github.ref == 'refs/heads/qa/bold-teaser-capture-20261029-5'", 'github.event.repository.private == false'):
+                      "github.ref == 'refs/heads/qa/bold-url-fix-capture-20261029-1'", 'github.event.repository.private == false'):
             self.assertIn(guard, WORKFLOW)
         for trigger in ('workflow_dispatch:', 'pull_request:', 'pull_request_target:', 'schedule:', 'workflow_run:'):
             self.assertNotIn(trigger, WORKFLOW)
@@ -144,7 +161,7 @@ class WorkflowTests(unittest.TestCase):
     def test_capture_manifest_does_not_claim_unexecuted_runtime(self):
         plan = json.loads((ROOT / 'tools/capture/feature-plan.json').read_text())
         self.assertEqual(SOURCE.BASE, plan['product_source_sha'])
-        self.assertEqual(2, len(plan['clips']))
+        self.assertEqual(1, len(plan['clips']))
         self.assertEqual(0, sum(x['classification'] == 'development-preview' for x in plan['clips']))
         self.assertTrue(all(x['status'] == 'planned_not_runtime_verified' for x in plan['clips']))
 

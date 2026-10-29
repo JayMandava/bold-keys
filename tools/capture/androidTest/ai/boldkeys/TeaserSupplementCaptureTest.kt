@@ -247,7 +247,7 @@ class TeaserSupplementCaptureTest {
             val kb = views.filterIsInstance<KeyboardView>().singleOrNull()
             val strip = views.filterIsInstance<SuggestionBar>().singleOrNull()
             val editor = KeyboardQaActivity.current.get()?.editor?.takeIf { it.isShown }
-            val report = JSONObject().put("product_source_sha", "ce23cf74526b4864201d38503d2c9ad233d1787d")
+            val report = JSONObject().put("product_source_sha", "e75b623f2cdac7b496e3f04695dd783d6f9fa0ca")
                 .put("density", context.resources.displayMetrics.density)
                 .put("screen_width", device.displayWidth).put("screen_height",device.displayHeight)
                 .put("editor_kind", "actual runtime Android windows; Notes heading for debug editor; genuine settings UI otherwise")
@@ -759,8 +759,41 @@ class TeaserSupplementCaptureTest {
             capture("supp-shortcut-app-result")
         }
     }
+    private fun typeLiteralViaTouch(value:String,report:String) {
+        check(Prefs.autocorrect(context)) { "Literal URL demonstration requires global Autocorrect On" }
+        check(main { field(keyboard().context as BoldKeysService,"autocorrectOn")==true && field(keyboard().context as BoldKeysService,"urlLike")==true })
+        val trace=org.json.JSONArray()
+        try {
+            for(index in value.indices) {
+                typeText(value[index].toString(),paced=true)
+                val connection=checkNotNull(main { (keyboard().context as BoldKeysService).currentInputConnection })
+                val before=connection.getTextBeforeCursor(128,0)?.toString()
+                val after=connection.getTextAfterCursor(128,0)?.toString()
+                val selected=connection.getSelectedText(0)?.toString()
+                val info=main { (keyboard().context as BoldKeysService).currentInputEditorInfo!! }
+                check(info.inputType and android.text.InputType.TYPE_MASK_VARIATION==android.text.InputType.TYPE_TEXT_VARIATION_URI)
+                check(info.inputType and android.text.InputType.TYPE_TEXT_FLAG_AUTO_CORRECT==0)
+                val expected=value.take(index+1)
+                trace.put(JSONObject().put("expected_prefix",expected)
+                    .put("before_cursor",before ?: JSONObject.NULL).put("after_cursor",after ?: JSONObject.NULL)
+                    .put("selected",selected ?: JSONObject.NULL).put("input_type",info.inputType)
+                    .put("autocorrect_pref",Prefs.autocorrect(context)))
+                check(before==expected && after.isNullOrEmpty() && selected.isNullOrEmpty()) {
+                    "Literal touch entry changed at character ${index+1}; inspect staged neutral input trace before Save"
+                }
+            }
+        } finally {
+            File(output,"result-$report-literal-input.json").writeText(trace.toString(2)+"\n")
+            mirrorEvidence()
+        }
+    }
     @Test fun i_configureAndRunLinkShortcut() {
-        prepareNotes(KeyColour.BLACK);shortcutPage("C")
+        prepareNotes(KeyColour.BLACK)
+        engineReady("en")
+        check(Prefs.autocorrect(context))
+        typeText("teh",paced=true);tap(3,2);expectText("the ")
+        capture("supp-link-ordinary-autocorrect-on-control")
+        shortcutPage("C")
         val uri="https://www.android.com"
         val resolution=device.executeShellCommand("cmd package resolve-activity --brief -a android.intent.action.VIEW -c android.intent.category.BROWSABLE -d $uri").trim().lineSequence().last()
         check(Regex("[A-Za-z0-9_.]+/[A-Za-z0-9_.$]+").matches(resolution)) { "No unambiguous safe HTTPS handler: link capture unavailable" }
@@ -768,12 +801,26 @@ class TeaserSupplementCaptureTest {
         check(browser!="android") { "HTTPS resolver/chooser is not a selected browser; Link shot unavailable" }
         recording("supp-shortcut-link") {
             textOnScreen("Link").click();textOnScreen("Link or action").click();awaitIme()
-            typeText("www.android.com",paced=true);device.pressBack();textOnScreen("Save").click()
+            typeLiteralViaTouch("www.android.com","link");capture("supp-link-literal-before-save")
+            device.pressBack();textOnScreen("Save").click()
             waitFor("Link assignment saved") { Shortcuts.get(context,'C')?.let { it.type==Shortcut.LINK && it.value=="www.android.com" }==true }
             capture("supp-shortcut-link-configured")
+            shortcutPage("C");textOnScreen("Link or action").click();awaitIme()
+            val connection=checkNotNull(main { (keyboard().context as BoldKeysService).currentInputConnection })
+            val reopened=(connection.getTextBeforeCursor(128,0)?.toString().orEmpty()+
+                connection.getSelectedText(0)?.toString().orEmpty()+connection.getTextAfterCursor(128,0)?.toString().orEmpty())
+            assertEquals("Saved URL reopened exactly","www.android.com",reopened)
+            check(Prefs.autocorrect(context))
+            capture("supp-shortcut-link-reopened")
+            device.pressBack();textOnScreen("Cancel").click()
             notesWithCurrentSettings();speedLetter('C',browser)
             waitFor("HTTPS handler launched") { focusedPackage()==browser }
             waitFor("official URL intent delivered") { device.executeShellCommand("dumpsys activity activities").contains("dat=$uri") }
+            File(output,"result-link-verification.json").writeText(JSONObject()
+                .put("saved_value_verified",true).put("reopened_value_verified",true)
+                .put("global_autocorrect_enabled",Prefs.autocorrect(context))
+                .put("browser_focus_verified",focusedPackage()==browser).put("official_url_intent_verified",true)
+                .put("page_load_verified",false).put("onboarding_accepted",false).toString(2))
             check(device.findObject(By.textContains("Welcome to Chrome"))==null) { "Browser onboarding obscures link result; no page-load claim" }
             capture("supp-shortcut-link-result") // handler/intent only; no page/network performance assertion
         }

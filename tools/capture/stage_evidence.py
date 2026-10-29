@@ -128,7 +128,7 @@ def stage(root, destination):
                  'assertions-passed' if by_name[shot['clip']]['assertions_passed'] else 'assertions-failed')}
                 for shot in plan.get('clips', [])]
     manifest = {'policy': 'Raw real PNG/MP4 plus explicit JSON provenance/cleanup only; no APKs, keys, archives, dumps or build logs.',
-                'product_source_sha': 'ce23cf74526b4864201d38503d2c9ad233d1787d',
+                'product_source_sha': 'e75b623f2cdac7b496e3f04695dd783d6f9fa0ca',
                 'clips': clips, 'included': included, 'excluded': excluded, 'feature_plan': plan,
                 'runtime_success_claimed': False,
                 'expected_coverage': coverage,

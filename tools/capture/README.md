@@ -2,14 +2,14 @@
 
 This tooling records the real Android IME in a disposable accelerated emulator.
 It does not change the product sources: `verify_source.py` requires the exact
-product objects from `ce23cf74526b4864201d38503d2c9ad233d1787d`.
+product objects from `e75b623f2cdac7b496e3f04695dd783d6f9fa0ca`.
 Extra instrumentation and pure gesture tests are added only through
 `capture.gradle`, outside `app/`.
 
 ## Execution boundary
 
 The locally prepared supplemental workflow would run only on the first owner-created push of
-`qa/bold-teaser-capture-20261029-5`, attempt 1, in the public upstream repository.
+`qa/bold-url-fix-capture-20261029-1`, attempt 1, in the public upstream repository.
 It has no manual, scheduled, PR, or downstream trigger. Do not delete/recreate
 the branch, rerun the job, or reuse historical approval. A fresh owner approval
 is required for another privileged execution.
@@ -124,3 +124,13 @@ window geometry. Active editor, input connection, animation completion, stable
 frames, exact saved shortcuts/text and browser intent/focus assertions remain
 required. Raw/observed insets and ownership diagnostics remain exported.
 Branches1–4 are spent. No new execution is currently approved.
+
+
+The owner-approved URL-fix run selects only i_configureAndRunLinkShortcut.
+Product source is pinned to e75b623f2cdac7b496e3f04695dd783d6f9fa0ca, adding
+URI EditorInfo to Link and protecting lowercase i in URI fields. Ordinary
+autocorrection stays enabled, verified by unit tests and a real teh→the control.
+No Autocorrect-Off workaround is used. Capture verifies exact touch entry, save,
+reopen, browser focus and URL intent; page loading is not certified and no
+onboarding agreement is accepted. All37 existing passed clips keep their old
+provenance and bytes. Exactly one new creation push/run attempt is approved.
