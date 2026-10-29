@@ -80,6 +80,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -736,7 +737,7 @@ private fun ShortcutDialog(context: Context, letter: Char, current: Shortcut?, o
                     Shortcut.LINK -> {
                         OutlinedTextField(value = link, onValueChange = { link = it }, singleLine = true, modifier = Modifier.fillMaxWidth(),
                             label = { Text("Link or action") }, placeholder = { Text("example.com, tel:+1555…, mailto:me@…") },
-                            keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, capitalization = KeyboardCapitalization.None))
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, autoCorrectEnabled = false, capitalization = KeyboardCapitalization.None))
                     }
                     else -> {
                         OutlinedTextField(value = text, onValueChange = { text = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Text to type") },

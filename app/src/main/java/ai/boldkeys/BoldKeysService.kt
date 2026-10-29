@@ -267,7 +267,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
             val word = currentWord()
             if (word.isNotEmpty()) {
                 val ctx = ic.getTextBeforeCursor(160, 0)?.toString()?.dropLast(word.length) ?: ""
-                val fix = if (lang == "en" && word == "i" && !ctx.lastOrNull().let { it != null && (it.isLetterOrDigit() || it in "@#/._-") }) "I" else if (autocorrectOn && !urlLike) Autofix.fix(e, word, ctx)?.let { matchCase(word, it) } else null
+                val fix = if (!urlLike && lang == "en" && word == "i" && !ctx.lastOrNull().let { it != null && (it.isLetterOrDigit() || it in "@#/._-") }) "I" else if (autocorrectOn && !urlLike) Autofix.fix(e, word, ctx)?.let { matchCase(word, it) } else null
                 if (fix != null && fix != word) {
                     ic.deleteSurroundingText(word.length, 0)
                     ic.commitText(fix + text, 1)
