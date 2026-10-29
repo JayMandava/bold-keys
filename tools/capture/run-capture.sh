@@ -12,8 +12,9 @@ cleanup() {
   result=$?
   trap - EXIT
   set +e
+  # Never let an artifact pull delay cancellation-time device cleanup.
   if [[ -n "$emulator_pid" ]]; then
-    timeout 90 adb pull /sdcard/Download/bold-keys-qa capture-output/ >qa-artifacts/capture-pull.log 2>&1
+    printf '%s\n' "$emulator_pid" >"$RUNNER_TEMP/bold-teaser-kvm-access/emulator.pid"
   fi
   python3 tools/capture/kvm_access.py cleanup >qa-artifacts/capture-cleanup.log 2>&1
   if (( $? != 0 )); then result=1; fi
@@ -57,6 +58,7 @@ if (( readiness_budget > 180 )); then readiness_budget=180; fi
 # Unchanged successful fifth-job gate. At 1080p its bounded 720p-only ANR recovery
 # fails closed rather than guessing coordinates or weakening the health assertions.
 python3 tools/qa/wait-software-ui-ready.py --timeout "$readiness_budget"
+python3 tools/capture/preflight.py --phase guest
 python3 - <<'PY'
 import json,subprocess
 from pathlib import Path
@@ -72,8 +74,24 @@ report = {'sdk':adb('shell','getprop','ro.build.version.sdk'),
 Path('qa-artifacts/capture-device.json').write_text(json.dumps(report,indent=2)+'\n')
 PY
 set -o pipefail
+capture_result=0
 timeout 20m ./gradlew --no-daemon --no-configuration-cache --max-workers=2 --console=plain \
   -PunsignedRelease=true -Pkotlin.compiler.execution.strategy=in-process \
   --init-script tools/capture/capture.gradle \
   '-Pandroid.testInstrumentationRunnerArguments.class=ai.boldkeys.TeaserCaptureTest,ai.boldkeys.TeaserMoreCaptureTest,ai.boldkeys.TeaserFeatureCaptureTest' \
-  connectedDebugAndroidTest 2>&1 | tee qa-artifacts/capture-instrumentation.log
+  connectedDebugAndroidTest 2>&1 | tee qa-artifacts/capture-instrumentation.log || capture_result=$?
+pull_result=0
+timeout 90 adb pull /sdcard/Download/bold-keys-qa capture-output/ >qa-artifacts/capture-pull.log 2>&1 || pull_result=$?
+python3 - "$capture_result" "$pull_result" <<'PY'
+import json,sys
+from pathlib import Path
+report = {'instrumentation_exit_code':int(sys.argv[1]), 'pull_exit_code':int(sys.argv[2]),
+          'complete_collection':sys.argv[2]=='0',
+          'collected_regular_files':sum(p.is_file() and not p.is_symlink() for p in Path('capture-output').rglob('*'))}
+Path('qa-artifacts/capture-collection.json').write_text(json.dumps(report,indent=2)+'\n')
+PY
+if (( pull_result != 0 )); then
+  echo 'Capture collection failed; do not claim complete exported media.'
+  exit 1
+fi
+exit "$capture_result"

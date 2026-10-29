@@ -9,7 +9,7 @@ Extra instrumentation and pure gesture tests are added only through
 ## Execution boundary
 
 The workflow runs only on the first owner-created push of
-`qa/bold-teaser-capture-20261029-1`, attempt 1, in the public upstream repository.
+`qa/bold-teaser-capture-20261029-2`, attempt 1, in the public upstream repository.
 It has no manual, scheduled, PR, or downstream trigger. Do not delete/recreate
 the branch, rerun the job, or reuse historical approval. A fresh owner approval
 is required for another privileged execution.
@@ -26,6 +26,12 @@ The whole job is capped at 45 minutes; privileged runtime is capped at 32 minute
 with ten-minute boot and twenty-minute instrumentation bounds. The ordinary guest
 shell must remain UID 2000. The official API35 Google image must advertise ARM64
 translation. The emulator uses KVM and SwiftShader at 1080×1920/420 dpi.
+
+FFmpeg and FFprobe are provisioned from the runner's official Ubuntu package
+repositories before the decoder preflight; they are not assumed to be installed.
+This uses ordinary disposable-host package provisioning. The emulator and
+controller still run as the non-root runner, and the separate KVM guard remains
+the only device-permission modification.
 
 ## Capture and review
 

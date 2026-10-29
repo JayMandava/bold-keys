@@ -4,13 +4,13 @@ run-name: 'Approved teaser capture at ${{ github.sha }}'
 # One newly approved owner-created branch push. Never recreate, rerun or broaden it.
 'on':
   push:
-    branches: [qa/bold-teaser-capture-20261029-1]
+    branches: [qa/bold-teaser-capture-20261029-2]
 
 permissions:
   contents: read
 
 concurrency:
-  group: bold-teaser-capture-20261029-1
+  group: bold-teaser-capture-20261029-2
   cancel-in-progress: false
 
 defaults:
@@ -19,7 +19,7 @@ defaults:
 
 jobs:
   capture:
-    if: github.repository == 'JayMandava/bold-keys' && github.event.repository.private == false && github.actor == 'JayMandava' && github.ref == 'refs/heads/qa/bold-teaser-capture-20261029-1' && github.event.created == true && github.run_attempt == 1
+    if: github.repository == 'JayMandava/bold-keys' && github.event.repository.private == false && github.actor == 'JayMandava' && github.ref == 'refs/heads/qa/bold-teaser-capture-20261029-2' && github.event.created == true && github.run_attempt == 1
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -29,23 +29,29 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
           submodules: recursive
-      - name: Verify corrected product source and ordinary device baseline
+      - name: Verify corrected product source and aggregate bootstrap dependencies
         run: |
           mkdir -p qa-artifacts capture-output
           python3 tools/capture/verify_source.py
-          python3 tools/capture/kvm_access.py check
+          python3 tools/capture/preflight.py --phase bootstrap
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad
         with:
           distribution: temurin
           java-version: '17'
+      - name: Install decoder and ACL utilities from official Ubuntu package repositories
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg acl
       - name: Install official Android tools using preaccepted licenses only
         run: |
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install \
             'platforms;android-36' 'build-tools;35.0.0' 'build-tools;36.0.0' \
             'ndk;27.0.12077973' 'cmake;3.22.1' 'platform-tools' 'emulator' \
             'system-images;android-35;google_apis;x86_64' </dev/null
-          command -v ffmpeg
-          command -v ffprobe
+      - name: Aggregate all host SDK codecs assets libraries and disk requirements
+        run: |
+          python3 tools/capture/preflight.py --phase host
+          python3 tools/capture/kvm_access.py check
       - name: Validate capture guards and compile before any device grant
         run: |
           python3 -m unittest discover -s tests -p 'test_*.py'

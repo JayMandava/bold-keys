@@ -11,7 +11,9 @@ SPEC = importlib.util.spec_from_file_location('capture_evidence_types', ROOT / '
 TYPES = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(TYPES)
 REPORTS = ('capture-source.json', 'capture-device.json', 'kvm-baseline.json',
-           'one-job-approval.json', 'kvm-grant.json', 'kvm-cleanup.json')
+           'one-job-approval.json', 'kvm-grant.json', 'kvm-cleanup.json',
+           'capture-preflight-bootstrap.json', 'capture-preflight-host.json',
+           'capture-preflight-guest.json', 'capture-collection.json')
 
 
 def linked(root, path):
@@ -97,7 +99,9 @@ def stage(root, destination):
                 name = source.stem
                 proof_files = list(capture.rglob('recording-' + name + '.json'))
                 proofs = [json.loads(p.read_text()) for p in proof_files if p.is_file() and not linked(root, p)]
-                assertions = (len(proofs) == 1 and all(proofs[0].get(k) is True for k in
+                assertions = (len(proofs) == 1 and
+                              proofs[0].get('producer') == 'Android screenrecord; actual injected touchscreen events' and
+                              all(proofs[0].get(k) is True for k in
                               ('action_assertions_passed', 'recorder_startup_verified', 'recorder_finalized')))
                 review = []
                 for label, seconds in [('start', 0.5), ('middle', validation['duration_seconds']/2),

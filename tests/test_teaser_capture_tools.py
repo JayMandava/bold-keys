@@ -4,6 +4,7 @@ import io
 import json
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -22,15 +23,16 @@ def module(name, path):
 
 STAGE = module('teaser_stage', 'tools/capture/stage_evidence.py')
 SOURCE = module('teaser_source', 'tools/capture/verify_source.py')
+PREFLIGHT = module('teaser_preflight', 'tools/capture/preflight.py')
 WORKFLOW = (ROOT / '.github/workflows/teaser-capture-once.yml').read_text()
 RUNTIME = (ROOT / 'tools/capture/run-capture.sh').read_text()
 
 
 class WorkflowTests(unittest.TestCase):
     def test_single_owner_initial_push_only_and_bounded(self):
-        self.assertIn('branches: [qa/bold-teaser-capture-20261029-1]', WORKFLOW)
+        self.assertIn('branches: [qa/bold-teaser-capture-20261029-2]', WORKFLOW)
         for guard in ("github.actor == 'JayMandava'", 'github.event.created == true', 'github.run_attempt == 1',
-                      "github.ref == 'refs/heads/qa/bold-teaser-capture-20261029-1'", 'github.event.repository.private == false'):
+                      "github.ref == 'refs/heads/qa/bold-teaser-capture-20261029-2'", 'github.event.repository.private == false'):
             self.assertIn(guard, WORKFLOW)
         for trigger in ('workflow_dispatch:', 'pull_request:', 'pull_request_target:', 'schedule:', 'workflow_run:'):
             self.assertNotIn(trigger, WORKFLOW)
@@ -47,9 +49,25 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn('trap cleanup EXIT', RUNTIME)
         self.assertIn('if: always()', WORKFLOW)
         self.assertIn('bold-teaser-kvm-access/emulator.pid', RUNTIME)
-        for text in (WORKFLOW, RUNTIME):
+        # Package provisioning is the only root action outside the isolated ACL
+        # guard. It must never become root emulator/controller execution.
+        safe_workflow = WORKFLOW.replace('sudo apt-get update', '').replace(
+            'sudo apt-get install -y --no-install-recommends ffmpeg acl', '')
+        for text in (safe_workflow, RUNTIME):
             for forbidden in ('chmod ', 'usermod ', 'udev', '--privileged', 'adb root', '-selinux', 'sudo '):
                 self.assertNotIn(forbidden, text)
+
+    def test_decoder_is_provisioned_before_it_is_required(self):
+        self.assertIn('sudo apt-get install -y --no-install-recommends ffmpeg acl', WORKFLOW)
+        self.assertLess(WORKFLOW.index('sudo apt-get install'), WORKFLOW.index('preflight.py --phase host'))
+        self.assertLess(WORKFLOW.index('sudo apt-get install'), WORKFLOW.index('kvm_access.py grant'))
+
+    def test_all_host_and_guest_checks_precede_capture_actions(self):
+        self.assertLess(WORKFLOW.index('preflight.py --phase host'), WORKFLOW.index('kvm_access.py grant'))
+        self.assertLess(RUNTIME.index('preflight.py --phase guest'), RUNTIME.index('connectedDebugAndroidTest'))
+        cleanup = RUNTIME.split('cleanup() {', 1)[1].split('\n}', 1)[0]
+        self.assertNotIn('adb pull', cleanup)
+        self.assertIn('capture_result=$?', RUNTIME)
 
     def test_pinned_actions_no_secrets_or_application_artifact_paths(self):
         for action in re.findall(r'uses:\s*(\S+)', WORKFLOW):
@@ -83,6 +101,31 @@ class SourceTests(unittest.TestCase):
         with patch.object(SOURCE.subprocess, 'run'), patch.object(SOURCE, 'git', side_effect=['original', 'changed']):
             with self.assertRaisesRegex(RuntimeError, 'Product source changed'):
                 SOURCE.verify()
+
+
+class PreflightTests(unittest.TestCase):
+    def test_missing_decoders_and_acl_tools_are_aggregated(self):
+        gaps = PREFLIGHT.command_gaps(PREFLIGHT.HOST_COMMANDS, which=lambda name: None)
+        for name in ('ffmpeg', 'ffprobe', 'getfacl', 'setfacl', 'timeout', 'ldd', 'git', 'python3'):
+            self.assertIn('missing command: ' + name, gaps)
+        self.assertEqual(len(PREFLIGHT.HOST_COMMANDS), len(gaps))
+
+    def test_signer_presence_is_rejected_without_returning_values(self):
+        result = PREFLIGHT.signer_gaps({'BOLD_DEBUG_STORE_PASSWORD': 'mock-do-not-log'})
+        self.assertTrue(result)
+        self.assertNotIn('mock-do-not-log', str(result))
+        self.assertEqual([], PREFLIGHT.signer_gaps({}))
+
+    def test_all_python_dependencies_are_standard_library(self):
+        for name in PREFLIGHT.STDLIB:
+            __import__(name)
+
+    def test_guest_codec_smoke_rejects_fallback_or_blank_media(self):
+        good = {'streams': [{'codec_name': 'h264', 'width': 1080, 'height': 1920, 'nb_read_frames': '3'}]}
+        self.assertTrue(PREFLIGHT.validate_smoke(good))
+        for change in ({'width':720}, {'height':1280}, {'nb_read_frames':'0'}, {'nb_read_frames':'N/A'}, {'codec_name':'mpeg4'}):
+            self.assertFalse(PREFLIGHT.validate_smoke({'streams':[good['streams'][0] | change]}))
+        self.assertTrue(PREFLIGHT.validate_smoke({'streams':[good['streams'][0] | {'nb_read_frames':'1'}]}))
 
     def test_uncommitted_product_change_fails_closed(self):
         with patch.object(SOURCE.subprocess, 'run'), patch.object(SOURCE, 'git',
@@ -149,3 +192,26 @@ class EvidenceTests(unittest.TestCase):
         self.assertTrue(result['decode_passed'])
         self.assertTrue(result['visual_review_required'])
         self.assertEqual(2, result['distinct_decoded_frames'])
+
+    @unittest.skipUnless(shutil.which('ffmpeg') and shutil.which('ffprobe'), 'codec tools not installed locally')
+    def test_real_codec_fixture_roundtrip_is_not_product_interaction_proof(self):
+        # Synthetic codec test pattern ONLY, under TemporaryDirectory. Never
+        # product UI, screenshot evidence, a captured gesture or a published file.
+        root = self.fixture()
+        source = root / 'capture-output/01-codec-fixture.mp4'
+        subprocess.run(['ffmpeg', '-v', 'error', '-f', 'lavfi', '-i', 'testsrc=size=32x32:rate=4',
+                        '-t', '1', '-filter_threads', '1', '-c:v', 'libx264', '-threads', '1',
+                        '-pix_fmt', 'yuv420p', str(source)], capture_output=True, check=True)
+        proof = {'recorder_startup_verified':True, 'action_assertions_passed':True,
+                 'recorder_finalized':True, 'producer':'codec-test-fixture-not-product'}
+        (root / 'capture-output/recording-01-codec-fixture.json').write_text(json.dumps(proof))
+        original = source.read_bytes()
+        report = STAGE.stage(root, root / 'evidence')
+        self.assertEqual([], report['excluded'])
+        self.assertEqual(1, len(report['clips']))
+        clip = report['clips'][0]
+        self.assertTrue(clip['decode_passed'])
+        self.assertGreaterEqual(clip['distinct_decoded_frames'], 2)
+        self.assertFalse(clip['assertions_passed'])
+        self.assertEqual(original, (root / 'evidence' / clip['path']).read_bytes())
+        self.assertTrue(all((root / 'evidence' / name).is_file() for name in clip['review_frames']))
