@@ -78,7 +78,7 @@ capture_result=0
 timeout 20m ./gradlew --no-daemon --no-configuration-cache --max-workers=2 --console=plain \
   -PunsignedRelease=true -Pkotlin.compiler.execution.strategy=in-process \
   --init-script tools/capture/capture.gradle \
-  '-Pandroid.testInstrumentationRunnerArguments.class=ai.boldkeys.TeaserSupplementCaptureTest#g_configureAndRunTextShortcut,ai.boldkeys.TeaserSupplementCaptureTest#h_configureAndRunAppShortcut,ai.boldkeys.TeaserSupplementCaptureTest#i_configureAndRunLinkShortcut,ai.boldkeys.TeaserSupplementCaptureTest#l_doubleSpaceAndSentenceCapital,ai.boldkeys.TeaserSupplementCaptureTest#q_pickerFingerAndTrackpadScroll,ai.boldkeys.TeaserSupplementCaptureTest#r_backlightColours' \
+  '-Pandroid.testInstrumentationRunnerArguments.class=ai.boldkeys.TeaserSupplementCaptureTest#g_configureAndRunTextShortcut,ai.boldkeys.TeaserSupplementCaptureTest#i_configureAndRunLinkShortcut' \
   connectedDebugAndroidTest 2>&1 | tee qa-artifacts/capture-instrumentation.log || capture_result=$?
 pull_result=0
 timeout 90 adb pull /sdcard/Download/bold-keys-qa capture-output/ >qa-artifacts/capture-pull.log 2>&1 || pull_result=$?

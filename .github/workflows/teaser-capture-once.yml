@@ -4,13 +4,13 @@ run-name: 'Approved supplemental capture at ${{ github.sha }}'
 # One newly approved owner-created branch push. Never recreate, rerun or broaden it.
 'on':
   push:
-    branches: [qa/bold-teaser-capture-20261029-4]
+    branches: [qa/bold-teaser-capture-20261029-5]
 
 permissions:
   contents: read
 
 concurrency:
-  group: bold-teaser-capture-20261029-4
+  group: bold-teaser-capture-20261029-5
   cancel-in-progress: false
 
 defaults:
@@ -19,7 +19,7 @@ defaults:
 
 jobs:
   capture:
-    if: github.repository == 'JayMandava/bold-keys' && github.event.repository.private == false && github.actor == 'JayMandava' && github.ref == 'refs/heads/qa/bold-teaser-capture-20261029-4' && github.event.created == true && github.run_attempt == 1
+    if: github.repository == 'JayMandava/bold-keys' && github.event.repository.private == false && github.actor == 'JayMandava' && github.ref == 'refs/heads/qa/bold-teaser-capture-20261029-5' && github.event.created == true && github.run_attempt == 1
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:

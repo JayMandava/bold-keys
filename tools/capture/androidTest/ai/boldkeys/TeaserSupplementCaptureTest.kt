@@ -182,10 +182,6 @@ class TeaserSupplementCaptureTest {
     private fun imeFrame(decor: ViewGroup, observedImeBottom: Int): ImeSettleState.Frame? {
         val focused = decor.findFocus() ?: return rejectIme("focused client view missing")
         if (!decor.hasWindowFocus() || !focused.hasFocus()) return rejectIme("client window/view lacks focus")
-        val clientInsets = decor.rootWindowInsets ?: return rejectIme("client insets missing")
-        val clientImeBottom = clientInsets.getInsets(WindowInsets.Type.ime()).bottom
-        if (!clientInsets.isVisible(WindowInsets.Type.ime()) || observedImeBottom <= 0 ||
-            clientImeBottom != observedImeBottom) return rejectIme("client IME insets not visible/mismatched")
         val imm = decor.context.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as InputMethodManager
         if (!imm.isActive(focused)) return rejectIme("focused client is not active input editor")
         val views = imeViews()
@@ -195,17 +191,33 @@ class TeaserSupplementCaptureTest {
         val editor = service.currentInputEditorInfo ?: return rejectIme("EditorInfo missing")
         if (!service.isInputViewShown || service.currentInputConnection == null ||
             editor.packageName != context.packageName || (focused is android.widget.EditText && editor.fieldId != focused.id)) return rejectIme("unbound or wrong-package/client input connection")
+        val clientInsets = decor.rootWindowInsets ?: return rejectIme("focused client insets missing")
+        val clientImeBottom = clientInsets.getInsets(WindowInsets.Type.ime()).bottom
+        if (!CaptureImeGeometry.consistentInsets(clientInsets.isVisible(WindowInsets.Type.ime()),clientImeBottom,observedImeBottom))
+            return rejectIme("focused client insets disagree: rawVisible=${clientInsets.isVisible(WindowInsets.Type.ime())} rawBottom=$clientImeBottom observedBottom=$observedImeBottom")
+        // A Dialog above the keyboard legitimately has visible IME + zero local
+        // overlap. Screen bounds must come from the actual input-method window,
+        // never screenHeight minus another app window's bottom inset.
+        val imeRoot=WindowInspector.getGlobalWindowViews().singleOrNull { root ->
+            root.isShown && root.isAttachedToWindow && root.width>0 && root.height>0 &&
+                (root.layoutParams as? WindowManager.LayoutParams)?.type==WindowManager.LayoutParams.TYPE_INPUT_METHOD &&
+                kb.rootView===root && strip.rootView===root
+        } ?: return rejectIme("no unique actual IME root containing keyboard and bar")
+        val imeLocation=IntArray(2);imeRoot.getLocationOnScreen(imeLocation)
+        val clientLocation=IntArray(2);decor.getLocationOnScreen(clientLocation)
         val keyLocation = IntArray(2); kb.getLocationOnScreen(keyLocation)
         val stripLocation = IntArray(2); strip.getLocationOnScreen(stripLocation)
         val width = device.displayWidth; val height = device.displayHeight
-        if (kb.width < width * 0.8f || keyLocation[0] < 0 || keyLocation[1] < 0 ||
-            keyLocation[0] + kb.width > width || keyLocation[1] + kb.height > height ||
-            stripLocation[0] < 0 || stripLocation[1] < height - observedImeBottom ||
-            stripLocation[0] + strip.width > width || stripLocation[1] + strip.height > keyLocation[1]) return rejectIme("IME geometry out of bounds or inconsistent")
+        val imeBounds=CaptureImeGeometry.Rect(imeLocation[0],imeLocation[1],imeLocation[0]+imeRoot.width,imeLocation[1]+imeRoot.height)
+        val keyBounds=CaptureImeGeometry.Rect(keyLocation[0],keyLocation[1],keyLocation[0]+kb.width,keyLocation[1]+kb.height)
+        val stripBounds=CaptureImeGeometry.Rect(stripLocation[0],stripLocation[1],stripLocation[0]+strip.width,stripLocation[1]+strip.height)
+        if (!CaptureImeGeometry.stableLayoutCandidate(width,height,imeBounds,keyBounds,stripBounds))
+            return rejectIme("real IME screen-space bounds invalid: ime=$imeBounds keyboard=$keyBounds bar=$stripBounds")
         val identity = "${System.identityHashCode(decor)}:${System.identityHashCode(focused)}:${editor.packageName}:${editor.fieldId}:${editor.inputType}"
         imeRejection="accepted focused bound window frame"
         return ImeSettleState.Frame(identity, listOf(width, height, decor.width, decor.height,
-            observedImeBottom, stripLocation[0], stripLocation[1], strip.width, strip.height,
+            clientLocation[0],clientLocation[1],clientImeBottom,observedImeBottom,
+            imeLocation[0],imeLocation[1],imeRoot.width,imeRoot.height,stripLocation[0], stripLocation[1], strip.width, strip.height,
             keyLocation[0], keyLocation[1], kb.width, kb.height))
     }
     private fun field(owner: Any, name: String): Any? = owner.javaClass.getDeclaredField(name).apply { isAccessible = true }.get(owner)

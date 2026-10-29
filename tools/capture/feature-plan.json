@@ -10,43 +10,15 @@
       "status": "planned_not_runtime_verified"
     },
     {
-      "clip": "supp-shortcut-app.mp4",
-      "classification": "public",
-      "feature": "Configure and launch stock Android Settings",
-      "verification_scope": "Independent Android test with actual touchscreen actions, saved-state/editor/render assertions and real screenrecord; see TeaserSupplementCaptureTest.kt",
-      "status": "planned_not_runtime_verified"
-    },
-    {
       "clip": "supp-shortcut-link.mp4",
       "classification": "public",
       "feature": "Configure official Android URL and assert delivered browser intent; no page-load claim",
       "verification_scope": "Independent Android test with actual touchscreen actions, saved-state/editor/render assertions and real screenrecord; see TeaserSupplementCaptureTest.kt",
       "status": "planned_not_runtime_verified"
-    },
-    {
-      "clip": "supp-double-space.mp4",
-      "classification": "public",
-      "feature": "Double-space full stop and sentence capital",
-      "verification_scope": "Independent Android test with actual touchscreen actions, saved-state/editor/render assertions and real screenrecord; see TeaserSupplementCaptureTest.kt",
-      "status": "planned_not_runtime_verified"
-    },
-    {
-      "clip": "supp-picker-scroll.mp4",
-      "classification": "public",
-      "feature": "Finger and trackpad scroll on symbol picker",
-      "verification_scope": "Independent Android test with actual touchscreen actions, saved-state/editor/render assertions and real screenrecord; see TeaserSupplementCaptureTest.kt",
-      "status": "planned_not_runtime_verified"
-    },
-    {
-      "clip": "supp-backlight-colours.mp4",
-      "classification": "public",
-      "feature": "All four swatches saved; final colour applied to live IME",
-      "verification_scope": "Independent Android test with actual touchscreen actions, saved-state/editor/render assertions and real screenrecord; see TeaserSupplementCaptureTest.kt",
-      "status": "planned_not_runtime_verified"
     }
   ],
   "retained_evidence": {
-    "valid_clips": 32,
+    "valid_clips": 36,
     "rerecord": false,
     "runs": [
       {
@@ -58,6 +30,11 @@
         "run": 40830730964,
         "artifact": 12879940015,
         "valid_clips": 17
+      },
+      {
+        "run": 40834945001,
+        "artifact": 12880308590,
+        "valid_clips": 4
       }
     ]
   },
@@ -69,11 +46,7 @@
   "rendering": "Original real PNG/MP4 plus runtime bounds/coverage masks; no key-pixel replacement or chroma-key of black keys.",
   "runner_selection": [
     "ai.boldkeys.TeaserSupplementCaptureTest#g_configureAndRunTextShortcut",
-    "ai.boldkeys.TeaserSupplementCaptureTest#h_configureAndRunAppShortcut",
-    "ai.boldkeys.TeaserSupplementCaptureTest#i_configureAndRunLinkShortcut",
-    "ai.boldkeys.TeaserSupplementCaptureTest#l_doubleSpaceAndSentenceCapital",
-    "ai.boldkeys.TeaserSupplementCaptureTest#q_pickerFingerAndTrackpadScroll",
-    "ai.boldkeys.TeaserSupplementCaptureTest#r_backlightColours"
+    "ai.boldkeys.TeaserSupplementCaptureTest#i_configureAndRunLinkShortcut"
   ],
-  "execution_status": "local_only_pending_fresh_approval"
+  "execution_status": "two_shot_local_only_pending_fresh_approval"
 }

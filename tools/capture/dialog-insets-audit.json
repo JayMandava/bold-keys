@@ -1,0 +1,40 @@
+{
+  "run_id": 40834945001,
+  "commit": "0a55d567c8cd3b11c5e2e6a083be166e0ac15400",
+  "artifact_id": 12880308590,
+  "artifact_sha256": "cf13cc71eeae432a256ef34748a21f44eec99dedec351fb605401a39693a6096",
+  "retained_passed_clips": 36,
+  "fresh_evidence": [
+    "Text failure07:32:49UTC: DecorView@29522210 visible=true bottom=0; DecorView@137111666 visible=true bottom=889; both stableFrames=0; lastRejection=client IME insets not visible/mismatched",
+    "Link failure07:34:19UTC: DecorView@240267062 visible=true bottom=0; DecorView@60125498 visible=true bottom=889; same rejection",
+    "Exact cleanup PASS twice07:35:07UTC"
+  ],
+  "ownership": "Text and Link fields are inside ShortcutDialog, a separate application window. The existing observer samples only the root with window focus. The underlying SetupActivity root may still receive globally-visible IME events while having no input focus.",
+  "contract": "WindowInsets visibility describes whether IME is visible on screen even if it does not overlap this particular window. A zero window-local IME bottom is legitimate; another window can simultaneously report889. Neither value is a universal screen-space keyboard height.",
+  "proven_harness_errors": [
+    "imeFrame rejected observedImeBottom<=0 before input binding checks",
+    "ImeSettleState independently rejected bottom<=0",
+    "Screen-height minus client-local inset was used to infer keyboard screen-space bounds, invalid for a floating/Dialog client"
+  ],
+  "local_fix": [
+    "Reuse current focused-window observer; no third observer",
+    "Capture-only settle state permits zero local overlap but still requires visible IME, non-null fully validated sample, no prepared/running animation, distinct stable frames, unchanged identity/geometry",
+    "Check real focused active editor/current service input connection before insets; retain same-root raw/callback visibility and inset consistency",
+    "Measure actual visible TYPE_INPUT_METHOD root containing both live KeyboardView and SuggestionBar; require positive on-screen bounds and contain both surfaces; track actual client/IME geometry through stable frames",
+    "Add window focus, known Activity root identity, active editor, raw versus observed insets and screen bounds to diagnostics; never borrow background889"
+  ],
+  "remaining_uncertainty": "Old diagnostics did not label the roots or record rootWindowInsets raw values/active-editor status. Controlled UI and focused-root code identify Dialog as the intended input owner, but exact hash-to-window labels and raw-vs-callback equality cannot be recovered from old logs. Any remaining raw/callback disagreement still fails explicitly. New local fix is not Android-runtime-verified.",
+  "sources": [
+    "https://developer.android.com/reference/android/view/WindowInsets#isVisible(int)",
+    "https://android.googlesource.com/platform/frameworks/base/+/master/core/java/android/view/InsetsSource.java"
+  ],
+  "validation": {
+    "jvm_tests": 73,
+    "jvm_failures": 0,
+    "new_zero_inset_regressions": 7,
+    "python_tests": 188,
+    "instrumentation_compiles": true,
+    "product_source_exact": "ce23cf74526b4864201d38503d2c9ad233d1787d"
+  },
+  "scope": "Uncommitted local capture-tool changes only. Product source/media/workflow guards unchanged; no push, run, emulator or permissions. No further capture approved."
+}

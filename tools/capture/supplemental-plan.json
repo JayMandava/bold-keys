@@ -1,15 +1,16 @@
 {
-  "status": "six_test_local_configuration_pending_fresh_approval",
+  "status": "two_shot_local_configuration_pending_fresh_approval",
   "product_source_sha": "ce23cf74526b4864201d38503d2c9ad233d1787d",
   "retained_capture": {
-    "valid_clips": 32,
+    "valid_clips": 36,
     "unchanged": true,
     "runs": [
       40824867852,
-      40830730964
+      40830730964,
+      40834945001
     ]
   },
-  "execution_boundary": "Local only. Exactly six repaired test methods selected. No publication, emulator, device access or runtime execution until fresh specific approval. Prior branches1/2/3 are consumed and must not be recreated or rerun.",
+  "execution_boundary": "Local only. Only Text and Link configuration/execution methods selected. No push, run, emulator or permissions until fresh approval. All four previous capture refs are spent.",
   "clips": [
     {
       "clip": "supp-shortcut-text.mp4",
@@ -20,44 +21,12 @@
       "runner_test": "ai.boldkeys.TeaserSupplementCaptureTest#g_configureAndRunTextShortcut"
     },
     {
-      "clip": "supp-shortcut-app.mp4",
-      "classification": "public",
-      "feature": "Configure and launch stock Android Settings",
-      "verification_scope": "Independent Android test with actual touchscreen actions, saved-state/editor/render assertions and real screenrecord; see TeaserSupplementCaptureTest.kt",
-      "status": "planned_not_runtime_verified",
-      "runner_test": "ai.boldkeys.TeaserSupplementCaptureTest#h_configureAndRunAppShortcut"
-    },
-    {
       "clip": "supp-shortcut-link.mp4",
       "classification": "public",
       "feature": "Configure official Android URL and assert delivered browser intent; no page-load claim",
       "verification_scope": "Independent Android test with actual touchscreen actions, saved-state/editor/render assertions and real screenrecord; see TeaserSupplementCaptureTest.kt",
       "status": "planned_not_runtime_verified",
       "runner_test": "ai.boldkeys.TeaserSupplementCaptureTest#i_configureAndRunLinkShortcut"
-    },
-    {
-      "clip": "supp-double-space.mp4",
-      "classification": "public",
-      "feature": "Double-space full stop and sentence capital",
-      "verification_scope": "Independent Android test with actual touchscreen actions, saved-state/editor/render assertions and real screenrecord; see TeaserSupplementCaptureTest.kt",
-      "status": "planned_not_runtime_verified",
-      "runner_test": "ai.boldkeys.TeaserSupplementCaptureTest#l_doubleSpaceAndSentenceCapital"
-    },
-    {
-      "clip": "supp-picker-scroll.mp4",
-      "classification": "public",
-      "feature": "Finger and trackpad scroll on symbol picker",
-      "verification_scope": "Independent Android test with actual touchscreen actions, saved-state/editor/render assertions and real screenrecord; see TeaserSupplementCaptureTest.kt",
-      "status": "planned_not_runtime_verified",
-      "runner_test": "ai.boldkeys.TeaserSupplementCaptureTest#q_pickerFingerAndTrackpadScroll"
-    },
-    {
-      "clip": "supp-backlight-colours.mp4",
-      "classification": "public",
-      "feature": "All four swatches saved; final colour applied to live IME",
-      "verification_scope": "Independent Android test with actual touchscreen actions, saved-state/editor/render assertions and real screenrecord; see TeaserSupplementCaptureTest.kt",
-      "status": "planned_not_runtime_verified",
-      "runner_test": "ai.boldkeys.TeaserSupplementCaptureTest#r_backlightColours"
     }
   ],
   "independence": "Separate @Test per supplemental shot; do not put appearance behind a failing typing recording. Per-shot state restore in finally; failed startup must not abort unrelated test methods.",
@@ -68,35 +37,32 @@
   },
   "uncovered_runtime": "Supplemental class implemented locally, not executed on Android. Hardware sensor/haptic/audio/performance claims excluded. Optional model unavailable/off. Browser onboarding or unresolved safe handler can fail only Link/App shot, without hiding remaining independent tests.",
   "validation": {
-    "jvm_tests": 66,
+    "jvm_tests": 73,
     "failures": 0,
-    "python_tests": 187,
+    "python_tests": 188,
     "recorder_regressions": 7,
     "bundled_fixture_tests": 4,
     "independent_capture_methods": 23,
     "instrumentation_compiles": true,
     "product_source": "ce23cf74526b4864201d38503d2c9ad233d1787d",
     "runtime_executed": false,
-    "selected_capture_methods": 6,
+    "selected_capture_methods": 2,
     "new_focused_regressions": 7,
-    "runtime_executed_for_repair": false
+    "runtime_executed_for_repair": false,
+    "new_zero_inset_regressions": 7
   },
   "implemented_class": "TeaserSupplementCaptureTest",
   "workflow_plan": {
-    "branch": "qa/bold-teaser-capture-20261029-4",
+    "branch": "qa/bold-teaser-capture-20261029-5",
     "workflow": ".github/workflows/teaser-capture-once.yml",
     "trigger": "Exactly one owner-created branch push; created=true; attempt1; exact owner/repository/ref; no dispatch or reruns",
     "bounds": "45-minute job;32-minute grant phase;10-minute boot;20-minute instrumentation;60-second recorder per shot",
     "artifact": "Only allowlisted PNG/MP4/JSON demo/evidence;retention1day;no APKs/signers",
     "delivery": "Native GitHub artifact file reference -> editor Library prepare_materialize -> attributes/hash/CRC; no raw artifact URL in worker",
-    "publication": "Local configuration only; do not publish or execute without fresh specific owner approval. Branch availability remains unverified remotely."
+    "publication": "Not published. Verify remote ref absent before any approved push; no further capture approved."
   },
   "runner_selection": [
     "ai.boldkeys.TeaserSupplementCaptureTest#g_configureAndRunTextShortcut",
-    "ai.boldkeys.TeaserSupplementCaptureTest#h_configureAndRunAppShortcut",
-    "ai.boldkeys.TeaserSupplementCaptureTest#i_configureAndRunLinkShortcut",
-    "ai.boldkeys.TeaserSupplementCaptureTest#l_doubleSpaceAndSentenceCapital",
-    "ai.boldkeys.TeaserSupplementCaptureTest#q_pickerFingerAndTrackpadScroll",
-    "ai.boldkeys.TeaserSupplementCaptureTest#r_backlightColours"
+    "ai.boldkeys.TeaserSupplementCaptureTest#i_configureAndRunLinkShortcut"
   ]
 }

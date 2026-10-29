@@ -20,6 +20,7 @@ internal class CaptureImeWindowObserver(
 ) : Application.ActivityLifecycleCallbacks {
     private val probes = IdentityHashMap<ViewGroup, Probe>()
     private var awaiting = false
+    private val activityRoots = IdentityHashMap<ViewGroup,String>()
 
     fun register() = application.registerActivityLifecycleCallbacks(this)
 
@@ -38,7 +39,10 @@ internal class CaptureImeWindowObserver(
         ?.value?.let { it.isAttachedToWindow && it.state.ready } == true
 
     fun diagnostic(): String = probes.entries.joinToString("; ") {
-        "${it.key.javaClass.simpleName}@${System.identityHashCode(it.key)}: ${it.value.state.diagnostic()} sampleError=${it.value.sampleError}"
+        val root=it.key;val focused=root.findFocus();val insets=root.rootWindowInsets
+        val imm=root.context.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+        val xy=IntArray(2);root.getLocationOnScreen(xy)
+        "${activityRoots[root] ?: "non-activity app window"}@${System.identityHashCode(root)}: focused=${root.hasWindowFocus()} activeEditor=${focused?.let(imm::isActive)} rawVisible=${insets?.isVisible(WindowInsets.Type.ime())} rawBottom=${insets?.getInsets(WindowInsets.Type.ime())?.bottom} bounds=${xy[0]},${xy[1]},${root.width},${root.height} ${it.value.state.diagnostic()} sampleError=${it.value.sampleError}"
     }
 
     fun close() {
@@ -46,6 +50,7 @@ internal class CaptureImeWindowObserver(
         application.unregisterActivityLifecycleCallbacks(this)
         probes.values.toList().forEach { it.dispose() }
         probes.clear()
+        activityRoots.clear()
     }
 
     fun observeWindows() {
@@ -60,7 +65,10 @@ internal class CaptureImeWindowObserver(
             root.addView(probe,0,ViewGroup.LayoutParams(0,0));probe.requestApplyInsets()
         }
     }
-    override fun onActivityPostCreated(activity: Activity, savedInstanceState: Bundle?) = observeWindows()
+    override fun onActivityPostCreated(activity: Activity, savedInstanceState: Bundle?) {
+        (activity.window.decorView as? ViewGroup)?.let { activityRoots[it]=activity.javaClass.simpleName }
+        observeWindows()
+    }
     override fun onActivityDestroyed(activity: Activity) = observeWindows()
     override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) = Unit
     override fun onActivityStarted(activity: Activity) = Unit
@@ -70,7 +78,7 @@ internal class CaptureImeWindowObserver(
     override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) = Unit
 
     private inner class Probe(private val windowRoot: ViewGroup) : View(windowRoot.context), Choreographer.FrameCallback {
-        val state = ImeSettleState()
+        val state = CaptureImeSettleState()
         var sampleError: String? = null
             private set
         private var imeBottom = 0
