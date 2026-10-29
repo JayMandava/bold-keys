@@ -23,10 +23,10 @@ def linked(root, path):
 
 def allowed_capture_name(name):
     if name.endswith('.mp4'):
-        return re.fullmatch(r'(?:0[1-9]|1[0-5]|dev)-[a-z0-9-]+\.mp4', name) is not None
+        return re.fullmatch(r'(?:0[1-9]|1[0-5]|supp|dev)-[a-z0-9-]+\.mp4', name) is not None
     if name.endswith('.png'):
-        return re.fullmatch(r'(?:0[1-9]|1[0-5]|dev|FAILED)-[A-Za-z0-9_-]+\.png', name) is not None
-    return (re.fullmatch(r'(?:0[1-9]|1[0-5]|dev|FAILED)-[A-Za-z0-9_-]+-geometry\.json', name) is not None or
+        return re.fullmatch(r'(?:0[1-9]|1[0-5]|supp|dev|FAILED)-[A-Za-z0-9_-]+\.png', name) is not None
+    return (re.fullmatch(r'(?:0[1-9]|1[0-5]|supp|dev|FAILED)-[A-Za-z0-9_-]+-geometry\.json', name) is not None or
             re.fullmatch(r'(?:recording|result|trackpad)-[A-Za-z0-9_-]+\.json', name) is not None)
 
 
@@ -123,10 +123,16 @@ def stage(root, destination):
                 partial.unlink()
             excluded.append({'path': str(source.relative_to(root)), 'reason': type(error).__name__})
     plan = json.loads((root / 'tools/capture/feature-plan.json').read_text())
+    by_name = {Path(clip['path']).name: clip for clip in clips}
+    coverage = [{'clip': shot['clip'], 'status': ('missing' if shot['clip'] not in by_name else
+                 'assertions-passed' if by_name[shot['clip']]['assertions_passed'] else 'assertions-failed')}
+                for shot in plan.get('clips', [])]
     manifest = {'policy': 'Raw real PNG/MP4 plus explicit JSON provenance/cleanup only; no APKs, keys, archives, dumps or build logs.',
                 'product_source_sha': 'ce23cf74526b4864201d38503d2c9ad233d1787d',
                 'clips': clips, 'included': included, 'excluded': excluded, 'feature_plan': plan,
                 'runtime_success_claimed': False,
+                'expected_coverage': coverage,
+                'all_expected_assertions_passed': bool(coverage) and all(x['status'] == 'assertions-passed' for x in coverage),
                 'review_policy': 'Decode and assertion reports do not prove visible action coverage. Review extracted frames/full clip before editing. Masks are auxiliary source geometry, not screenshot pixels.'}
     (destination / 'feature-manifest.json').write_text(json.dumps(manifest, indent=2)+'\n')
     return manifest

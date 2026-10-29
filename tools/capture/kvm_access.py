@@ -13,7 +13,7 @@ import urllib.parse
 import urllib.request
 
 DEVICE = '/dev/kvm'
-REF = 'refs/heads/qa/bold-teaser-capture-20261029-2'
+REF = 'refs/heads/qa/bold-teaser-capture-20261029-3'
 BASE = ['user::rw-', 'group::rw-', 'other::---']
 
 

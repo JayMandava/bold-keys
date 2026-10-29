@@ -1,0 +1,185 @@
+{
+  "status": "implemented_compiled_regressions_passed_execution_pending_fresh_approval",
+  "product_source_sha": "ce23cf74526b4864201d38503d2c9ad233d1787d",
+  "retained_capture": {
+    "run_id": 40824867852,
+    "artifact_id": 12876303884,
+    "sha256": "c1c0f404cad7da02d8d7f492b4ad7dcacb30050bd98d6f630003fc3c05d4a3dd",
+    "retain": "All 15 assertion-passed clips unchanged; exclude failed 07/14 as settings-operation proof. Appearance 08 absent."
+  },
+  "execution_boundary": "No push, workflow trigger, emulator or device grant until fresh specific approval. Proposed fresh branch qa/bold-teaser-capture-20261029-3; exact one creation push/attempt1 guarded. Existing published branch2 trigger is spent.",
+  "clips": [
+    {
+      "id": "layout-language",
+      "source": [
+        "SetupActivity.kt:typingItems",
+        "Prefs.kt:language",
+        "Layouts.kt"
+      ],
+      "actions": "Real settings: QWERTZ + Auto, AZERTY + Auto, then separately select English/French/German override. Open actual Notes field after each chosen layout. Restore QWERTY/en.",
+      "assertions": [
+        "Saved layout and languageChoice, accessible selected state",
+        "Bound IME layoutId and actual Y/Z or A/Q key output",
+        "German fur -> für and French ete -> été with real touches; assert complete editor results; suggestions use selected language"
+      ],
+      "limitation": "Do not count a settings label as proof of dictionary correction."
+    },
+    {
+      "id": "key-size",
+      "source": [
+        "SetupActivity.kt:AppearanceContent",
+        "KeyboardView.kt:applySettings",
+        "Prefs.kt:keyScale"
+      ],
+      "actions": "Select Small/Normal/Large/XL through settings. Open real IME for measured small vs XL shots; restore Normal.",
+      "assertions": [
+        "Saved selection and accessible selected state for all four",
+        "Same-width IME and larger measured height/key-cell height for XL than Small",
+        "Actual key presses still insert expected text at both sizes"
+      ]
+    },
+    {
+      "id": "backlight",
+      "source": [
+        "SetupActivity.kt:AppearanceContent",
+        "KeyboardView.kt:applySettings/updateGlow"
+      ],
+      "actions": "On Black, choose Off then On, colours and brightness using genuine controls; show real IME glow. Show Auto control separately.",
+      "assertions": [
+        "Persisted backlight mode/colour/level and actual glow/glowRgb on connected IME",
+        "On yields positive glow, Off zero; brightness slider changes value",
+        "Keep raw before/after frames and dimensions"
+      ],
+      "limitation": "Auto sensor response only if existing emulator sensor is genuinely controllable through ordinary documented console access; otherwise settings-only, no simulated physical-light claim. Colour swatches lack labels: derive their bounds from live UI and verify saved value, never guess fixed coordinates."
+    },
+    {
+      "id": "haptic-settings",
+      "source": [
+        "SetupActivity.kt:feelItems",
+        "Feedback.kt:PATTERNS"
+      ],
+      "actions": "Select Off, short click and Double tap; press Try the click; restore prior pattern.",
+      "assertions": [
+        "Saved pattern and selected accessible state",
+        "Actual labelled Try the click button is pressed"
+      ],
+      "limitation": "Settings interaction only; emulator cannot prove tactile feel or motor strength."
+    },
+    {
+      "id": "shortcut-configuration",
+      "source": [
+        "SetupActivity.kt:ShortcutsContent/ShortcutDialog",
+        "Shortcuts.kt"
+      ],
+      "actions": "Configure disposable App, Link and Text slots through real UI. Type neutral snippet using real keys; save and reopen each assignment.",
+      "assertions": [
+        "Shortcuts.get type/value/label match each saved choice",
+        "Cancel leaves assignment unchanged; clear removes test slot",
+        "No direct preferences mutation counts as UI configuration evidence"
+      ]
+    },
+    {
+      "id": "shortcut-app-link-text",
+      "source": [
+        "Shortcuts.kt:run",
+        "KeyboardView.kt:speed key handling"
+      ],
+      "actions": "Hold right grid key plus configured letters. Text inserts neutral phrase; App launches a stock offline app; Link uses a harmless local settings URI only if registered and safely available.",
+      "assertions": [
+        "Exact snippet content in Notes",
+        "Foreground/resumed component matches configured stock app",
+        "ACTION_VIEW resolved handler/foreground matches local Link URI, with no injected intent from test controller"
+      ],
+      "limitation": "Preflight package visibility and resolveActivity for App and Link on exact guest. If no local safe Link handler, report gap; do not open tel/mail/geo, contact external hosts or fabricate a handler. Link action is distinct from an HTTP page-load claim."
+    },
+    {
+      "id": "typing-helpers",
+      "source": [
+        "BoldKeysService.kt:nextWordSuggestions/onText",
+        "SuggestionBar.kt:onTouchEvent",
+        "DoubleSpacePeriod.kt"
+      ],
+      "actions": "Type neutral English phrase, tap actual suggestion and centre pad, demonstrate next word; double-space full stop and next sentence capital; compare US/UK spelling.",
+      "assertions": [
+        "Real engine has expected candidate before tap; exact resulting editor text after each acceptance",
+        "Double-space yields full stop, next sentence starts capitalised",
+        "Saved spelling preference and actual configured engine spelling, plus deterministic candidate/output fixture"
+      ],
+      "limitation": "Source-derived fixtures must be checked locally against bundled dictionaries before capture; never claim all corrections are guaranteed."
+    },
+    {
+      "id": "personal-dictionary",
+      "source": [
+        "SetupActivity.kt:DictionaryContent",
+        "BoldKeysService.kt:learnedFile/readLearned"
+      ],
+      "actions": "In disposable guest, add invented neutral word in Settings, show suggestion; remove it, add two words then Clear all with confirmation. Optionally type an unknown word twice to show automatic learning.",
+      "assertions": [
+        "Language-specific learned file entries and visible list count change",
+        "Candidate includes added word and stops treating it as unknown",
+        "Remove and confirmed clear affect only staged guest words; automatic learning only claimed if actually observed"
+      ],
+      "limitation": "No owner dictionary data; no broad file export."
+    },
+    {
+      "id": "modifiers-pickers-emoticons-currency",
+      "source": [
+        "KeyboardView.kt",
+        "Layouts.kt:emoticonsNow/emoticonsOnSpace",
+        "SetupActivity.kt:symbolItems"
+      ],
+      "actions": "Supplement existing clips with Alt lock/unlock, single Shift, picker scrolling by touch/trackpad, default emoji tone setting, emoticon conversion/undo, selected currency sign quick tap. Show Match phone control if useful.",
+      "assertions": [
+        "Exact multi-symbol output with Alt lock; next letter returns after unlock",
+        "Uppercase single letter then lower case",
+        "Picker page/category indices change after actual gesture",
+        "Default tone preference and actual toned insertion",
+        "Exact text-to-emoji and undo results",
+        "Chosen currency label and actual sign output; no volume side effect on quick tap"
+      ],
+      "limitation": "Existing successful clips already cover Caps Lock, ordinary Alt, emoji recents/delete/tones and volume; retain them rather than repeat."
+    },
+    {
+      "id": "privacy-fields-and-optional-context",
+      "source": [
+        "BoldKeysService.kt:onStartInput/judgeInContext",
+        "ContextModels.kt",
+        "KeyboardQaActivity.kt"
+      ],
+      "actions": "Optional compact privacy shot using existing debug email/password field modes with invented data. Context model settings may be shown as Off/optional; inference only if legitimate model is available.",
+      "assertions": [
+        "Sensitive field suppresses corrections/suggestions according to actual inputType",
+        "AI inference requires installed model SHA verification, successful load, English selected, explicit opt-in and observed context correction plus undo"
+      ],
+      "limitation": "Fresh guest has no bundled model. Catalogue compact model is 241574944 bytes and SHA e479ea2962bdcdc7e6321b91148b9ac2f516f649e0921412561d4936aadef158. Model download/licence/network/resource readiness is not established; no download or inference attempted in this audit. No AI-as-default claim."
+    }
+  ],
+  "independence": "Separate @Test per supplemental shot; do not put appearance behind a failing typing recording. Per-shot state restore in finally; failed startup must not abort unrelated test methods.",
+  "dependency_gate": {
+    "host": "Existing aggregate preflight: official Ubuntu ffmpeg/ffprobe + acl, JDK17, Python stdlib, SDK platform36/build-tools35+36, API35 Google x86_64 image with ARM64 translation, emulator native libs, NDK27/CMake3.22.1, product fonts/emoji/EN-FR-DE dictionaries, disk budget. No new Python package.",
+    "guest": "sh, screenrecord AVC, screencap PNG, stat, cat (/proc/PID/stat readable), kill -INT, mkdir, rm, cp, settings/cmd/ime/am/pm/input, UID2000. Existing AVC/PNG decode smoke remains required. App/Link handlers and locale dictionaries must be checked before their shots. Probe /proc/self/stat state/starttime readability before product capture; aggregate failure rather than waiting for individual takes.",
+    "export": "Keep existing strict container validation, full FFmpeg decode, frame count/duration checks, original-byte hashes, per-action JSON flags and visual review. Add only exact supplemental filenames to export allowlist during implementation. Use verified connector file-reference-to-editor materialization route; never raw download URL in producer."
+  },
+  "uncovered_runtime": "Supplemental class implemented locally, not executed on Android. Hardware sensor/haptic/audio/performance claims excluded. Optional model unavailable/off. Browser onboarding or unresolved safe handler can fail only Link/App shot, without hiding remaining independent tests.",
+  "validation": {
+    "jvm_tests": 59,
+    "failures": 0,
+    "python_tests": 186,
+    "recorder_regressions": 7,
+    "bundled_fixture_tests": 4,
+    "independent_capture_methods": 23,
+    "instrumentation_compiles": true,
+    "product_source": "ce23cf74526b4864201d38503d2c9ad233d1787d",
+    "runtime_executed": false
+  },
+  "implemented_class": "TeaserSupplementCaptureTest",
+  "workflow_plan": {
+    "branch": "qa/bold-teaser-capture-20261029-3",
+    "workflow": ".github/workflows/teaser-capture-once.yml",
+    "trigger": "Exactly one owner-created branch push; created=true; attempt1; exact owner/repository/ref; no dispatch or reruns",
+    "bounds": "45-minute job;32-minute grant phase;10-minute boot;20-minute instrumentation;60-second recorder per shot",
+    "artifact": "Only allowlisted PNG/MP4/JSON demo/evidence;retention1day;no APKs/signers",
+    "delivery": "Native GitHub artifact file reference -> editor Library prepare_materialize -> attributes/hash/CRC; no raw artifact URL in worker",
+    "publication": "Not pushed; branch availability must be checked read-only after approval before publication."
+  }
+}

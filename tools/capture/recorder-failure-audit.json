@@ -1,0 +1,39 @@
+{
+  "run_id": 40824867852,
+  "job_id": 123285480326,
+  "artifact_id": 12876303884,
+  "source": "Native GitHub fetch_workflow_job_logs; parent verified exported archive and decoded footage",
+  "observations": [
+    "2026-10-29T05:54:03.5335587Z ai.boldkeys.TeaserMoreCaptureTest > d_settingsMontage[emulator-5554 - 15] \u001b[31mFAILED \u001b[0m",
+    "2026-10-29T05:54:03.5340434Z \tjava.lang.IllegalStateException: No live recorder with file output within ten seconds",
+    "2026-10-29T05:54:03.5341918Z \tat ai.boldkeys.TeaserMoreCaptureTest.recording(TeaserMoreCaptureTest.kt:450)",
+    "2026-10-29T05:55:16.5454793Z ai.boldkeys.TeaserFeatureCaptureTest > i_secondarySettings[emulator-5554 - 15] \u001b[31mFAILED \u001b[0m",
+    "2026-10-29T05:55:16.5487002Z \tjava.lang.IllegalStateException: No live recorder with file output within ten seconds",
+    "2026-10-29T05:55:16.5514787Z \tat ai.boldkeys.TeaserFeatureCaptureTest.recording(TeaserFeatureCaptureTest.kt:450)",
+    "2026-10-29T05:55:37.1261783Z PASS: owned emulator stopped; exact original ACL, owner, group and mode restored. Runner grant absent.",
+    "2026-10-29T05:55:37.2312140Z PASS: owned emulator stopped; exact original ACL, owner, group and mode restored. Runner grant absent.",
+    "2026-10-29T05:55:56.9428823Z Staged 17 decoded clips; visual review required. Non-allowlisted files excluded: 86"
+  ],
+  "proven": "Both settings test callbacks failed at the shared combined byte-count/liveness startup predicate, before their action callbacks. Appearance recording was later in an aborted method and never attempted.",
+  "not_proven": "Preserved evidence cannot distinguish static-screen muxer buffering, process exit or observation race. Per-poll process state/file sizes and raw screenrecord stderr were not exported.",
+  "local_fix": "Stable recorder process identity/state plus fresh output-file existence and one-second preroll, without encoded-byte threshold; bounded process observations exported; full decode and action assertions retained.",
+  "checks": {
+    "jvm_tests": 55,
+    "recorder_regressions": 7,
+    "python_capture_tests": 54,
+    "android_instrumentation_compiles": true,
+    "product_source_exact": "ce23cf74526b4864201d38503d2c9ad233d1787d"
+  },
+  "execution": "No push, workflow run, emulator start, permission grant or model download performed. Fresh specific approval pending for any new capture execution.",
+  "supplemental_checks": {
+    "jvm_tests": 59,
+    "failures": 0,
+    "python_tests": 186,
+    "recorder_regressions": 7,
+    "bundled_fixture_tests": 4,
+    "independent_capture_methods": 23,
+    "instrumentation_compiles": true,
+    "product_source": "ce23cf74526b4864201d38503d2c9ad233d1787d",
+    "runtime_executed": false
+  }
+}

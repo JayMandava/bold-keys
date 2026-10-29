@@ -427,6 +427,7 @@ class TeaserCaptureTest {
             writeText("""
                 #!/system/bin/sh
                 mkdir -p "$dir"
+                rm -f "$path" || exit 1
                 screenrecord --verbose --bit-rate 6000000 --time-limit 60 "$path" >"$dir/$name.log" 2>&1 </dev/null &
                 echo ${'$'}!
             """.trimIndent() + "\n")
@@ -434,30 +435,54 @@ class TeaserCaptureTest {
         val notes = StringBuilder("Raw recording path: $path\n")
         val pid = runCatching { device.executeShellCommand("sh ${startScript.absolutePath}").trim() }.getOrDefault("")
         val started = pid.matches(Regex("[0-9]+"))
-        fun alive() = started && runCatching {
-            device.executeShellCommand("cat /proc/$pid/comm").trim() == "screenrecord"
-        }.getOrDefault(false)
+        val observations = org.json.JSONArray()
+        var ownedStartTicks: Long? = null
+        fun sample(): Pair<RecorderStartupGate.Process?, Long?> {
+            val process = if (started) RecorderStartupGate.parseStat(runCatching {
+                device.executeShellCommand("cat /proc/$pid/stat").trim()
+            }.getOrDefault("")) else null
+            val bytes = runCatching {
+                device.executeShellCommand("stat -c %s $path").trim().toLongOrNull()
+            }.getOrNull()
+            if (ownedStartTicks == null && process?.live == true) ownedStartTicks = process.startTicks
+            if (observations.length() < 128) observations.put(JSONObject()
+                .put("uptime_ms", SystemClock.uptimeMillis())
+                .put("process_state", process?.state ?: "missing-or-unreadable")
+                .put("process_name_matches", process?.name == "screenrecord")
+                .put("start_ticks", process?.startTicks ?: JSONObject.NULL)
+                .put("output_bytes", bytes ?: JSONObject.NULL))
+            return process to bytes
+        }
+        fun alive(): Boolean {
+            val process = sample().first
+            return process?.live == true && process.startTicks == ownedStartTicks
+        }
         val ready = runCatching {
             check(started) { "Recorder did not return a PID" }
             val deadline = SystemClock.uptimeMillis() + 10_000
-            var outputBytes = false
+            val gate = RecorderStartupGate()
+            var stable = false
             while (SystemClock.uptimeMillis() < deadline) {
-                val size = device.executeShellCommand("stat -c %s $path").trim().toLongOrNull() ?: 0L
-                // The muxer may reserve MP4 metadata before samples: file bytes never prove recorded frames.
-                if (size > 4096L && alive()) { outputBytes = true; break }
+                val (process, bytes) = sample()
+                // A static settings screen may buffer encoded samples until
+                // SIGINT. A fresh opened file and stable process identify a
+                // started recorder; bytes do not certify encoded frames.
+                if (gate.observe(SystemClock.uptimeMillis(), process, bytes != null)) {
+                    stable = true; break
+                }
                 SystemClock.sleep(250)
             }
-            check(outputBytes && alive()) { "No live recorder with file output within ten seconds" }
-            SystemClock.sleep(1000) // genuine preroll before the action; never accelerate captured UI
-            check(alive()) { "Recorder exited during preroll" }
+            check(stable && alive()) { "Recorder did not survive live preroll with an opened output file within ten seconds; inspect process observations" }
         }
-        notes.append("Recorder preroll: ").append(ready.exceptionOrNull()?.toString() ?: "file output observed, one second held; frames unverified").append('\n')
+        notes.append("Recorder preroll: ").append(ready.exceptionOrNull()?.toString() ?: "same live process and fresh output file observed through preroll; frames unverified").append('\n')
         var actionPassed = false
         try {
             ready.getOrThrow()
             action() // Real touch actions only, after a verified live recorder/preroll.
-            actionPassed = true
+            check(alive()) { "Recorder exited during recorded actions" }
             SystemClock.sleep(1200) // hold the genuine completed UI in the recording
+            check(alive()) { "Recorder exited during completed UI hold" }
+            actionPassed = true
         } finally {
             val stopped = runCatching {
                 if (alive()) device.executeShellCommand("kill -INT $pid")
@@ -472,6 +497,9 @@ class TeaserCaptureTest {
             File(output,"recording-$name.json").writeText(JSONObject()
                 .put("clip", "$name.mp4").put("action_assertions_passed",actionPassed)
                 .put("recorder_startup_verified",ready.isSuccess).put("recorder_finalized",stopped.isSuccess)
+                .put("startup_failure",ready.exceptionOrNull()?.message ?: JSONObject.NULL)
+                .put("process_observations",observations)
+                .put("startup_proves","same live recorder, fresh opened output, stable preroll; decoded frames checked after finalization")
                 .put("classification",if(name.startsWith("dev-")) "development-preview" else "public-feature")
                 .put("visual_review_required",true).put("producer","Android screenrecord; actual injected touchscreen events")
                 .toString(2)+"\n")

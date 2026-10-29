@@ -280,7 +280,7 @@ class AccessLifecycleTests(unittest.TestCase):
         KVM.verify_sole_run(RUN)
         request = self.urlopen.call_args.args[0]
         self.assertTrue(request.full_url.startswith('https://api.github.com/repos/JayMandava/bold-keys/actions/workflows/teaser-capture-once.yml/runs?'))
-        self.assertIn('qa%2Fbold-teaser-capture-20261029-2', request.full_url)
+        self.assertIn('qa%2Fbold-teaser-capture-20261029-3', request.full_url)
         self.assertFalse(any(key.lower() == 'authorization' for key in request.headers))
         self.assertEqual(20, self.urlopen.call_args.kwargs['timeout'])
         self.assertTrue((self.root / 'qa-artifacts/one-job-approval.json').is_file())
@@ -367,7 +367,7 @@ class AccessLifecycleTests(unittest.TestCase):
 
 class HistoricalApprovalTests(unittest.TestCase):
     def test_consumed_fourth_and_fifth_refs_are_rejected_by_new_guard(self):
-        for ref in ('refs/heads/qa/iconic-colours-kvm-20261027-4','refs/heads/qa/iconic-colours-kvm-20261027-5','refs/heads/qa/bold-teaser-capture-20261029-1'):
+        for ref in ('refs/heads/qa/iconic-colours-kvm-20261027-4','refs/heads/qa/iconic-colours-kvm-20261027-5','refs/heads/qa/bold-teaser-capture-20261029-1','refs/heads/qa/bold-teaser-capture-20261029-2'):
             with patch.dict(os.environ, {'GITHUB_ACTIONS':'true','GITHUB_REPOSITORY':'JayMandava/bold-keys',
                     'GITHUB_REF':ref,'GITHUB_RUN_ATTEMPT':'1','GITHUB_EVENT_NAME':'push','GITHUB_ACTOR':'JayMandava'},clear=True):
                 with self.assertRaises(RuntimeError): KVM.context()

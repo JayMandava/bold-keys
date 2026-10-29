@@ -29,10 +29,24 @@ RUNTIME = (ROOT / 'tools/capture/run-capture.sh').read_text()
 
 
 class WorkflowTests(unittest.TestCase):
+    def test_supplemental_run_selects_only_independent_new_shots(self):
+        source = (ROOT / 'tools/capture/androidTest/ai/boldkeys/TeaserSupplementCaptureTest.kt').read_text()
+        plan = json.loads((ROOT / 'tools/capture/feature-plan.json').read_text())
+        self.assertEqual(len(plan['clips']), len(re.findall(r'@Test fun ', source)))
+        self.assertIn('Arguments.class=ai.boldkeys.TeaserSupplementCaptureTest', RUNTIME)
+        self.assertNotIn('Arguments.class=ai.boldkeys.TeaserCaptureTest,', RUNTIME)
+        for feature in ('Shortcuts.get', 'small_height', 'xl_height', 'engineReady(lang)',
+                        'RecorderStartupGate()', 'originalLearned', 'originalPrefs'):
+            self.assertIn(feature, source)
+        self.assertNotIn('Shortcuts.set(', source)
+        self.assertNotIn('ContextModels.download', source)
+        self.assertIn('Prefs.put(context,"contextModel",false)', source)
+        self.assertEqual(15, plan['retained_evidence']['valid_clips'])
+
     def test_single_owner_initial_push_only_and_bounded(self):
-        self.assertIn('branches: [qa/bold-teaser-capture-20261029-2]', WORKFLOW)
+        self.assertIn('branches: [qa/bold-teaser-capture-20261029-3]', WORKFLOW)
         for guard in ("github.actor == 'JayMandava'", 'github.event.created == true', 'github.run_attempt == 1',
-                      "github.ref == 'refs/heads/qa/bold-teaser-capture-20261029-2'", 'github.event.repository.private == false'):
+                      "github.ref == 'refs/heads/qa/bold-teaser-capture-20261029-3'", 'github.event.repository.private == false'):
             self.assertIn(guard, WORKFLOW)
         for trigger in ('workflow_dispatch:', 'pull_request:', 'pull_request_target:', 'schedule:', 'workflow_run:'):
             self.assertNotIn(trigger, WORKFLOW)
@@ -91,8 +105,8 @@ class WorkflowTests(unittest.TestCase):
     def test_capture_manifest_does_not_claim_unexecuted_runtime(self):
         plan = json.loads((ROOT / 'tools/capture/feature-plan.json').read_text())
         self.assertEqual(SOURCE.BASE, plan['product_source_sha'])
-        self.assertEqual(18, len(plan['clips']))
-        self.assertEqual(3, sum(x['classification'] == 'development-preview' for x in plan['clips']))
+        self.assertEqual(23, len(plan['clips']))
+        self.assertEqual(0, sum(x['classification'] == 'development-preview' for x in plan['clips']))
         self.assertTrue(all(x['status'] == 'planned_not_runtime_verified' for x in plan['clips']))
 
 
@@ -104,6 +118,22 @@ class SourceTests(unittest.TestCase):
 
 
 class PreflightTests(unittest.TestCase):
+    def test_shortcut_handler_probe_rejects_chooser_missing_or_ambiguous_results(self):
+        self.assertEqual('com.android.settings/.Settings', PREFLIGHT.handler_component('priority=0\ncom.android.settings/.Settings\n'))
+        for value in ('No activity found', 'android/com.android.internal.app.ResolverActivity',
+                      'one/.Main\ntwo/.Main'):
+            self.assertIsNone(PREFLIGHT.handler_component(value))
+
+    def test_process_identity_dependency_rejects_unreadable_or_truncated_proc(self):
+        fields = ['R'] + ['0'] * 18 + ['42']
+        self.assertTrue(PREFLIGHT.readable_process_identity('123 (cat) ' + ' '.join(fields)))
+        for value in ('', 'permission denied', '123 (cat) R 0', '123 (cat) Z ' + '0 ' * 20):
+            self.assertFalse(PREFLIGHT.readable_process_identity(value))
+
+    def test_recorder_guest_dependencies_remain_explicit(self):
+        for command in ('sh', 'screenrecord', 'stat', 'cat', 'kill', 'rm', 'mkdir'):
+            self.assertIn(command, PREFLIGHT.GUEST_COMMANDS)
+
     def test_missing_decoders_and_acl_tools_are_aggregated(self):
         gaps = PREFLIGHT.command_gaps(PREFLIGHT.HOST_COMMANDS, which=lambda name: None)
         for name in ('ffmpeg', 'ffprobe', 'getfacl', 'setfacl', 'timeout', 'ldd', 'git', 'python3'):
@@ -135,6 +165,30 @@ class PreflightTests(unittest.TestCase):
 
 
 class EvidenceTests(unittest.TestCase):
+    def test_missing_supplemental_shot_is_explicit_not_silent_success(self):
+        root = self.fixture()
+        (root / 'tools/capture/feature-plan.json').write_text(json.dumps({'clips':[{'clip':'supp-french.mp4'}]}))
+        report = STAGE.stage(root, root / 'evidence')
+        self.assertEqual([{'clip':'supp-french.mp4','status':'missing'}], report['expected_coverage'])
+        self.assertFalse(report['all_expected_assertions_passed'])
+
+    def test_supplemental_names_are_exportable_but_unrelated_files_stay_rejected(self):
+        for name in ('supp-french.mp4','supp-key-size-xl.png','supp-key-size-xl-geometry.json'):
+            self.assertTrue(STAGE.allowed_capture_name(name))
+        self.assertFalse(STAGE.allowed_capture_name('supp-signing.keystore'))
+
+    def test_all_capture_classes_use_process_preroll_and_export_diagnostics(self):
+        for path in (ROOT / 'tools/capture/androidTest/ai/boldkeys').glob('Teaser*Test.kt'):
+            source = path.read_text()
+            self.assertIn('val gate = RecorderStartupGate()', source)
+            self.assertIn('gate.observe(SystemClock.uptimeMillis(), process, bytes != null)', source)
+            self.assertNotIn('size > 4096', source)
+            self.assertIn('rm -f "$path" || exit 1', source)
+            self.assertIn('.put("process_observations",observations)', source)
+            self.assertIn('check(alive()) { "Recorder exited during recorded actions" }', source)
+            self.assertLess(source.index('ready.getOrThrow()'), source.index('action() // Real touch'))
+            self.assertIn('kill -INT $pid', source)
+
     def fixture(self):
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)

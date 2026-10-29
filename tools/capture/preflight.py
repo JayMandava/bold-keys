@@ -22,8 +22,8 @@ STDLIB = ('argparse', 'hashlib', 'importlib.util', 'json', 'os', 'pathlib', 're'
 ASSETS = ('Nunito.ttf', 'emoji.tsv', 'words.tsv', 'words_de.tsv', 'words_fr.tsv',
           'pairs.tsv', 'pairs_de.tsv', 'pairs_fr.tsv')
 GUEST_COMMANDS = ('sh', 'screenrecord', 'screencap', 'stat', 'cat', 'kill',
-                  'mkdir', 'cp', 'ls', 'uiautomator', 'cmd', 'settings', 'ime',
-                  'wm', 'pm', 'am', 'getprop', 'pidof', 'logcat', 'input', 'id')
+                  'mkdir', 'rm', 'cp', 'ls', 'uiautomator', 'cmd', 'settings', 'ime',
+                  'wm', 'pm', 'am', 'dumpsys', 'getprop', 'pidof', 'logcat', 'input', 'id')
 
 
 def command_gaps(names, which=shutil.which):
@@ -149,6 +149,22 @@ def validate_smoke(info):
         return False
 
 
+def readable_process_identity(text):
+    try:
+        begin, end = text.index('('), text.rindex(')')
+        fields = text[end + 1:].split()
+        return (begin < end and fields[0] in ('R', 'S', 'D', 'I')
+                and int(fields[19]) >= 0)
+    except (ValueError, IndexError):
+        return False
+
+
+def handler_component(text):
+    matches = [line.strip() for line in text.splitlines()
+               if re.fullmatch(r'[A-Za-z0-9_.]+/[A-Za-z0-9_.$]+', line.strip())]
+    return matches[0] if len(matches) == 1 and not matches[0].startswith('android/') else None
+
+
 def guest_checks(root):
     # Only called after the owner-approved grant and healthy launcher gate.
     def adb(command): return run(['adb', 'shell', command], timeout=60).strip()
@@ -157,6 +173,8 @@ def guest_checks(root):
         gaps.append('guest must remain UID 2000')
     command = 'for c in ' + ' '.join(GUEST_COMMANDS) + '; do command -v "$c" >/dev/null 2>&1 || echo "$c"; done'
     gaps += ['missing guest command: ' + x for x in adb(command).splitlines() if x]
+    if not readable_process_identity(adb('cat /proc/self/stat')):
+        gaps.append('guest /proc process identity/starttime probe failed')
     if gaps:
         return {'phase': 'guest', 'gaps': gaps}
     adb('mkdir -p /sdcard/Download/bold-keys-qa')
@@ -173,7 +191,15 @@ def guest_checks(root):
     run(['ffmpeg', '-v', 'error', '-i', str(png), '-frames:v', '1', '-f', 'null', '-'])
     if not validate_smoke(info):
         gaps.append('guest AVC smoke did not decode at exact 1080x1920 with a valid frame')
+    handlers = {
+        'app_settings': handler_component(adb('cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -p com.android.settings')),
+        'link_https': handler_component(adb('cmd package resolve-activity --brief -a android.intent.action.VIEW -c android.intent.category.BROWSABLE -d https://www.android.com')),
+    }
+    # Resolve only; do not launch or contact a URL here. A handler problem must
+    # fail its independent feature test, not prevent unrelated useful captures.
+    feature_gaps = [name + ': no unambiguous installed handler' for name, value in handlers.items() if not value]
     return {'phase': 'guest', 'gaps': gaps, 'codec_smoke': info,
+            'shortcut_handlers': handlers, 'feature_readiness_gaps': feature_gaps,
             'smoke_kind': 'genuine launcher only; never stage as product footage'}
 
 

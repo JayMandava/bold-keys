@@ -8,8 +8,8 @@ Extra instrumentation and pure gesture tests are added only through
 
 ## Execution boundary
 
-The workflow runs only on the first owner-created push of
-`qa/bold-teaser-capture-20261029-2`, attempt 1, in the public upstream repository.
+The locally prepared supplemental workflow would run only on the first owner-created push of
+`qa/bold-teaser-capture-20261029-3`, attempt 1, in the public upstream repository.
 It has no manual, scheduled, PR, or downstream trigger. Do not delete/recreate
 the branch, rerun the job, or reuse historical approval. A fresh owner approval
 is required for another privileged execution.
@@ -56,7 +56,7 @@ not screenshot pixels or generated product UI. Screenshots are flattened over
 black: use the mask and undo the black matte at partial-alpha exterior edges.
 Never remove all black pixels or alter the key interiors.
 
-Recorder startup/finalization errors fail tests. Clip JSON records action
+Recorder startup/finalization errors fail tests. The supplemental class runs independent feature methods with per-test preference/dictionary restoration; it does not re-record valid original takes. Guest handler resolution is recorded without launching anything; unavailable handlers fail only their own shot. Clip JSON records action
 assertions separately. `stage_evidence.py` verifies container type, rejects ZIP
 packages even if renamed, rejects symlinks, decodes media, hashes originals,
 exports unmodified video review frames and produces a feature manifest. Only
@@ -67,3 +67,41 @@ are not artifact inputs. Public-repository artifact visibility applies.
 Decoder and assertion results are not final visual approval. Review each raw
 clip and extracted frames for visible action coverage, framing, popups and edges
 before editing. Local compilation and mock guards are not Android runtime proof.
+
+## Local supplemental preparation (not executed)
+
+Run 40824867852 preserved 15 assertion-passed clips. Its two settings recordings
+failed before actions at the old `>4096 bytes AND live process within 10s` gate;
+appearance was never reached. The exported evidence lacks the poll-by-poll
+process/byte observations needed to distinguish process exit from static-screen
+muxer buffering. Decodable finalized files do not settle that distinction.
+
+The local recorder repair removes the encoded-byte threshold. It requires the
+same non-zombie `screenrecord` process (including `/proc/PID/stat` start identity)
+and a freshly created output file throughout one second of preroll. It rejects
+PID reuse, clears only its own previous clip path before launch, checks liveness
+after actions/hold, and still requires SIGINT finalization and host decoding.
+Bounded non-secret process state/start identity/output-byte observations and the
+startup failure are exported in each recording JSON. No artificial screen
+movement is introduced. This process gate does not certify encoded frames.
+
+`supplemental-plan.json` audits remaining settings and behavioural shots, exact
+assertions, dependencies, conditional App/Link/AI readiness and physical-device
+limitations. The supplemental instrumentation and allowlist are implemented and compiled locally; Android runtime coverage remains unverified. Separate test methods must prevent one missing recording from hiding
+the next. All valid existing media stays unchanged. The published trigger is
+spent; neither this local repair nor the plan authorizes another run.
+
+
+The proposed branch-3 run captures 23 supplemental shots only. It keeps the same
+45-minute job, 32-minute access phase and 20-minute test bound, pinned actions,
+UID-only grant, exact cleanup and one-day artifact retention. There is no dispatch
+trigger. Publication and execution require fresh owner approval. Do not recreate
+branch 1 or 2, or rerun either previous workflow. No source or APK release is involved.
+
+The optional AI model stays off and is not downloaded. Link capture uses only
+https://www.android.com and asserts a resolved browser plus delivered intent, not
+a loaded page or network speed. Browser onboarding/chooser can make that shot
+unusable; it is never accepted as successful link proof. URL fields may offer
+suggestions in current source while suppressing rewriting; email/password fields
+suppress suggestions. Haptic and ambient-sensor controls do not prove physical feel
+or ambient response.
