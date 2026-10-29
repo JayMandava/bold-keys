@@ -1,0 +1,7 @@
+gradle.projectsEvaluated {
+    def app = gradle.rootProject.project(':app')
+    def configured = gradle.startParameter.projectProperties['teaserCaptureSource']
+    def capture = configured ? new File(configured) : gradle.rootProject.file('tools/capture')
+    app.android.sourceSets.androidTest.java.srcDirs(new File(capture, 'androidTest'), new File(capture, 'shared'))
+    app.android.sourceSets.maybeCreate('testDebug').java.srcDirs(new File(capture, 'unitTest'), new File(capture, 'shared'))
+}

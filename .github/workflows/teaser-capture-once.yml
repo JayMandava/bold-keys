@@ -1,0 +1,88 @@
+name: One approved Bold Keys teaser capture
+run-name: 'Approved teaser capture at ${{ github.sha }}'
+
+# One newly approved owner-created branch push. Never recreate, rerun or broaden it.
+'on':
+  push:
+    branches: [qa/bold-teaser-capture-20261029-1]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bold-teaser-capture-20261029-1
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  capture:
+    if: github.repository == 'JayMandava/bold-keys' && github.event.repository.private == false && github.actor == 'JayMandava' && github.ref == 'refs/heads/qa/bold-teaser-capture-20261029-1' && github.event.created == true && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+          submodules: recursive
+      - name: Verify corrected product source and ordinary device baseline
+        run: |
+          mkdir -p qa-artifacts capture-output
+          python3 tools/capture/verify_source.py
+          python3 tools/capture/kvm_access.py check
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install official Android tools using preaccepted licenses only
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install \
+            'platforms;android-36' 'build-tools;35.0.0' 'build-tools;36.0.0' \
+            'ndk;27.0.12077973' 'cmake;3.22.1' 'platform-tools' 'emulator' \
+            'system-images;android-35;google_apis;x86_64' </dev/null
+          command -v ffmpeg
+          command -v ffprobe
+      - name: Validate capture guards and compile before any device grant
+        run: |
+          python3 -m unittest discover -s tests -p 'test_*.py'
+          ./gradlew --no-daemon --no-configuration-cache --max-workers=2 --console=plain \
+            -PunsignedRelease=true -Pkotlin.compiler.execution.strategy=in-process \
+            --init-script tools/capture/capture.gradle \
+            testDebugUnitTest testReleaseUnitTest lintDebug assembleDebug assembleDebugAndroidTest
+      - name: Use the single approved runner ACL and capture genuine Android media
+        timeout-minutes: 32
+        run: |
+          cleanup() {
+            result=$?
+            trap - EXIT
+            python3 tools/capture/kvm_access.py cleanup || exit 1
+            exit "$result"
+          }
+          trap cleanup EXIT
+          trap 'exit 130' INT
+          trap 'exit 143' TERM
+          python3 tools/capture/kvm_access.py grant
+          bash tools/capture/run-capture.sh
+      - name: Always stop owned emulator and verify exact original device ACL
+        if: always()
+        run: |
+          if [[ -f tools/capture/kvm_access.py ]]; then
+            python3 tools/capture/kvm_access.py cleanup
+          fi
+      - name: Validate and stage only capture media, manifest and cleanup proof
+        id: stage
+        if: always()
+        run: python3 tools/capture/stage_evidence.py
+      - name: Upload one-day capture evidence only, never application binaries
+        if: always() && steps.stage.outcome == 'success'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: bold-teaser-capture-${{ github.sha }}-${{ github.run_id }}
+          path: teaser-public-evidence/
+          retention-days: 1
+          compression-level: 1
+          if-no-files-found: error

@@ -1,0 +1,138 @@
+{
+  "product_source_sha": "ce23cf74526b4864201d38503d2c9ad233d1787d",
+  "public_release_reference": "v0.6.1",
+  "clips": [
+    {
+      "clip": "01-black-typing.mp4",
+      "classification": "public",
+      "feature": "Black theme, actual key presses and suggestions",
+      "verification_scope": "Exact neutral phrase asserted; screenshots show real suggestion strip",
+      "status": "planned_not_runtime_verified"
+    },
+    {
+      "clip": "02-black-trackpad-cursor.mp4",
+      "classification": "public",
+      "feature": "Centre trackpad cursor control",
+      "verification_scope": "Each real 28dp paced drag must move editor cursor exactly two characters",
+      "status": "planned_not_runtime_verified"
+    },
+    {
+      "clip": "03-black-shift-selection.mp4",
+      "classification": "public",
+      "feature": "Left Shift plus trackpad selects text",
+      "verification_scope": "Actual multi-pointer touch; nonempty selection asserted",
+      "status": "planned_not_runtime_verified"
+    },
+    {
+      "clip": "04-white-caps-lock.mp4",
+      "classification": "public",
+      "feature": "White theme and hold-Shift Caps Lock",
+      "verification_scope": "Caps state asserted before uppercase typing; ordinary tap unlock",
+      "status": "planned_not_runtime_verified"
+    },
+    {
+      "clip": "05-white-symbol-picker.mp4",
+      "classification": "public",
+      "feature": "Symbol picker pages and close",
+      "verification_scope": "Open state asserted; actual More and Close controls",
+      "status": "planned_not_runtime_verified"
+    },
+    {
+      "clip": "06-white-emoji-picker.mp4",
+      "classification": "public",
+      "feature": "Emoji picker and categories",
+      "verification_scope": "Quick right-key tap opens emoji with emojiPages enabled; no contradictory Shift claim",
+      "status": "planned_not_runtime_verified"
+    },
+    {
+      "clip": "07-settings-typing.mp4",
+      "classification": "public",
+      "feature": "QWERTY/QWERTZ layout selection",
+      "verification_scope": "Actual settings controls; QWERTY restored afterward",
+      "status": "planned_not_runtime_verified"
+    },
+    {
+      "clip": "08-settings-appearance.mp4",
+      "classification": "public",
+      "feature": "Appearance, key size and backlight settings",
+      "verification_scope": "Real settings montage; no physical-light-sensor claim",
+      "status": "planned_not_runtime_verified"
+    },
+    {
+      "clip": "09-speed-key-snippet.mp4",
+      "classification": "public",
+      "feature": "Configured Speed-key text shortcut",
+      "verification_scope": "Snippet configured as staging, then actual held-right-key plus B inserts exact text",
+      "status": "planned_not_runtime_verified"
+    },
+    {
+      "clip": "10-long-press-accents.mp4",
+      "classification": "public",
+      "feature": "Long-press accents",
+      "verification_scope": "Actual chooser visibility asserted, then touch slides to first accent",
+      "status": "planned_not_runtime_verified"
+    },
+    {
+      "clip": "11-alt-symbols.mp4",
+      "classification": "public",
+      "feature": "Alt and printed secondary symbols",
+      "verification_scope": "Actual modifier/key events",
+      "status": "planned_not_runtime_verified"
+    },
+    {
+      "clip": "12-suggestions-autocorrect.mp4",
+      "classification": "public",
+      "feature": "Dictionary suggestions, correction and undo",
+      "verification_scope": "Nonempty suggestions; teh -> the at space; backspace restores original typo",
+      "status": "planned_not_runtime_verified"
+    },
+    {
+      "clip": "13-emoji-tones-recents-delete.mp4",
+      "classification": "public",
+      "feature": "Skin tones, recent emoji and picker delete",
+      "verification_scope": "Actual visible tone-capable tile found by category navigation; chooser, insertion, recents and deletion asserted",
+      "status": "planned_not_runtime_verified"
+    },
+    {
+      "clip": "14-settings-language-keyfeel-shortcuts.mp4",
+      "classification": "public",
+      "feature": "Language/dictionary, haptic settings, App/Link/Text shortcut choices",
+      "verification_scope": "Settings-only evidence; no physical haptic or external app/link execution claim",
+      "status": "planned_not_runtime_verified"
+    },
+    {
+      "clip": "15-currency-trackpad-volume.mp4",
+      "classification": "public",
+      "feature": "Held currency key plus trackpad changes media volume",
+      "verification_scope": "Actual AudioManager state change asserted; no audible-output claim",
+      "status": "planned_not_runtime_verified"
+    },
+    {
+      "clip": "dev-red.mp4",
+      "classification": "development-preview",
+      "feature": "Red colour",
+      "verification_scope": "Corrected source; no straight top frame segment; unreleased Coming Soon label required",
+      "status": "planned_not_runtime_verified"
+    },
+    {
+      "clip": "dev-black-gold.mp4",
+      "classification": "development-preview",
+      "feature": "Black & Gold colour",
+      "verification_scope": "Corrected source; unreleased Coming Soon label required",
+      "status": "planned_not_runtime_verified"
+    },
+    {
+      "clip": "dev-white-gold.mp4",
+      "classification": "development-preview",
+      "feature": "White & Gold colour",
+      "verification_scope": "Corrected source; unreleased Coming Soon label required",
+      "status": "planned_not_runtime_verified"
+    }
+  ],
+  "excluded_claims": [
+    "Voice typing does not exist",
+    "Optional English-only contextual AI is off by default and not demonstrated",
+    "No physical haptic/audio, ARM64 physical-device timing, real phone installation or production release validation"
+  ],
+  "rendering": "Raw screenshots/MP4 unchanged. Auxiliary masks use real runtime body/frame Paths; black keys must remain intact. Review frames and final edge compositing before editing/publishing."
+}
