@@ -66,3 +66,15 @@ The manual **Protected Android release** workflow builds on a standard `ubuntu-2
 - [GitHub Actions secrets](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets)
 - [GitHub Actions billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions)
 - [Android apksigner](https://developer.android.com/tools/apksigner) and [zipalign](https://developer.android.com/tools/zipalign)
+
+## Nonpublishing protected Play AAB validation
+
+The locally prepared `play-bundle.yml` workflow extends the protected release design for AABs. It has **no publish operation, contents-write permission, Git tag/release creation or Play API step**. The APK workflow remains unchanged.
+
+After separately authorized review/merge to main, an owner may dispatch **Protected Play bundle validation** with the exact current-main SHA and version. Both jobs reuse the existing main/repository/source-version and `production-release` environment checks from `release.py`; the sign job rechecks them after owner approval. The environment configuration, required reviewer, bypass prohibition and main-only policy are not changed by this code.
+
+The secret-free job tests/lints/builds `bundleRelease`, validates package/version/SDK/non-debuggable/base-module metadata, expected arm64 native libraries and ELF alignment, 16 KB APK-alignment configuration, unsigned status and provenance. Bundletool 1.18.3 is pinned by SHA-256 in both jobs. The sign job downloads the exact artifact ID with a manifest hash, verifies it before credentials are available, then uses only JDK jarsigner with the existing four step-local production secret names. No Gradle, Java source launcher or repository script runs in the secret-bearing step; key/log cleanup is trapped and repeated by an always-run cleanup step.
+
+After signing, a key-free Java JarFile verifier reads every payload to verify its digest, requires exactly one signer on each payload, checks certificate validity and requires the pinned existing certificate SHA-256 `b237e1aec0bfdae579caebe1a0d97517af1b7c066adc4b3d197b641adfa46c34`. It rejects partially signed bundles and unknown signers; it does not require a public CA for the pinned self-signed certificate. Structure and provenance are checked again, then only AAB/checksum/provenance/notes are retained for one day. The workflow shares the APK workflow's concurrency group.
+
+Actual positive production AAB signing remains untested until an explicitly authorized owner-approved run. No dummy key is generated for tests. Missing/malformed/debug-alias fixture checks are secret-free. Before approving any run as a distribution candidate, resolve [corpus rights and attribution decisions](THIRD_PARTY_REVIEW.md); improved license notices alone are not legal clearance. Confirm Play App Signing/upload-key expectations separately without enrolling or changing keys as part of this workflow.

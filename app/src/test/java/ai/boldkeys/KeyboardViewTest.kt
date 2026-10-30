@@ -235,6 +235,44 @@ class KeyboardViewTest {
     }
 
     @Test
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun incognitoEmojiSelectionTypesWithoutUpdatingHistory() {
+        keyboard.personalizedLearningAllowed = false
+        tap(speed)
+        val geo = KeyboardView::class.java.getDeclaredMethod("pickGeo").apply { isAccessible = true }.invoke(keyboard)!!
+        val grid = field(geo, "grid") as RectF
+        val cell = RectF(grid.left, grid.top, grid.left + (field(geo, "cw") as Float), grid.top + (field(geo, "ch") as Float))
+        tap(cell)
+        assertTrue(typed.isNotEmpty())
+        assertEquals("", Prefs.string(activity, "emojiRecent", ""))
+        keyboard.personalizedLearningAllowed = true
+        tap(cell)
+        assertTrue(Prefs.string(activity, "emojiRecent", "").isNotEmpty())
+    }
+
+    @Test
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun incognitoToneChoiceTypesWithoutRememberingToneOrHistory() {
+        keyboard.personalizedLearningAllowed = false
+        tap(speed)
+        val bases = field(keyboard, "pickBases") as List<*>
+        val index = bases.indexOfFirst { it is Emoji.Item && it.tones.isNotEmpty() }
+        assertTrue("Native emoji font should have a tone-capable item", index >= 0)
+        val item = bases[index] as Emoji.Item
+        val cellField = KeyboardView::class.java.getDeclaredField("pCell").apply { isAccessible = true }
+        val toneField = KeyboardView::class.java.getDeclaredField("toneIndex").apply { isAccessible = true }
+        val choose = KeyboardView::class.java.getDeclaredMethod("chooseTone").apply { isAccessible = true }
+        cellField.setInt(keyboard, index); toneField.setInt(keyboard, 1); choose.invoke(keyboard)
+        assertEquals(item.tones[0], typed.last())
+        assertEquals("", Prefs.string(activity, "emojiTones", ""))
+        assertEquals("", Prefs.string(activity, "emojiRecent", ""))
+        keyboard.personalizedLearningAllowed = true
+        cellField.setInt(keyboard, index); toneField.setInt(keyboard, 2); choose.invoke(keyboard)
+        assertTrue(Prefs.string(activity, "emojiTones", "").contains(item.plain + "=2"))
+        assertTrue(Prefs.string(activity, "emojiRecent", "").isNotEmpty())
+    }
+
+    @Test
     @GraphicsMode(GraphicsMode.Mode.NATIVE) // Emoji.load filters with Paint.hasGlyph; legacy shadows have no emoji font.
     fun emojiCloseMoreAndDeleteHaveIndependentHitTargets() {
         tap(speed)
