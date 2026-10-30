@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "status": "blocked_unverified_official_tool",
+  "expected_certificate_sha256": "b237e1aec0bfdae579caebe1a0d97517af1b7c066adc4b3d197b641adfa46c34",
+  "official_source_url": "https://www.gstatic.com/play-apps-publisher-rapid/signing-tool/prod/pepk-src.jar",
+  "official_source_sha256": null,
+  "console_tool_sha256": null,
+  "console_encryption_pem_sha256": null,
+  "password_input_source_verified": false,
+  "encryption_and_output_source_verified": false
+}
