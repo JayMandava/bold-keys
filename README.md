@@ -43,6 +43,12 @@ AndroidX EmojiCompat may ask a system provider for an emoji font. That provider 
 
 Learned words, preferences, shortcuts and emoji history are kept in app-private storage, without app-level file encryption. Password/email/address and no-personalized-learning protection depends on the editor reporting its input type/flags correctly. Settings > About contains the privacy-policy link and offline Licenses & credits. No analytics, ads, billing or crash-upload SDK is included in the resolved production dependencies.
 
+## Prediction data review
+
+The review candidate replaces the old next-word tables with pinned Common Voice Sentence Collector inputs and small explicit chat priors. It keeps offline English/French/German next-word hints and the existing TSV/runtime format. The three spelling/frequency dictionaries are byte-for-byte unchanged and now have reproducible pinned-source recipes.
+
+This is a trade-off, not a claim of equal prediction quality: rare contexts can lose hints or offer one instead of two, German context coverage is lower, and limited chat diagnostics overlap the seed design. See [the coverage, synthetic scenarios and exploratory split comparison](docs/PREDICTION_DATA_REVIEW.md) before a shipping decision. No new next-word choice is automatically inserted as an autocorrection.
+
 ## Context models
 
 Settings > Context model lists the models you can use. Each download is checked against a fixed SHA-256 before it is kept, and
@@ -82,14 +88,13 @@ Run the focused keyboard regression tests (Robolectric, no connected phone requi
 ./gradlew testDebugUnitTest lintDebug
 ```
 
-For production releases and nonpublishing AAB validation, see [Protected cloud releases](docs/CLOUD_RELEASE.md). Review [third-party distribution blockers](docs/THIRD_PARTY_REVIEW.md) before approving any signing/distribution run. Release builds never fall back to a debug signing key; `-PunsignedRelease=true` explicitly creates an unsigned candidate for separate production signing.
+For production releases and nonpublishing AAB validation, see [Protected cloud releases](docs/CLOUD_RELEASE.md). Review [third-party terms and data provenance](docs/THIRD_PARTY_REVIEW.md) before approving any signing/distribution run. Release builds never fall back to a debug signing key; `-PunsignedRelease=true` explicitly creates an unsigned candidate for separate production signing.
 
 The debug build also contains two measurement screens, `EvalActivity` (dictionary) and `ContextEvalActivity` (context model).
 
 ## Credits
 
-- Word frequencies: the OpenSubtitles-based [FrequencyWords](https://github.com/hermitdave/FrequencyWords) list (CC BY-SA 4.0); word-pair
-  counts from Peter Norvig's n-gram data.
+- Word frequencies: the OpenSubtitles-based [FrequencyWords](https://github.com/hermitdave/FrequencyWords) list (CC BY-SA 4.0); next-word source text from Common Voice Sentence Collector (CC0), with FrequencyWords-informed generated data and project chat choices retaining CC BY-SA 4.0.
 - Typeface: Nunito (SIL Open Font License).
 - Inference: [llama.cpp](https://github.com/ggml-org/llama.cpp) (MIT). Models are downloaded, not bundled, and keep their own licences
   (Gemma is under the Gemma terms).

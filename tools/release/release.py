@@ -13,6 +13,9 @@ import urllib.parse
 import urllib.request
 import zipfile
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import data_pipeline
+
 REPO = 'JayMandava/bold-keys'
 ENVIRONMENT = 'production-release'
 CERT = 'b237e1aec0bfdae579caebe1a0d97517af1b7c066adc4b3d197b641adfa46c34'
@@ -138,6 +141,7 @@ def verify_apk(path, version, code, signed):
     run(str(build_tools / 'zipalign'), '-c', '-P', '16', '4', str(path))
     with zipfile.ZipFile(path) as archive:
         require(archive.testzip() is None, 'Corrupt APK')
+        data_pipeline.verify_archive(archive, 'assets/')
         require({name.split('/')[1] for name in archive.namelist() if name.startswith('lib/') and name.endswith('.so')} == {'arm64-v8a'}, 'Unexpected native library ABI')
         if not signed:
             require(not any(re.match(r'META-INF/.*\.(RSA|DSA|EC|SF)$', name, re.I) for name in archive.namelist()), 'Unsigned candidate contains a JAR signature')

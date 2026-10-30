@@ -1,0 +1,719 @@
+{
+  "schema": 1,
+  "provenance": "New project-maintained synthetic choices authored for this review, 2026-10-30 (AI-assisted). No external examples or old next-word rows were copied. These are explicit chat priors, not measured corpus frequencies.",
+  "license": "CC-BY-SA-4.0 for these newly authored project data contributions, compatible with FrequencyWords-informed generated data. Common Voice source material remains CC0-1.0. Generator/application code remains Apache-2.0.",
+  "en": {
+    "i": [
+      "am",
+      "will",
+      "can",
+      "have"
+    ],
+    "you": [
+      "can",
+      "are",
+      "have",
+      "will"
+    ],
+    "we": [
+      "can",
+      "are",
+      "will",
+      "have"
+    ],
+    "they": [
+      "are",
+      "will",
+      "can",
+      "have"
+    ],
+    "it": [
+      "is",
+      "was",
+      "will",
+      "looks"
+    ],
+    "this": [
+      "is",
+      "looks",
+      "will"
+    ],
+    "that": [
+      "is",
+      "sounds",
+      "was"
+    ],
+    "can": [
+      "you",
+      "we",
+      "i"
+    ],
+    "could": [
+      "you",
+      "we",
+      "i"
+    ],
+    "would": [
+      "you",
+      "like",
+      "be"
+    ],
+    "please": [
+      "send",
+      "check",
+      "let",
+      "call"
+    ],
+    "thanks": [
+      "for",
+      "again"
+    ],
+    "thank": [
+      "you"
+    ],
+    "hello": [
+      "there",
+      "again"
+    ],
+    "good": [
+      "morning",
+      "evening",
+      "night",
+      "idea"
+    ],
+    "see": [
+      "you",
+      "the"
+    ],
+    "talk": [
+      "soon",
+      "later",
+      "about"
+    ],
+    "let": [
+      "me",
+      "us"
+    ],
+    "let's": [
+      "meet",
+      "go",
+      "try"
+    ],
+    "me": [
+      "know",
+      "the",
+      "a"
+    ],
+    "send": [
+      "me",
+      "the",
+      "a"
+    ],
+    "call": [
+      "me",
+      "you",
+      "back"
+    ],
+    "meet": [
+      "at",
+      "tomorrow",
+      "near"
+    ],
+    "meeting": [
+      "at",
+      "tomorrow",
+      "starts"
+    ],
+    "on": [
+      "my",
+      "the",
+      "your"
+    ],
+    "my": [
+      "way",
+      "phone",
+      "friend"
+    ],
+    "running": [
+      "late",
+      "well"
+    ],
+    "will": [
+      "be",
+      "call",
+      "send",
+      "check"
+    ],
+    "am": [
+      "ready",
+      "here",
+      "sorry"
+    ],
+    "are": [
+      "you",
+      "we",
+      "ready"
+    ],
+    "have": [
+      "a",
+      "the",
+      "you"
+    ],
+    "need": [
+      "to",
+      "a",
+      "some"
+    ],
+    "want": [
+      "to",
+      "a"
+    ],
+    "like": [
+      "to",
+      "the",
+      "a"
+    ],
+    "how": [
+      "are",
+      "can",
+      "was"
+    ],
+    "what": [
+      "time",
+      "is",
+      "do"
+    ],
+    "when": [
+      "can",
+      "will",
+      "is"
+    ],
+    "where": [
+      "is",
+      "are",
+      "can"
+    ],
+    "sorry": [
+      "about",
+      "for"
+    ],
+    "happy": [
+      "birthday",
+      "to"
+    ],
+    "take": [
+      "care",
+      "a",
+      "the"
+    ],
+    "looking": [
+      "forward",
+      "for"
+    ],
+    "forward": [
+      "to"
+    ],
+    "no": [
+      "problem",
+      "worries"
+    ],
+    "sounds": [
+      "good",
+      "great"
+    ]
+  },
+  "fr": {
+    "je": [
+      "suis",
+      "vais",
+      "peux",
+      "voudrais"
+    ],
+    "tu": [
+      "peux",
+      "es",
+      "as",
+      "veux"
+    ],
+    "nous": [
+      "sommes",
+      "pouvons",
+      "avons"
+    ],
+    "vous": [
+      "pouvez",
+      "êtes",
+      "avez",
+      "voulez"
+    ],
+    "il": [
+      "est",
+      "faut",
+      "va"
+    ],
+    "elle": [
+      "est",
+      "va",
+      "a"
+    ],
+    "on": [
+      "peut",
+      "se",
+      "va"
+    ],
+    "ce": [
+      "soir",
+      "matin",
+      "sera"
+    ],
+    "suis": [
+      "prêt",
+      "là",
+      "désolé"
+    ],
+    "vais": [
+      "bien",
+      "arriver",
+      "envoyer"
+    ],
+    "ai": [
+      "besoin",
+      "une",
+      "un"
+    ],
+    "as": [
+      "besoin",
+      "une",
+      "un"
+    ],
+    "peux": [
+      "tu",
+      "vous",
+      "venir"
+    ],
+    "pouvez": [
+      "vous",
+      "venir",
+      "envoyer"
+    ],
+    "pourrais": [
+      "tu",
+      "vous"
+    ],
+    "bonjour": [
+      "à",
+      "tout"
+    ],
+    "bon": [
+      "matin",
+      "soir",
+      "voyage"
+    ],
+    "bonne": [
+      "journée",
+      "soirée",
+      "nuit"
+    ],
+    "merci": [
+      "beaucoup",
+      "pour",
+      "encore"
+    ],
+    "salut": [
+      "à",
+      "tout"
+    ],
+    "à": [
+      "bientôt",
+      "demain",
+      "la"
+    ],
+    "bientôt": [
+      "pour",
+      "à"
+    ],
+    "comment": [
+      "vas",
+      "allez",
+      "faire"
+    ],
+    "vas": [
+      "tu",
+      "bien"
+    ],
+    "allez": [
+      "vous",
+      "bien"
+    ],
+    "quelle": [
+      "heure",
+      "bonne"
+    ],
+    "quel": [
+      "jour",
+      "bon"
+    ],
+    "est": [
+      "ce",
+      "possible",
+      "prêt"
+    ],
+    "pas": [
+      "de",
+      "encore",
+      "possible"
+    ],
+    "de": [
+      "rien",
+      "la",
+      "mon"
+    ],
+    "besoin": [
+      "de"
+    ],
+    "peut": [
+      "on",
+      "être",
+      "venir"
+    ],
+    "demain": [
+      "matin",
+      "soir",
+      "à"
+    ],
+    "rendez": [
+      "vous"
+    ],
+    "réunion": [
+      "à",
+      "demain",
+      "de"
+    ],
+    "envoyer": [
+      "le",
+      "un",
+      "une"
+    ],
+    "appeler": [
+      "demain",
+      "le"
+    ],
+    "désolé": [
+      "pour",
+      "du"
+    ],
+    "bonsoir": [
+      "à",
+      "tout"
+    ],
+    "avec": [
+      "plaisir",
+      "vous",
+      "toi"
+    ],
+    "tout": [
+      "va",
+      "est",
+      "le"
+    ],
+    "va": [
+      "bien",
+      "arriver"
+    ],
+    "bien": [
+      "merci",
+      "sûr"
+    ],
+    "très": [
+      "bien",
+      "vite",
+      "bon"
+    ],
+    "retard": [
+      "de",
+      "pour"
+    ]
+  },
+  "de": {
+    "ich": [
+      "bin",
+      "habe",
+      "kann",
+      "werde"
+    ],
+    "du": [
+      "kannst",
+      "bist",
+      "hast",
+      "willst"
+    ],
+    "wir": [
+      "können",
+      "sind",
+      "haben",
+      "werden"
+    ],
+    "ihr": [
+      "könnt",
+      "seid",
+      "habt"
+    ],
+    "sie": [
+      "können",
+      "ist",
+      "sind",
+      "haben"
+    ],
+    "es": [
+      "ist",
+      "war",
+      "wird"
+    ],
+    "das": [
+      "ist",
+      "klingt",
+      "war"
+    ],
+    "bin": [
+      "bereit",
+      "da",
+      "gleich"
+    ],
+    "habe": [
+      "eine",
+      "einen",
+      "ich"
+    ],
+    "kann": [
+      "ich",
+      "man",
+      "kommen"
+    ],
+    "kannst": [
+      "du",
+      "morgen",
+      "heute"
+    ],
+    "können": [
+      "wir",
+      "sie",
+      "kommen"
+    ],
+    "könnt": [
+      "ihr",
+      "kommen"
+    ],
+    "bitte": [
+      "schick",
+      "sende",
+      "ruf",
+      "prüfe"
+    ],
+    "danke": [
+      "für",
+      "dir",
+      "nochmals"
+    ],
+    "vielen": [
+      "dank",
+      "grüßen"
+    ],
+    "guten": [
+      "morgen",
+      "abend",
+      "tag"
+    ],
+    "gute": [
+      "nacht",
+      "reise",
+      "idee"
+    ],
+    "hallo": [
+      "zusammen",
+      "nochmal"
+    ],
+    "bis": [
+      "bald",
+      "morgen",
+      "später"
+    ],
+    "wie": [
+      "geht",
+      "kann",
+      "war"
+    ],
+    "geht": [
+      "es",
+      "das",
+      "gut"
+    ],
+    "wann": [
+      "können",
+      "ist",
+      "kann"
+    ],
+    "wo": [
+      "ist",
+      "sind",
+      "können"
+    ],
+    "welche": [
+      "zeit",
+      "uhrzeit",
+      "frage"
+    ],
+    "um": [
+      "wie",
+      "die",
+      "zehn"
+    ],
+    "treffen": [
+      "wir",
+      "uns",
+      "morgen"
+    ],
+    "uns": [
+      "morgen",
+      "bald",
+      "am"
+    ],
+    "am": [
+      "morgen",
+      "abend",
+      "montag"
+    ],
+    "morgen": [
+      "früh",
+      "abend",
+      "um"
+    ],
+    "heute": [
+      "abend",
+      "morgen",
+      "noch"
+    ],
+    "werde": [
+      "ich",
+      "kommen",
+      "anrufen"
+    ],
+    "melde": [
+      "mich",
+      "dich"
+    ],
+    "mich": [
+      "später",
+      "morgen",
+      "bei"
+    ],
+    "auf": [
+      "dem",
+      "der",
+      "den"
+    ],
+    "dem": [
+      "weg",
+      "tisch"
+    ],
+    "kein": [
+      "problem",
+      "stress"
+    ],
+    "alles": [
+      "klar",
+      "gut",
+      "gute"
+    ],
+    "tut": [
+      "mir",
+      "gut"
+    ],
+    "mir": [
+      "leid",
+      "bitte",
+      "die"
+    ],
+    "leider": [
+      "nicht",
+      "keine",
+      "kann"
+    ],
+    "brauche": [
+      "ich",
+      "eine",
+      "einen"
+    ],
+    "schick": [
+      "mir",
+      "bitte"
+    ],
+    "sende": [
+      "mir",
+      "bitte"
+    ],
+    "freue": [
+      "mich",
+      "ich"
+    ],
+    "freuen": [
+      "uns",
+      "sich"
+    ]
+  },
+  "preferred_chat_contexts": {
+    "en": [
+      "please",
+      "thanks",
+      "thank",
+      "hello",
+      "good",
+      "see",
+      "talk",
+      "let's",
+      "send",
+      "call",
+      "meeting",
+      "running",
+      "sorry",
+      "happy",
+      "take",
+      "looking",
+      "forward",
+      "sounds"
+    ],
+    "fr": [
+      "bonjour",
+      "bon",
+      "bonne",
+      "merci",
+      "salut",
+      "comment",
+      "quelle",
+      "quel",
+      "demain",
+      "rendez",
+      "réunion",
+      "envoyer",
+      "désolé",
+      "bonsoir",
+      "retard"
+    ],
+    "de": [
+      "bitte",
+      "danke",
+      "vielen",
+      "guten",
+      "gute",
+      "hallo",
+      "bis",
+      "treffen",
+      "melde",
+      "kein",
+      "alles",
+      "schick",
+      "sende",
+      "freue",
+      "freuen"
+    ]
+  }
+}

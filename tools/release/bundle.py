@@ -15,6 +15,9 @@ import release
 
 BUNDLETOOL_SHA256 = 'a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29'
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / 'tools'))
+import data_pipeline
+
 A = '{http://schemas.android.com/apk/res/android}'
 
 
@@ -58,6 +61,7 @@ def verify_bundle(path, version, code, signed):
     config = json.loads(run('java', '-jar', tool, 'dump', 'config', '--bundle=' + str(path)))
     release.require(config.get('optimizations', {}).get('uncompressNativeLibraries', {}).get('alignment') == 'PAGE_ALIGNMENT_16K', 'Bundle must request 16 KB APK alignment')
     with zipfile.ZipFile(path) as archive:
+        data_pipeline.verify_archive(archive, 'base/assets/')
         names = archive.namelist()
         release.require(len(names) == len(set(names)) and archive.testzip() is None, 'Duplicate or corrupt bundle ZIP entries')
         release.require([n for n in names if n.endswith('/manifest/AndroidManifest.xml')] == ['base/manifest/AndroidManifest.xml'], 'Only the base module is expected')

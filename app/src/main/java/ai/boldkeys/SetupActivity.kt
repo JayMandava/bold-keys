@@ -591,7 +591,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.aboutItems(context: C
                 }
             }) { Text("Privacy policy (opens in browser)") }
             TextButton(onClick = openLicenses) { Text("Licenses & credits (available offline)") }
-            Note("English, French and German word frequencies come from FrequencyWords/OpenSubtitles (CC BY-SA 4.0); French and German next-word hints come from Tatoeba sentences (CC BY 2.0 FR), and English hints from Peter Norvig's n-gram data. Nunito uses the SIL Open Font License. The offline credits include source details and separate third-party terms.")
+            Note("English, French and German word frequencies come from FrequencyWords/OpenSubtitles (CC BY-SA 4.0); Next-word hints use Common Voice text (CC0), FrequencyWords dictionaries and project chat choices; generated data keep CC BY-SA 4.0 terms. Nunito uses the SIL Open Font License. The offline credits include source details and separate third-party terms.")
             Note("Inspired by the classic BlackBerry Bold 9900 keyboard. BlackBerry is a trademark of its owner; this app is independent and is not affiliated with or endorsed by BlackBerry.")
         }
     }
@@ -607,6 +607,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.licenseItems(context:
         "llama.cpp / ggml — MIT" to "llama-MIT.txt",
         "AndroidX graphics path notices" to "graphics-path-NOTICE.txt",
         "Kotlin runtime third-party notices" to "Kotlin-runtime-NOTICES.txt",
+        "Common Voice data — CC0" to "CommonVoice-CC0.txt",
     )
     files.forEach { (title, file) ->
         item(key = file) {

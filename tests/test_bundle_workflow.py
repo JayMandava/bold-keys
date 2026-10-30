@@ -69,7 +69,7 @@ class BundleChecks(unittest.TestCase):
                         archive.writestr('extra/manifest/AndroidManifest.xml', b'fixture')
                     if variant == 'signature':
                         archive.writestr('META-INF/FIXTURE.SF', b'not-a-signature')
-                with patch.dict(os.environ, {'BUNDLETOOL_JAR': str(tool)}), patch.object(bundle.release, 'sha', return_value=bundle.BUNDLETOOL_SHA256), patch.object(bundle, 'run', side_effect=['validated', MANIFEST, config, 'unsigned']) as run:
+                with patch.dict(os.environ, {'BUNDLETOOL_JAR': str(tool)}), patch.object(bundle.release, 'sha', return_value=bundle.BUNDLETOOL_SHA256), patch.object(bundle, 'run', side_effect=['validated', MANIFEST, config, 'unsigned']) as run, patch.object(bundle.data_pipeline, 'verify_archive'):
                     if variant == 'valid':
                         bundle.verify_bundle(path, '0.6.2', 10, False)
                         self.assertEqual(run.call_args.args[-1], bundle.release.CERT)

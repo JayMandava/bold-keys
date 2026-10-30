@@ -1,0 +1,1187 @@
+{
+  "baseline_commit": "5f46a180d8cbd6b9ddca18bc104827cc94612dd1",
+  "limitations": [
+    "No old rows or prediction strings are exported; only aggregate metrics and synthetic-case hit flags.",
+    "Unigram-weighted context coverage is a proxy, not measured typing frequency or suggestion quality.",
+    "Common Voice prompts differ from real messaging and may overlap old source material; this is not an independent real-user benchmark.",
+    "Chat diagnostics intentionally overlap seed design and are not a generalization score.",
+    "This exploratory split was used to compare source/count/backoff policies, so it is not an untouched model-selection test.",
+    "The model uses one previous word; full synthetic prefixes are explanatory context only."
+  ],
+  "languages": {
+    "en": {
+      "old": {
+        "contexts": 10777,
+        "follower_slots": 32144,
+        "bytes": 224643
+      },
+      "replacement": {
+        "contexts": 9415,
+        "follower_slots": 33474,
+        "bytes": 225882,
+        "single_follower_contexts": 426
+      },
+      "retained_old_contexts": 6646,
+      "old_context_unigram_weight_coverage": 0.9769673029022882,
+      "training_prompts": 49318,
+      "heldout_prompts": 12183,
+      "heldout": {
+        "old": {
+          "top2_hits": 13577,
+          "eligible_transitions": 83288,
+          "top2_hit_rate": 0.16301267889732013,
+          "context_coverage_rate": 0.9360532129478436
+        },
+        "replacement_train_only": {
+          "top2_hits": 15092,
+          "eligible_transitions": 83288,
+          "top2_hit_rate": 0.181202574200365,
+          "context_coverage_rate": 0.9481557967534339
+        }
+      },
+      "synthetic_categories": {
+        "chat": {
+          "cases": 12,
+          "old_top2_hits": 3,
+          "replacement_top2_hits": 9
+        },
+        "general": {
+          "cases": 8,
+          "old_top2_hits": 6,
+          "replacement_top2_hits": 6
+        },
+        "tail": {
+          "cases": 5,
+          "old_top2_hits": 1,
+          "replacement_top2_hits": 0
+        }
+      },
+      "synthetic_cases": [
+        {
+          "category": "chat",
+          "synthetic_prefix": "Good ",
+          "context": "good",
+          "expected": [
+            "morning"
+          ],
+          "replacement_top2": [
+            "morning",
+            "evening"
+          ],
+          "old_top2_hit": false,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "chat",
+          "synthetic_prefix": "Thank ",
+          "context": "thank",
+          "expected": [
+            "you"
+          ],
+          "replacement_top2": [
+            "you",
+            "god"
+          ],
+          "old_top2_hit": true,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "chat",
+          "synthetic_prefix": "Thanks ",
+          "context": "thanks",
+          "expected": [
+            "for"
+          ],
+          "replacement_top2": [
+            "for",
+            "again"
+          ],
+          "old_top2_hit": true,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "chat",
+          "synthetic_prefix": "Please ",
+          "context": "please",
+          "expected": [
+            "send"
+          ],
+          "replacement_top2": [
+            "send",
+            "check"
+          ],
+          "old_top2_hit": false,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "chat",
+          "synthetic_prefix": "I'm running ",
+          "context": "running",
+          "expected": [
+            "late"
+          ],
+          "replacement_top2": [
+            "late",
+            "well"
+          ],
+          "old_top2_hit": false,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "chat",
+          "synthetic_prefix": "Sounds ",
+          "context": "sounds",
+          "expected": [
+            "good"
+          ],
+          "replacement_top2": [
+            "good",
+            "great"
+          ],
+          "old_top2_hit": false,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "chat",
+          "synthetic_prefix": "Looking ",
+          "context": "looking",
+          "expected": [
+            "forward"
+          ],
+          "replacement_top2": [
+            "forward",
+            "for"
+          ],
+          "old_top2_hit": false,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "chat",
+          "synthetic_prefix": "See ",
+          "context": "see",
+          "expected": [
+            "you"
+          ],
+          "replacement_top2": [
+            "you",
+            "the"
+          ],
+          "old_top2_hit": false,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "chat",
+          "synthetic_prefix": "I'm on my ",
+          "context": "my",
+          "expected": [
+            "way"
+          ],
+          "replacement_top2": [
+            "dear",
+            "life"
+          ],
+          "old_top2_hit": false,
+          "replacement_top2_hit": false
+        },
+        {
+          "category": "chat",
+          "synthetic_prefix": "Let ",
+          "context": "let",
+          "expected": [
+            "me"
+          ],
+          "replacement_top2": [
+            "me",
+            "us"
+          ],
+          "old_top2_hit": true,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "chat",
+          "synthetic_prefix": "What ",
+          "context": "what",
+          "expected": [
+            "time"
+          ],
+          "replacement_top2": [
+            "is",
+            "do"
+          ],
+          "old_top2_hit": false,
+          "replacement_top2_hit": false
+        },
+        {
+          "category": "chat",
+          "synthetic_prefix": "No ",
+          "context": "no",
+          "expected": [
+            "problem"
+          ],
+          "replacement_top2": [
+            "one",
+            "doubt"
+          ],
+          "old_top2_hit": false,
+          "replacement_top2_hit": false
+        },
+        {
+          "category": "general",
+          "synthetic_prefix": "I would like ",
+          "context": "like",
+          "expected": [
+            "to"
+          ],
+          "replacement_top2": [
+            "a",
+            "to"
+          ],
+          "old_top2_hit": true,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "general",
+          "synthetic_prefix": "We need ",
+          "context": "need",
+          "expected": [
+            "to"
+          ],
+          "replacement_top2": [
+            "to",
+            "a"
+          ],
+          "old_top2_hit": true,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "general",
+          "synthetic_prefix": "Because ",
+          "context": "because",
+          "expected": [
+            "of"
+          ],
+          "replacement_top2": [
+            "of",
+            "i"
+          ],
+          "old_top2_hit": true,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "general",
+          "synthetic_prefix": "This depends ",
+          "context": "depends",
+          "expected": [
+            "on"
+          ],
+          "replacement_top2": [
+            "on",
+            "upon"
+          ],
+          "old_top2_hit": true,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "general",
+          "synthetic_prefix": "A cup ",
+          "context": "cup",
+          "expected": [
+            "of"
+          ],
+          "replacement_top2": [
+            "of",
+            "was"
+          ],
+          "old_top2_hit": true,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "general",
+          "synthetic_prefix": "In spite ",
+          "context": "spite",
+          "expected": [
+            "of"
+          ],
+          "replacement_top2": [
+            "of"
+          ],
+          "old_top2_hit": true,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "general",
+          "synthetic_prefix": "The train reached the ",
+          "context": "the",
+          "expected": [
+            "station"
+          ],
+          "replacement_top2": [
+            "same",
+            "first"
+          ],
+          "old_top2_hit": false,
+          "replacement_top2_hit": false
+        },
+        {
+          "category": "general",
+          "synthetic_prefix": "Please attach the ",
+          "context": "the",
+          "expected": [
+            "file"
+          ],
+          "replacement_top2": [
+            "same",
+            "first"
+          ],
+          "old_top2_hit": false,
+          "replacement_top2_hit": false
+        },
+        {
+          "category": "tail",
+          "synthetic_prefix": "A volcanic ",
+          "context": "volcanic",
+          "expected": [
+            "eruption"
+          ],
+          "replacement_top2": [],
+          "old_top2_hit": false,
+          "replacement_top2_hit": false
+        },
+        {
+          "category": "tail",
+          "synthetic_prefix": "A musical ",
+          "context": "musical",
+          "expected": [
+            "instrument"
+          ],
+          "replacement_top2": [
+            "term",
+            "quiet"
+          ],
+          "old_top2_hit": true,
+          "replacement_top2_hit": false
+        },
+        {
+          "category": "tail",
+          "synthetic_prefix": "The bicycle ",
+          "context": "bicycle",
+          "expected": [
+            "wheel"
+          ],
+          "replacement_top2": [
+            "and",
+            "is"
+          ],
+          "old_top2_hit": false,
+          "replacement_top2_hit": false
+        },
+        {
+          "category": "tail",
+          "synthetic_prefix": "A botanical ",
+          "context": "botanical",
+          "expected": [
+            "garden"
+          ],
+          "replacement_top2": [],
+          "old_top2_hit": false,
+          "replacement_top2_hit": false
+        },
+        {
+          "category": "tail",
+          "synthetic_prefix": "The telescope ",
+          "context": "telescope",
+          "expected": [
+            "lens"
+          ],
+          "replacement_top2": [],
+          "old_top2_hit": false,
+          "replacement_top2_hit": false
+        }
+      ]
+    },
+    "fr": {
+      "old": {
+        "contexts": 8705,
+        "follower_slots": 28846,
+        "bytes": 195388
+      },
+      "replacement": {
+        "contexts": 10297,
+        "follower_slots": 36746,
+        "bytes": 244061,
+        "single_follower_contexts": 461
+      },
+      "retained_old_contexts": 6008,
+      "old_context_unigram_weight_coverage": 0.9780603719862968,
+      "training_prompts": 76009,
+      "heldout_prompts": 18882,
+      "heldout": {
+        "old": {
+          "top2_hits": 14130,
+          "eligible_transitions": 107240,
+          "top2_hit_rate": 0.13176053711301752,
+          "context_coverage_rate": 0.9284688549048863
+        },
+        "replacement_train_only": {
+          "top2_hits": 17184,
+          "eligible_transitions": 107240,
+          "top2_hit_rate": 0.16023871689668034,
+          "context_coverage_rate": 0.959278254382693
+        }
+      },
+      "synthetic_categories": {
+        "chat": {
+          "cases": 12,
+          "old_top2_hits": 4,
+          "replacement_top2_hits": 8
+        },
+        "general": {
+          "cases": 8,
+          "old_top2_hits": 4,
+          "replacement_top2_hits": 6
+        },
+        "tail": {
+          "cases": 5,
+          "old_top2_hits": 2,
+          "replacement_top2_hits": 0
+        }
+      },
+      "synthetic_cases": [
+        {
+          "category": "chat",
+          "synthetic_prefix": "Bonne ",
+          "context": "bonne",
+          "expected": [
+            "journée"
+          ],
+          "replacement_top2": [
+            "journée",
+            "soirée"
+          ],
+          "old_top2_hit": false,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "chat",
+          "synthetic_prefix": "Merci ",
+          "context": "merci",
+          "expected": [
+            "beaucoup"
+          ],
+          "replacement_top2": [
+            "beaucoup",
+            "pour"
+          ],
+          "old_top2_hit": false,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "chat",
+          "synthetic_prefix": "Bonjour ",
+          "context": "bonjour",
+          "expected": [
+            "à"
+          ],
+          "replacement_top2": [
+            "à",
+            "tout"
+          ],
+          "old_top2_hit": true,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "chat",
+          "synthetic_prefix": "À ",
+          "context": "à",
+          "expected": [
+            "demain"
+          ],
+          "replacement_top2": [
+            "la",
+            "ce"
+          ],
+          "old_top2_hit": false,
+          "replacement_top2_hit": false
+        },
+        {
+          "category": "chat",
+          "synthetic_prefix": "Je suis en retard ",
+          "context": "retard",
+          "expected": [
+            "de"
+          ],
+          "replacement_top2": [
+            "de",
+            "pour"
+          ],
+          "old_top2_hit": false,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "chat",
+          "synthetic_prefix": "Je suis désolé ",
+          "context": "désolé",
+          "expected": [
+            "pour"
+          ],
+          "replacement_top2": [
+            "pour",
+            "du"
+          ],
+          "old_top2_hit": false,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "chat",
+          "synthetic_prefix": "Comment ",
+          "context": "comment",
+          "expected": [
+            "vas"
+          ],
+          "replacement_top2": [
+            "vas",
+            "allez"
+          ],
+          "old_top2_hit": false,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "chat",
+          "synthetic_prefix": "Quelle ",
+          "context": "quelle",
+          "expected": [
+            "heure"
+          ],
+          "replacement_top2": [
+            "heure",
+            "bonne"
+          ],
+          "old_top2_hit": true,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "chat",
+          "synthetic_prefix": "À demain ",
+          "context": "demain",
+          "expected": [
+            "matin"
+          ],
+          "replacement_top2": [
+            "matin",
+            "soir"
+          ],
+          "old_top2_hit": true,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "chat",
+          "synthetic_prefix": "J'ai ",
+          "context": "ai",
+          "expected": [
+            "besoin"
+          ],
+          "replacement_top2": [
+            "pas",
+            "vu"
+          ],
+          "old_top2_hit": false,
+          "replacement_top2_hit": false
+        },
+        {
+          "category": "chat",
+          "synthetic_prefix": "Tout va ",
+          "context": "va",
+          "expected": [
+            "bien"
+          ],
+          "replacement_top2": [
+            "pas",
+            "se"
+          ],
+          "old_top2_hit": true,
+          "replacement_top2_hit": false
+        },
+        {
+          "category": "chat",
+          "synthetic_prefix": "Avec ",
+          "context": "avec",
+          "expected": [
+            "plaisir"
+          ],
+          "replacement_top2": [
+            "une",
+            "un"
+          ],
+          "old_top2_hit": false,
+          "replacement_top2_hit": false
+        },
+        {
+          "category": "general",
+          "synthetic_prefix": "J'ai besoin ",
+          "context": "besoin",
+          "expected": [
+            "de"
+          ],
+          "replacement_top2": [
+            "de",
+            "que"
+          ],
+          "old_top2_hit": true,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "general",
+          "synthetic_prefix": "Une tasse ",
+          "context": "tasse",
+          "expected": [
+            "de"
+          ],
+          "replacement_top2": [
+            "de",
+            "à"
+          ],
+          "old_top2_hit": true,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "general",
+          "synthetic_prefix": "Au lieu ",
+          "context": "lieu",
+          "expected": [
+            "de"
+          ],
+          "replacement_top2": [
+            "de",
+            "du"
+          ],
+          "old_top2_hit": true,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "general",
+          "synthetic_prefix": "Parce ",
+          "context": "parce",
+          "expected": [
+            "que"
+          ],
+          "replacement_top2": [
+            "que"
+          ],
+          "old_top2_hit": false,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "general",
+          "synthetic_prefix": "Afin ",
+          "context": "afin",
+          "expected": [
+            "de"
+          ],
+          "replacement_top2": [
+            "de",
+            "que"
+          ],
+          "old_top2_hit": true,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "general",
+          "synthetic_prefix": "Malgré ",
+          "context": "malgré",
+          "expected": [
+            "les"
+          ],
+          "replacement_top2": [
+            "tout",
+            "les"
+          ],
+          "old_top2_hit": false,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "general",
+          "synthetic_prefix": "Le train arrive à la ",
+          "context": "la",
+          "expected": [
+            "gare"
+          ],
+          "replacement_top2": [
+            "nuit",
+            "mer"
+          ],
+          "old_top2_hit": false,
+          "replacement_top2_hit": false
+        },
+        {
+          "category": "general",
+          "synthetic_prefix": "Envoyez le ",
+          "context": "le",
+          "expected": [
+            "fichier"
+          ],
+          "replacement_top2": [
+            "monde",
+            "temps"
+          ],
+          "old_top2_hit": false,
+          "replacement_top2_hit": false
+        },
+        {
+          "category": "tail",
+          "synthetic_prefix": "Une éruption ",
+          "context": "éruption",
+          "expected": [
+            "volcanique"
+          ],
+          "replacement_top2": [
+            "est",
+            "dans"
+          ],
+          "old_top2_hit": false,
+          "replacement_top2_hit": false
+        },
+        {
+          "category": "tail",
+          "synthetic_prefix": "Un instrument ",
+          "context": "instrument",
+          "expected": [
+            "musical"
+          ],
+          "replacement_top2": [
+            "est",
+            "que"
+          ],
+          "old_top2_hit": false,
+          "replacement_top2_hit": false
+        },
+        {
+          "category": "tail",
+          "synthetic_prefix": "Le jardin ",
+          "context": "jardin",
+          "expected": [
+            "botanique"
+          ],
+          "replacement_top2": [
+            "des",
+            "de"
+          ],
+          "old_top2_hit": false,
+          "replacement_top2_hit": false
+        },
+        {
+          "category": "tail",
+          "synthetic_prefix": "Une roue ",
+          "context": "roue",
+          "expected": [
+            "arrière"
+          ],
+          "replacement_top2": [
+            "de",
+            "qui"
+          ],
+          "old_top2_hit": true,
+          "replacement_top2_hit": false
+        },
+        {
+          "category": "tail",
+          "synthetic_prefix": "Le télescope ",
+          "context": "télescope",
+          "expected": [
+            "spatial"
+          ],
+          "replacement_top2": [],
+          "old_top2_hit": true,
+          "replacement_top2_hit": false
+        }
+      ]
+    },
+    "de": {
+      "old": {
+        "contexts": 8992,
+        "follower_slots": 30294,
+        "bytes": 233113
+      },
+      "replacement": {
+        "contexts": 6663,
+        "follower_slots": 23135,
+        "bytes": 180843,
+        "single_follower_contexts": 402
+      },
+      "retained_old_contexts": 4786,
+      "old_context_unigram_weight_coverage": 0.9603165353182233,
+      "training_prompts": 31466,
+      "heldout_prompts": 7937,
+      "heldout": {
+        "old": {
+          "top2_hits": 6025,
+          "eligible_transitions": 44953,
+          "top2_hit_rate": 0.13402887460236246,
+          "context_coverage_rate": 0.9238760483171312
+        },
+        "replacement_train_only": {
+          "top2_hits": 6263,
+          "eligible_transitions": 44953,
+          "top2_hit_rate": 0.13932329321736037,
+          "context_coverage_rate": 0.9061686650501635
+        }
+      },
+      "synthetic_categories": {
+        "chat": {
+          "cases": 12,
+          "old_top2_hits": 8,
+          "replacement_top2_hits": 12
+        },
+        "general": {
+          "cases": 8,
+          "old_top2_hits": 4,
+          "replacement_top2_hits": 2
+        },
+        "tail": {
+          "cases": 5,
+          "old_top2_hits": 0,
+          "replacement_top2_hits": 0
+        }
+      },
+      "synthetic_cases": [
+        {
+          "category": "chat",
+          "synthetic_prefix": "Guten ",
+          "context": "guten",
+          "expected": [
+            "morgen"
+          ],
+          "replacement_top2": [
+            "morgen",
+            "abend"
+          ],
+          "old_top2_hit": true,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "chat",
+          "synthetic_prefix": "Vielen ",
+          "context": "vielen",
+          "expected": [
+            "dank"
+          ],
+          "replacement_top2": [
+            "dank",
+            "grüßen"
+          ],
+          "old_top2_hit": true,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "chat",
+          "synthetic_prefix": "Bis ",
+          "context": "bis",
+          "expected": [
+            "morgen"
+          ],
+          "replacement_top2": [
+            "bald",
+            "morgen"
+          ],
+          "old_top2_hit": false,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "chat",
+          "synthetic_prefix": "Kein ",
+          "context": "kein",
+          "expected": [
+            "problem"
+          ],
+          "replacement_top2": [
+            "problem",
+            "stress"
+          ],
+          "old_top2_hit": false,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "chat",
+          "synthetic_prefix": "Alles ",
+          "context": "alles",
+          "expected": [
+            "klar"
+          ],
+          "replacement_top2": [
+            "klar",
+            "gut"
+          ],
+          "old_top2_hit": false,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "chat",
+          "synthetic_prefix": "Bitte ",
+          "context": "bitte",
+          "expected": [
+            "schick"
+          ],
+          "replacement_top2": [
+            "schick",
+            "sende"
+          ],
+          "old_top2_hit": false,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "chat",
+          "synthetic_prefix": "Schick ",
+          "context": "schick",
+          "expected": [
+            "mir"
+          ],
+          "replacement_top2": [
+            "mir",
+            "bitte"
+          ],
+          "old_top2_hit": true,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "chat",
+          "synthetic_prefix": "Ich melde ",
+          "context": "melde",
+          "expected": [
+            "mich"
+          ],
+          "replacement_top2": [
+            "mich",
+            "dich"
+          ],
+          "old_top2_hit": true,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "chat",
+          "synthetic_prefix": "Ich freue ",
+          "context": "freue",
+          "expected": [
+            "mich"
+          ],
+          "replacement_top2": [
+            "mich",
+            "ich"
+          ],
+          "old_top2_hit": true,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "chat",
+          "synthetic_prefix": "Wie geht ",
+          "context": "geht",
+          "expected": [
+            "es"
+          ],
+          "replacement_top2": [
+            "es",
+            "das"
+          ],
+          "old_top2_hit": true,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "chat",
+          "synthetic_prefix": "Ich bin auf dem ",
+          "context": "dem",
+          "expected": [
+            "weg"
+          ],
+          "replacement_top2": [
+            "weg",
+            "boden"
+          ],
+          "old_top2_hit": true,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "chat",
+          "synthetic_prefix": "Wir treffen ",
+          "context": "treffen",
+          "expected": [
+            "uns"
+          ],
+          "replacement_top2": [
+            "wir",
+            "uns"
+          ],
+          "old_top2_hit": true,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "general",
+          "synthetic_prefix": "Ich interessiere ",
+          "context": "interessiere",
+          "expected": [
+            "mich"
+          ],
+          "replacement_top2": [],
+          "old_top2_hit": true,
+          "replacement_top2_hit": false
+        },
+        {
+          "category": "general",
+          "synthetic_prefix": "Es hängt ",
+          "context": "hängt",
+          "expected": [
+            "davon"
+          ],
+          "replacement_top2": [
+            "von",
+            "er"
+          ],
+          "old_top2_hit": false,
+          "replacement_top2_hit": false
+        },
+        {
+          "category": "general",
+          "synthetic_prefix": "Eine Tasse ",
+          "context": "tasse",
+          "expected": [
+            "kaffee"
+          ],
+          "replacement_top2": [
+            "mit",
+            "trinken"
+          ],
+          "old_top2_hit": true,
+          "replacement_top2_hit": false
+        },
+        {
+          "category": "general",
+          "synthetic_prefix": "Im Gegensatz ",
+          "context": "gegensatz",
+          "expected": [
+            "zu"
+          ],
+          "replacement_top2": [
+            "zu",
+            "dazu"
+          ],
+          "old_top2_hit": true,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "general",
+          "synthetic_prefix": "Wegen ",
+          "context": "wegen",
+          "expected": [
+            "des"
+          ],
+          "replacement_top2": [
+            "der",
+            "des"
+          ],
+          "old_top2_hit": true,
+          "replacement_top2_hit": true
+        },
+        {
+          "category": "general",
+          "synthetic_prefix": "Ohne ",
+          "context": "ohne",
+          "expected": [
+            "zweifel"
+          ],
+          "replacement_top2": [
+            "die",
+            "dass"
+          ],
+          "old_top2_hit": false,
+          "replacement_top2_hit": false
+        },
+        {
+          "category": "general",
+          "synthetic_prefix": "Der Zug erreicht den ",
+          "context": "den",
+          "expected": [
+            "bahnhof"
+          ],
+          "replacement_top2": [
+            "ganzen",
+            "kopf"
+          ],
+          "old_top2_hit": false,
+          "replacement_top2_hit": false
+        },
+        {
+          "category": "general",
+          "synthetic_prefix": "Sende die ",
+          "context": "die",
+          "expected": [
+            "datei"
+          ],
+          "replacement_top2": [
+            "meisten",
+            "ganze"
+          ],
+          "old_top2_hit": false,
+          "replacement_top2_hit": false
+        },
+        {
+          "category": "tail",
+          "synthetic_prefix": "Ein vulkanischer ",
+          "context": "vulkanischer",
+          "expected": [
+            "ausbruch"
+          ],
+          "replacement_top2": [],
+          "old_top2_hit": false,
+          "replacement_top2_hit": false
+        },
+        {
+          "category": "tail",
+          "synthetic_prefix": "Ein musikalisches ",
+          "context": "musikalisches",
+          "expected": [
+            "instrument"
+          ],
+          "replacement_top2": [],
+          "old_top2_hit": false,
+          "replacement_top2_hit": false
+        },
+        {
+          "category": "tail",
+          "synthetic_prefix": "Der botanische ",
+          "context": "botanische",
+          "expected": [
+            "garten"
+          ],
+          "replacement_top2": [],
+          "old_top2_hit": false,
+          "replacement_top2_hit": false
+        },
+        {
+          "category": "tail",
+          "synthetic_prefix": "Das Fahrrad ",
+          "context": "fahrrad",
+          "expected": [
+            "rad"
+          ],
+          "replacement_top2": [
+            "ist",
+            "und"
+          ],
+          "old_top2_hit": false,
+          "replacement_top2_hit": false
+        },
+        {
+          "category": "tail",
+          "synthetic_prefix": "Die Linse ",
+          "context": "linse",
+          "expected": [
+            "des"
+          ],
+          "replacement_top2": [
+            "werden",
+            "gebrochen"
+          ],
+          "old_top2_hit": false,
+          "replacement_top2_hit": false
+        }
+      ]
+    }
+  }
+}

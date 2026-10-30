@@ -1,6 +1,6 @@
-# Third-party distribution review — owner decisions still required
+# Third-party terms and data provenance review
 
-This is an evidence ledger, not a legal clearance or a new license grant. Existing data assets are unchanged. Do not approve distribution/signing as a Play-ready release until the unresolved corpus rights/attribution below are resolved. The separate AAB workflow is prepared locally, not dispatched.
+This is an evidence ledger, not a legal clearance or a new third-party license grant. The unresolved Norvig/Tatoeba next-word tables have been replaced in this local review candidate using pinned CC0 text and project-authored seeds. Spelling dictionaries are unchanged byte-for-byte and now rebuild from pinned inputs. Prediction-quality trade-offs, ordinary third-party/store terms, signing and device QA still require owner review before shipping. No workflow was dispatched.
 
 ## Verified grants and packaged notices
 
@@ -9,9 +9,9 @@ This is an evidence ledger, not a legal clearance or a new license grant. Existi
 - **llama.cpp / ggml:** the pinned submodule `748d4225b9016b17ce4bcfa69fdc2c39f473a965` has an MIT license, copyright 2023–2026 the ggml authors. Its exact license file is copied into offline notices. Native inference code is unchanged. The separate vendor hash target is absent from the app's final link.
 - **AndroidX:** Apache-2.0 notices remain in existing META-INF entries; a full Apache-2.0 text and source credits for graphics-path are accessible offline. The published graphics-path 1.0.1 Kotlin source JAR and inspected native source headers identify Apache-2.0/AOSP notices. This does not replace upstream notices or assert an exhaustive third-party legal audit.
 - **Kotlin runtime:** resolved stdlib 2.0.21 JetBrains-owned code and kotlinx.coroutines 1.8.1 use Apache-2.0 per their tagged upstream license documentation (`JetBrains/kotlin/v2.0.21/license/README.md`, `Kotlin/kotlinx.coroutines/1.8.1/LICENSE.txt`). The stdlib ledger also identifies JVM/common GWT/Guava-derived Apache portions and Boost-licensed `MathJVM.kt` (Eric Ford & Hubert Holin 2001). Exact upstream Boost/GWT/Guava texts and credits are now packaged in `Kotlin-runtime-NOTICES.txt`. Compiler/test-only, JS and Wasm dependencies are not presented as bundled application libraries.
-- **FrequencyWords:** upstream README explicitly distinguishes MIT for code from CC BY-SA 4.0 for content. See https://github.com/hermitdave/FrequencyWords/blob/master/README.md and https://creativecommons.org/licenses/by-sa/4.0/ . The app's three word/count tables are data, not MIT-licensed code. New offline credits identify Hermit Dave, FrequencyWords/OpenSubtitles, the content license/source URI, and the filtering/format transformations. Data stay subject to their existing upstream terms; the app's Apache license is not substituted. CC BY-SA 4.0 requires appropriate retained attribution/notices and change indications; shared adapted material must satisfy its share-alike conditions, with no additional restrictions on the licensed material. Owner review must ensure the data distribution and store terms satisfy those conditions. Original FrequencyWords snapshot hashes and the original English transformation procedure are not recorded; French/German transformation scripts are present. Rebuild from pinned upstream inputs if exact provenance is required.
+- **FrequencyWords:** upstream README explicitly distinguishes MIT for code from CC BY-SA 4.0 for content. See https://github.com/hermitdave/FrequencyWords/blob/master/README.md and https://creativecommons.org/licenses/by-sa/4.0/ . The app's three word/count tables are data, not MIT-licensed code. New offline credits identify Hermit Dave, FrequencyWords/OpenSubtitles, the content license/source URI, and the filtering/format transformations. Data stay subject to their existing upstream terms; the app's Apache license is not substituted. CC BY-SA 4.0 requires appropriate retained attribution/notices and change indications; shared adapted material must satisfy its share-alike conditions, with no additional restrictions on the licensed material. Owner review must ensure the data distribution and store terms satisfy those conditions. Pinned 2018 `en_50k.txt`, `fr_50k.txt` and `de_50k.txt` files now reproduce all three dictionary assets byte-for-byte. `tools/data/sources.json` records exact immutable URLs and raw hashes; `data_pipeline.py` plus `english_word_adjustments.json` records the complete transformation. This establishes reproducible current inputs, not the unknown original download date. The 67 existing English contractions and 29 supplementary terms are explicitly recorded; the app's public production asset/commit is their provenance, not an unresolved next-word corpus.
 
-The app exposes Settings > About > Licenses & credits, with selectable text and complete offline Apache/OFL/Unicode/MIT license texts plus source/data notices. This improves notice availability; it does not cure unresolved rights by itself.
+The app exposes Settings > About > Licenses & credits, with selectable text and complete offline Apache/OFL/Unicode/MIT license texts plus source/data notices. This improves notice availability; it does not certify every upstream contributor's rights or store-license compatibility. Common Voice CC0 and the exact source/recipe manifest are also packaged.
 
 ## Source snapshots verified for notices
 
@@ -19,31 +19,25 @@ The app exposes Settings > About > Licenses & credits, with selectable text and 
 - FrequencyWords commit `525f9b560de45753a5ea01069454e72e9aa541c6`, `README.md`: SHA-256 `a92fcc50e27f7b2d5860ec1c1ce794dc4c892d945bfa4c8c3136cdfd213ee710`; verifies the upstream code/content license distinction. This pins the license evidence, not the unknown original corpus snapshot used to generate app assets.
 - Unicode license notice read from the canonical URL on 2026-10-30; the complete current V3 text is packaged. The different 2001–2024 copyright in unicodetools' repository LICENSE was not silently substituted for the canonical 1991–2026 notice.
 
-## Unresolved English next-word corpus grant — stop affected change
+## Replacement next-word data and historical sources
 
-`NOTICE` identifies `app/src/main/assets/pairs.tsv` as derived from Peter Norvig's n-gram counts. Git commit `96c2bfbb962c7f4326356537907962d93954cbd5` introduced this asset; no retained source snapshot/hash or English pair generator was found.
+All three current next-word tables use only these files at Common Voice commit `70dde553e48d7d0da452ba4ba070c001f65db88c`:
 
-https://www.norvig.com/ngrams/ says its data files derive from the Google Web Trillion Word Corpus, distributed by the Linguistic Data Consortium, and lists `count_2w.txt`. Its explicit MIT permission is for **code**. That statement cannot safely be treated as a redistribution grant for corpus data or Bold Keys' derived table. No suitable separate corpus-data grant was verified. Do not label this table MIT or Apache, and do not treat the new attribution as legal clearance.
+- `server/data/en/sentence-collector.txt`: SHA-256 `31ac8e200449ebd7aee4a8c6bd16d4dafd076cf11f7c3efe1035f0283712d136`.
+- `server/data/fr/sentence-collector.txt`: SHA-256 `214f3d5b0110e86e3f2018ca6971b918db8ad5cc4c5612ebab58cd0849fb0715`.
+- `server/data/de/sentence-collector.txt`: SHA-256 `de6bd33fc5742350690fa4be6197aafd9be2c6c9fe4b70b8c5c8670971acc117`.
 
-Owner options:
-1. Supply a verified data redistribution grant and original input/provenance sufficient for this derived table, including any applicable upstream corpus conditions.
-2. Remove `pairs.tsv` and the English next-word-table behavior in a separately reviewed change; dictionary corrections/completions can remain.
-3. Replace it with an independently licensed or owner-authored next-word dataset, preserving its grant, provenance and required notices. Do not automatically substitute another web corpus with assumed permissions.
+Exact URLs are `https://raw.githubusercontent.com/common-voice/common-voice/<commit>/<path>`, fully expanded in the packaged `data-provenance.json` and source registry. Both `server/data/LICENSE` and `server/data/en/LICENSE` contain CC0 1.0 Universal; both hash to `bf474cdfd02e162603358e4e3615182018cad27593d2bf5e75ca13e4a5a6af0c`. This is an explicit **data** waiver/license, not an inference from the repository's MPL code license. CC0 imposes no attribution or share-alike condition; offline notices voluntarily credit Mozilla Common Voice Sentence Collector contributors. Individual authors are not invented or claimed to have been exhaustively identified. The entire CC0 text is available offline.
 
-No removal, replacement or relicensing of this asset is performed in this review.
+Only the three bounded Sentence Collector files are used (about 9.3 MB raw combined). Large Wiki, Europarl and other bulk files are excluded. The project's pinned sentence guidance describes community validation of Sentence Collector text, while warning that some older bulk imports can contain unsuitable or rights-restricted material. That is a reason to keep scope narrow and retain provenance; CC0 is not a warranty of every donor's rights, privacy or text quality. No voice/audio data, account, dataset download agreement or click-through acceptance was used.
 
-## Tatoeba contributor attribution — stop affected change
+`prediction_seeds.json` contains newly authored, AI-assisted synthetic choices for this review. They are project contributions distributed with the existing Apache-2.0 project license; no old table rows or undocumented outside examples were copied. That license does not replace CC0 on underlying source data. The generated assets distinguish source CC0 and project-seed contributions in their manifest. Seed priority is explicit and limited; details/quality trade-offs are in `PREDICTION_DATA_REVIEW.md`.
 
-https://tatoeba.org/en/terms_of_use states that textual sentences default to CC BY 2.0 FR and require author attribution; the legal code is https://creativecommons.org/licenses/by/2.0/fr/legalcode . `tools/build_fr.py` and `tools/build_de.py` read a three-column sentence input, tokenize/count adjacent words, and retain ranked followers. They do not preserve author identities, sentence IDs in the output, input snapshot/license records or a mapping back to contributors.
+The prior English table's Norvig corpus grant and the prior French/German tables' Tatoeba contributor-attribution questions were **not retrospectively cleared**. Those data are absent from current build inputs and artifacts. They remain only in existing Git history and are read locally for aggregate comparison, without exporting their rows or predictions. The old French/German builders now reject sentence/pair arguments and only build pinned word dictionaries; production workflows and APK/AAB verifiers check the replacement-data hashes and packaged notices. There is no fallback to old tables.
 
-The actual source exports are absent. Generic “Tatoeba contributors” credit and a license URI do not establish that all required attribution for these exact derivatives has been supplied. Do not invent contributor names or assume that aggregate counts remove every source condition. This is an unresolved provenance/attribution question, not a declaration that the tables necessarily infringe.
+## Remaining FrequencyWords conditions
 
-Owner options:
-1. Recover the exact exports and author/license metadata, determine applicable attribution, and rebuild with a retained contributor/source ledger and appropriate notices.
-2. Rebuild from a verified compatible corpus or a confirmed CC0 subset with preserved provenance, then review changed prediction behavior.
-3. Remove `pairs_fr.tsv` and `pairs_de.tsv` and their next-word-table behavior in a separate reviewed change while retaining dictionaries/corrections.
-
-The existing French/German tables are unchanged pending that decision; no new rights or contributor identities are asserted.
+Upstream content is CC BY-SA 4.0, including its attribution/change-notice and applicable share-alike requirements for adapted material. The app now retains Hermit Dave/FrequencyWords/OpenSubtitles attribution, license/source URIs and transformation descriptions; pinned inputs and exact output hashes make the three dictionary builds reproducible. Application-code Apache licensing does not override those data terms. Owner/legal review should still confirm store distribution terms do not impose prohibited additional restrictions on licensed data and assess any underlying-source issues; this task does not make a universal legal-clearance claim.
 
 ## Optional Gemma models
 
@@ -53,4 +47,4 @@ The app now displays model terms/use-restriction information and an external ter
 
 ## Scope and limits
 
-Public license pages and public source repositories were read; no private rights agreements were inspected. This review does not attest export compliance, resolve all underlying OpenSubtitles rights, certify store-license compatibility, or approve distribution. Corpus rights/provenance decisions remain with the owner. Continue code and unsigned validation while those affected data decisions are pending.
+Public license pages and public source repositories were read; no private rights agreements were inspected. This review does not attest export compliance, resolve all underlying OpenSubtitles rights, certify store-license compatibility, or approve distribution. Shipping approval, source/store-term interpretation, optional model terms, export declarations, device QA and production signing remain with the owner. Prediction-quality trade-offs are recorded before any shipping decision.
