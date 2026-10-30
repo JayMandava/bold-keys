@@ -55,6 +55,8 @@ def main():
 
         run("missing-signing-assemble", [":app:assembleRelease"],
             expected_error="Release signing properties are missing or unreadable.")
+        run("missing-signing-bundle", [":app:bundleRelease"],
+            expected_error="Release signing properties are missing or unreadable.")
         run("explicit-signed-mode", ["-PunsignedRelease=false", ":app:verifyReleaseSigningMode"],
             expected_error="Release signing properties are missing or unreadable.")
         run("malformed-properties", [":app:verifyReleaseSigningMode"], malformed,
@@ -97,7 +99,7 @@ def main():
             assert libc.inotify_add_watch(watch, os.fsencode(malformed), 0x20 | 0x01) >= 0
         try:
             run("unsigned-tests-lint-assemble", ["-PunsignedRelease=true", ":app:testReleaseUnitTest",
-                ":app:lintRelease", ":app:assembleRelease"], malformed)
+                ":app:lintRelease", ":app:assembleRelease", ":app:bundleRelease"], malformed)
             if watch is not None:
                 try:
                     events = os.read(watch, 65536)
@@ -120,6 +122,7 @@ def main():
     version_code = re.search(r"versionCode\s*=\s*(\d+)", build_script).group(1)
     version_name = re.search(r'versionName\s*=\s*"([^"\n]+)"', build_script).group(1)
     assert f"package: name='ai.boldkeys' versionCode='{version_code}' versionName='{version_name}'" in badging
+    assert "sdkVersion:'33'" in badging and "targetSdkVersion:'36'" in badging
     assert "native-code: 'arm64-v8a'" in badging
     assert "application-debuggable" not in badging
     verify = subprocess.run([str(build_tools / "apksigner"), "verify", "--verbose", str(apk)],
@@ -133,7 +136,15 @@ def main():
     assert b"APK Sig Block 42" not in apk.read_bytes(), "APK contains an APK signing block"
     results.append({"check": "unsigned-apk-metadata-signatures", "passed": True,
                     "apk": str(apk), "sha256": hashlib.sha256(apk.read_bytes()).hexdigest()})
-    print("PASS unsigned-apk-metadata-signatures", flush=True)
+    bundle = ROOT / "app/build/outputs/bundle/release/app-release.aab"
+    with zipfile.ZipFile(bundle) as archive:
+        assert archive.testzip() is None, "Bundle ZIP entries are corrupt"
+        assert "base/manifest/AndroidManifest.xml" in archive.namelist()
+        assert not any(re.fullmatch(r"META-INF/[^/]+\.(RSA|DSA|EC|SF)", name, re.IGNORECASE)
+                       for name in archive.namelist()), "Bundle contains JAR signature files"
+    results.append({"check": "unsigned-bundle-integrity-signatures", "passed": True,
+                    "aab": str(bundle), "sha256": hashlib.sha256(bundle.read_bytes()).hexdigest()})
+    print("PASS unsigned-apk-metadata-signatures and unsigned-bundle-integrity-signatures", flush=True)
     (logs / "results.json").write_text(json.dumps(results, indent=2) + "\n")
     print(f"All checks passed. Logs: {logs}")
 

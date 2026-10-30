@@ -131,7 +131,7 @@ def verify_apk(path, version, code, signed):
     build_tools = sdk / 'build-tools/36.0.0'
     badging = run(str(build_tools / 'aapt'), 'dump', 'badging', str(path))
     require(re.search(r"^package: name='ai.boldkeys' versionCode='" + re.escape(str(code)) + r"' versionName='" + re.escape(version) + "'", badging, re.M), 'Wrong application ID/version')
-    require(re.search(r"^sdkVersion:'33'$", badging, re.M) and re.search(r"^targetSdkVersion:'35'$", badging, re.M), 'Unexpected SDK compatibility')
+    require(re.search(r"^sdkVersion:'33'$", badging, re.M) and re.search(r"^targetSdkVersion:'36'$", badging, re.M), 'Unexpected SDK compatibility')
     require(re.findall(r"^native-code: (.+)$", badging, re.M) == ["'arm64-v8a'"], 'APK must contain arm64-v8a only')
     analyzer = sdk / 'cmdline-tools/latest/bin/apkanalyzer'
     require(run(str(analyzer), 'manifest', 'debuggable', str(path)) == 'false', 'Debuggable APK forbidden')

@@ -22,7 +22,7 @@ import java.time.Duration
 
 /** Exercises real key/picker hit targets and delayed touch handling, without a device. */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [33], qualifiers = "mdpi")
+@Config(sdk = [33, 36], qualifiers = "mdpi")
 @LooperMode(LooperMode.Mode.PAUSED)
 class KeyboardViewTest {
     private lateinit var activity: Activity

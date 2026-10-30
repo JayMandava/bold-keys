@@ -2,6 +2,8 @@
 
 package ai.boldkeys
 
+import android.content.ActivityNotFoundException
+import android.widget.Toast
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -11,6 +13,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.core.net.toUri
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -577,7 +580,14 @@ private fun androidx.compose.foundation.lazy.LazyListScope.aboutItems(context: C
     item(key = "about") {
         val version = remember { runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "" }
         Section("Version $version") {
-            Note("Everything happens on this phone. Typing, learning and the optional context model never use the network and send nothing anywhere; what the keyboard learns stays in this app's private storage. The only thing that touches the internet is the Download button for a context model, and only when you tap it.")
+            Note("Typing, learning and context-model inference happen on this phone; typed text is not sent to a server, and learned words stay in this app's private storage. Model downloads contact Hugging Face over HTTPS only when you tap Download. Android's emoji support may request a font from a system provider. Opening the privacy policy or a Speed-key link hands that link to another app, which may use the internet.")
+            TextButton(onClick = {
+                try {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, "https://jay-mandava-dev.web.app/privacy.html".toUri()))
+                } catch (_: ActivityNotFoundException) {
+                    Toast.makeText(context, "No browser is available to open the privacy policy.", Toast.LENGTH_LONG).show()
+                }
+            }) { Text("Privacy policy (opens in browser)") }
             Note("Word frequencies come from the OpenSubtitles-based FrequencyWords lists (CC BY-SA 4.0); French next-word hints are counted from Tatoeba sentences (CC BY 2.0 FR). The key legends use the Nunito typeface (SIL Open Font License).")
             Note("Inspired by the classic BlackBerry Bold 9900 keyboard. BlackBerry is a trademark of its owner; this app is independent and is not affiliated with or endorsed by BlackBerry.")
         }

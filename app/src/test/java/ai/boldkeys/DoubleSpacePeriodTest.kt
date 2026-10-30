@@ -8,7 +8,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [33])
+@Config(sdk = [33, 36])
 class DoubleSpacePeriodTest {
     private fun replaces(text: String, now: Long = 1200, lastSpaceAt: Long = 1000) =
         DoubleSpacePeriod.shouldReplace(text.takeLast(DoubleSpacePeriod.LOOK_BEHIND), now, lastSpaceAt)
