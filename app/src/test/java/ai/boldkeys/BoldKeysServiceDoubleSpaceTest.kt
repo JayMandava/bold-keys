@@ -18,7 +18,7 @@ import java.time.Duration
 
 /** Exercises the real service editing path without loading a dictionary or a native model. */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [33])
+@Config(sdk = [33, 36])
 @LooperMode(LooperMode.Mode.PAUSED)
 class BoldKeysServiceDoubleSpaceTest {
     private lateinit var service: BoldKeysService
