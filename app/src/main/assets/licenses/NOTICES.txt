@@ -100,3 +100,5 @@ model weights or grant permission to use an imported model.
 TRADEMARKS
 Inspired by BlackBerry Bold 9900. BlackBerry is a trademark of its owner;
 this project is independent and is not affiliated with or endorsed by BlackBerry.
+
+AndroidX CustomView 1.2.0: ExploreByTouchHelper, Copyright The Android Open Source Project, Apache License 2.0. Source: https://android.googlesource.com/platform/frameworks/support/ ; published sources: https://dl.google.com/dl/android/maven2/androidx/customview/customview/1.2.0/customview-1.2.0-sources.jar . The full Apache-2.0 text is included offline.

@@ -41,7 +41,7 @@ Model downloads contact Hugging Face over HTTPS only after you tap Download, and
 
 AndroidX EmojiCompat may ask a system provider for an emoji font. That provider may use cached data or networking depending on the device; the keyboard does not supply typed text in that request. Opening a Speed-key link or the privacy policy hands the link to another app. Model import uses Android's document picker; the selected provider may be cloud-backed. Those providers have their own network behavior and policies.
 
-Learned words, preferences, shortcuts and emoji history are kept in app-private storage, without app-level file encryption. Password/email/address and no-personalized-learning protection depends on the editor reporting its input type/flags correctly. Settings > About contains the privacy-policy link and offline Licenses & credits. No analytics, ads, billing or crash-upload SDK is included in the resolved production dependencies.
+Learned words, preferences, shortcuts and emoji history are kept in app-private storage, without app-level file encryption. Password/email/web-address and no-personalized-learning protection depends on the editor reporting its input type/flags correctly. Settings > About contains the privacy-policy link and offline Licenses & credits. No analytics, ads, billing or crash-upload SDK is included in the resolved production dependencies.
 
 ## Prediction data review
 
@@ -104,3 +104,5 @@ The debug build also contains two measurement screens, `EvalActivity` (dictionar
 ## Licence
 
 Application code: Apache License 2.0. Third-party data, fonts, libraries and optional models keep their own terms. See [LICENSE](LICENSE), [NOTICE](NOTICE), the offline Licenses & credits screen, and [distribution review](docs/THIRD_PARTY_REVIEW.md).
+
+Accessibility: individual painted keys and visible suggestions expose focusable button actions; modifiers expose their state. Trackpad cursor/selection and existing hold gestures have named accessibility actions. Candidate changes are not live announcements, and the keyboard adds no editor-text announcements. Enabled accessibility tools can read visible candidate labels when navigating them; password/email fields expose no candidates. Incognito prevents new learning, rather than hiding every visible suggestion. Android/the host editor may provide their usual editing feedback.

@@ -48,3 +48,8 @@ The app now displays model terms/use-restriction information and an external ter
 ## Scope and limits
 
 Public license pages and public source repositories were read; no private rights agreements were inspected. This review does not attest export compliance, resolve all underlying OpenSubtitles rights, certify store-license compatibility, or approve distribution. Shipping approval, source/store-term interpretation, optional model terms, export declarations, device QA and production signing remain with the owner. Prediction-quality trade-offs are recorded before any shipping decision.
+
+
+## Accessibility follow-up
+
+AndroidX CustomView1.2.0 provides ExploreByTouchHelper for painted-control virtual semantics. Its published source header explicitly grants Apache License2.0; the app retains an offline credit/source URL and full Apache2 text. Published source JAR SHA256: 65f38717b13796fd8e9069cd95c5895c083c30c14204b00bccc586c0a35bc5db. This Java-only dependency adds no data/model corpus or telemetry/network permission. Existing dictionary/prediction licenses and provenance remain unchanged.

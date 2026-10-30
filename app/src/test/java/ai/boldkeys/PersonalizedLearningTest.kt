@@ -39,6 +39,8 @@ class PersonalizedLearningTest {
     private fun start(flags: Int = 0, type: Int = InputType.TYPE_CLASS_TEXT) {
         service.onStartInput(EditorInfo().apply { inputType = type; imeOptions = flags }, false)
         ReflectionHelpers.setField(service, "mStartedInputConnection", connection)
+        // Simulate a configured input view; private-editor tests intentionally retain stale smart state.
+        ReflectionHelpers.setField(service, "smart", true)
     }
 
     private fun word(word: String, enter: Boolean = false) {
@@ -119,4 +121,14 @@ class PersonalizedLearningTest {
         assertFalse(engine.learnedSnapshot().containsKey("hellp"))
         assertFalse(learned.exists())
     }
+    @Test fun newEditorImmediatelyClearsPreviousCandidatesBeforeViewSetup() {
+        val bar=SuggestionBar(service,Feedback(service),service){false}
+        ReflectionHelpers.setField(service,"bar",bar)
+        bar.setSuggestions(listOf("previousprivateword"));ReflectionHelpers.setField(service,"shown",listOf("previousprivateword"))
+        service.onStartInput(EditorInfo().apply{inputType=InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD},false)
+        assertFalse(ReflectionHelpers.getField<Boolean>(service,"smart"))
+        assertTrue(ReflectionHelpers.getField<List<String>>(service,"shown").isEmpty())
+        assertTrue(ReflectionHelpers.getField<List<String>>(bar,"words").isEmpty())
+    }
+
 }
