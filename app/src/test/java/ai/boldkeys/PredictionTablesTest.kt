@@ -15,10 +15,14 @@ class PredictionTablesTest {
         loadFollowers(RuntimeEnvironment.getApplication().assets.open(Lang.pairsAsset(lang)).bufferedReader().use { it.readText() })
     }
 
-    @Test fun shippedChatChoicesWorkInEveryLanguageAndIgnoreContextCase() {
-        assertEquals(listOf("you"), engine("en").nextWords("THANK", 1))
-        assertEquals(listOf("beaucoup", "pour"), engine("fr").nextWords("MERCI", 2))
-        assertEquals(listOf("morgen", "abend"), engine("de").nextWords("GUTEN", 2))
+    @Test fun shippedCorpusChoicesIgnoreContextCaseAndKeepTopFourBound() {
+        for ((lang, context) in listOf("en" to "THANK", "fr" to "MERCI", "de" to "GUTEN")) {
+            val e = engine(lang)
+            assertTrue(e.nextWords(context, 4).isNotEmpty())
+            assertEquals(e.nextWords(context.lowercase(), 4), e.nextWords(context, 4))
+            assertEquals(e.nextWords(context, 4).take(2), e.nextWords(context, 2))
+            assertTrue(e.nextWords(context, 20).size <= 4)
+        }
     }
 
     @Test fun accentsUmlautsAndFrenchElisionsUseTheSameRuntimeSchema() {

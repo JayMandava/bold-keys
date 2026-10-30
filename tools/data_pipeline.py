@@ -150,24 +150,27 @@ def build(directory, output, check=False):
     stats = {}
     for lang in LANGS:
         words = word_rows(lang, source_bytes(directory, 'words_' + lang).decode())
-        vocab = dict(words)
         lines = sentences(source_bytes(directory, 'predictions_' + lang).decode())
-        pairs = prediction_rows(lang, lines, vocab)
+        # No dictionary, historical seed, FrequencyWords weight, or held-out input enters this model.
+        import prediction_coverage
+        pairs = list(prediction_coverage.model(lang, lines).items())
         generated[word_name(lang)] = word_tsv(words)
         generated[pair_name(lang)] = pair_tsv(pairs)
         stats[lang] = dict(words=len(words), unique_prompts=len(lines), contexts=len(pairs),
                            follower_slots=sum(len(v) for _, v in pairs), single_follower_contexts=sum(len(v) == 1 for _, v in pairs),
-                           curated_contexts=len(read_json(DATA / 'prediction_seeds.json')[lang]),
-                           preferred_chat_contexts=len(read_json(DATA / 'prediction_seeds.json')['preferred_chat_contexts'][lang]))
-    manifest = dict(schema=1, pipeline_sha256=sha(Path(__file__).read_bytes()),
+                           curated_contexts=0, preferred_chat_contexts=0)
+    manifest = dict(schema=2, pipeline_sha256=sha(Path(__file__).read_bytes()),
                     source_registry_sha256=sha((DATA / 'sources.json').read_bytes()),
-                    seeds_sha256=sha((DATA / 'prediction_seeds.json').read_bytes()),
+                    prediction_generator_sha256=sha((ROOT / 'tools/prediction_coverage.py').read_bytes()),
                     english_adjustments_sha256=sha((DATA / 'english_word_adjustments.json').read_bytes()),
                     source_snapshots=registry(),
-                    policy=dict(minimum_observed_pair_count=MIN_PAIR_COUNT, context_backoff_minimum_distinct_prompts=CONTEXT_BACKOFF_MIN_PROMPTS, training_observations="Each pair/context counts at most once per normalized prompt", maximum_followers=MAX_FOLLOWERS,
-                                maximum_contexts=MAX_CONTEXTS, curated_choices='Explicit preferred chat contexts use project priors first; elsewhere observed CC0 followers precede seed backfill. No synthetic counts'),
+                    policy=dict(prediction_inputs='Only pinned CC0 Sentence Collector text; no spelling dictionaries, FrequencyWords weights, historical seeds or held-out files',
+                                minimum_follower_distinct_prompts=2, training_observations='Each pair/context/unigram counts at most once per normalized prompt',
+                                ranking='Descending pair count, then corpus unigram prompt count, then lexical order',
+                                maximum_followers=4, maximum_contexts=24000,
+                                rare_contexts='One-prompt contexts allowed if follower occurs in at least two distinct prompts; no invented counts'),
                     statistics=stats,
-                    assets={name: dict(sha256=sha(data), bytes=len(data), license='CC-BY-SA-4.0 (FrequencyWords-derived data; Common Voice source remains CC0-1.0)') for name, data in generated.items()})
+                    assets={name: dict(sha256=sha(data), bytes=len(data), license='CC0-1.0 (Common Voice source)' if name.startswith('pairs') else 'CC-BY-SA-4.0 (FrequencyWords-derived dictionary)') for name, data in generated.items()})
     generated['data-provenance.json'] = (json.dumps(manifest, indent=2, ensure_ascii=False) + '\n').encode()
     for name, data in generated.items():
         destination = Path(output) / name
@@ -184,7 +187,7 @@ def audit_assets(directory=ASSETS):
     directory = Path(directory)
     manifest = read_json(directory / 'data-provenance.json')
     checks = [('pipeline_sha256', Path(__file__)), ('source_registry_sha256', DATA / 'sources.json'),
-              ('seeds_sha256', DATA / 'prediction_seeds.json'), ('english_adjustments_sha256', DATA / 'english_word_adjustments.json')]
+              ('prediction_generator_sha256', ROOT / 'tools/prediction_coverage.py'), ('english_adjustments_sha256', DATA / 'english_word_adjustments.json')]
     for key, path in checks:
         if manifest[key] != sha(path.read_bytes()):
             raise ValueError('Data recipe changed without rebuilding: ' + key)
