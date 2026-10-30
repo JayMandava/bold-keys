@@ -11,6 +11,14 @@ Source: https://github.com/hermitdave/FrequencyWords
 Pinned snapshot: 525f9b560de45753a5ea01069454e72e9aa541c6
 Inputs: content/2018/en/en_50k.txt, content/2018/fr/fr_50k.txt,
 content/2018/de/de_50k.txt. Upstream identifies OpenSubtitles2018 as its source.
+OPUS source: https://opus.nlpl.eu/ (OpenSubtitles release v2018).
+Original subtitle provider: https://www.opensubtitles.org/
+Requested source citation:
+Pierre Lison and Jörg Tiedemann (2016).
+OpenSubtitles2016: Extracting Large Parallel Corpora from Movie and TV Subtitles.
+LREC'16, pp. 923–929. ELRA. https://aclanthology.org/L16-1147/
+These source credits do not establish or resolve the underlying subtitle/data
+redistribution rights; the applicable third-party license terms are unchanged.
 Content/adapted dictionary license: CC BY-SA 4.0 International,
 https://creativecommons.org/licenses/by-sa/4.0/ (full legal code included offline).
 Bold Keys' modifications: filtered word forms; converted space-separated counts
