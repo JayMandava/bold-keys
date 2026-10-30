@@ -606,6 +606,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.licenseItems(context:
         "Unicode License V3" to "Unicode-V3.txt",
         "llama.cpp / ggml — MIT" to "llama-MIT.txt",
         "AndroidX graphics path notices" to "graphics-path-NOTICE.txt",
+        "Kotlin runtime third-party notices" to "Kotlin-runtime-NOTICES.txt",
     )
     files.forEach { (title, file) ->
         item(key = file) {
