@@ -66,6 +66,8 @@ jobs:
           test -x "$ANDROID_HOME/build-tools/36.0.0/apksigner"
       - name: Test release tooling
         run: python3 -m unittest discover -s tests -p 'test_release_workflow.py' -v
+      - name: Verify pinned prediction and dictionary data
+        run: python3 -m unittest discover -s tests -p 'test_prediction_data.py' -v
       - name: Test, lint and build without signing credentials
         run: ./gradlew --no-daemon --max-workers=4 -PunsignedRelease=true testReleaseUnitTest lintRelease assembleRelease
       - name: Verify unsigned arm64 candidate and provenance

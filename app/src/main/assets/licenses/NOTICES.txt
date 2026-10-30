@@ -10,21 +10,34 @@ These are separate grants. The app's Apache license does not replace data terms.
 Source: https://github.com/hermitdave/FrequencyWords
 Content license: https://creativecommons.org/licenses/by-sa/4.0/
 Bold Keys filters word forms and converts data to tab-separated word/count tables.
-French/German processing also filters accent/umlaut variants; scripts are in the
-source distribution (tools/build_fr.py and tools/build_de.py). Upstream content
+French/German processing also filters accent/umlaut variants. The pinned 2018
+input files and explicit English adjustments reproduce all three dictionaries
+byte-for-byte; recipe and source hashes are in tools/data and data-provenance.json. Upstream content
 and adapted data remain subject to applicable attribution/share-alike terms.
 
 NEXT-WORD DATA
-French/German next-word counts are derived from sentences contributed to Tatoeba,
-whose default sentence license is Creative Commons Attribution 2.0 France.
-Bold Keys tokenizes sentences, counts word pairs, and retains ranked followers.
-Source: https://tatoeba.org/
-License: https://creativecommons.org/licenses/by/2.0/fr/
-English next-word hints are derived from Peter Norvig's count_2w corpus data.
-Source: https://www.norvig.com/ngrams/
-No claim is made here that the code license on that page licenses its corpus data.
-Dataset snapshot and contributor-attribution review is recorded in the source
-repository's docs/THIRD_PARTY_REVIEW.md. These notices do not grant missing rights.
+English, French and German hints use Mozilla Common Voice Sentence Collector
+contributors' text under CC0 1.0 Universal, plus small newly authored project chat
+choices. Generation also uses the CC BY-SA 4.0 FrequencyWords dictionaries to
+select and rank followers. The generated data and new project seed contributions
+conservatively retain CC BY-SA 4.0 terms; underlying Common Voice material remains
+CC0. The app/generator code remains Apache-2.0. CC0 itself imposes no attribution
+or share-alike condition; the Common Voice credit here is voluntary.
+Generated-data license: https://creativecommons.org/licenses/by-sa/4.0/
+Source project: https://github.com/common-voice/common-voice
+Snapshot: 70dde553e48d7d0da452ba4ba070c001f65db88c
+Selected files: server/data/en/sentence-collector.txt,
+server/data/fr/sentence-collector.txt, server/data/de/sentence-collector.txt.
+The data subtree LICENSE and English local LICENSE both contain CC0 1.0,
+reproduced in CommonVoice-CC0.txt. The repository code license is not being used
+as a grant for the data. Large Wiki/Europarl and other bulk imports are not used.
+
+Bold Keys normalizes accents/apostrophes/case, deduplicates prompts, counts word
+pairs, filters against its dictionaries, ranks followers and adds explicitly
+identified project chat choices. Project seeds: tools/data/prediction_seeds.json.
+Exact input URLs, hashes, recipe and asset hashes: data-provenance.json.
+No Norvig/Tatoeba-derived next-word tables are included in this candidate.
+CC0 does not warrant the rights or accuracy of every individual contribution.
 
 FONT
 Nunito ExtraLight, version 3.602.

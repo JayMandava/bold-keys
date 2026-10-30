@@ -1,0 +1,48 @@
+{
+  "provenance": "New synthetic diagnostic scenarios for this review, not a real typing corpus or an independent benchmark. Created without copying old next-word rows. Chat cases overlap intentionally with seed design; general/tail cases expose limitations. Apache-2.0 project contributions.",
+  "en": [
+    ["chat", "Good ", "good", ["morning"]], ["chat", "Thank ", "thank", ["you"]],
+    ["chat", "Thanks ", "thanks", ["for"]], ["chat", "Please ", "please", ["send"]],
+    ["chat", "I'm running ", "running", ["late"]], ["chat", "Sounds ", "sounds", ["good"]],
+    ["chat", "Looking ", "looking", ["forward"]], ["chat", "See ", "see", ["you"]],
+    ["chat", "I'm on my ", "my", ["way"]], ["chat", "Let ", "let", ["me"]],
+    ["chat", "What ", "what", ["time"]], ["chat", "No ", "no", ["problem"]],
+    ["general", "I would like ", "like", ["to"]], ["general", "We need ", "need", ["to"]],
+    ["general", "Because ", "because", ["of"]], ["general", "This depends ", "depends", ["on"]],
+    ["general", "A cup ", "cup", ["of"]], ["general", "In spite ", "spite", ["of"]],
+    ["general", "The train reached the ", "the", ["station"]], ["general", "Please attach the ", "the", ["file"]],
+    ["tail", "A volcanic ", "volcanic", ["eruption"]], ["tail", "A musical ", "musical", ["instrument"]],
+    ["tail", "The bicycle ", "bicycle", ["wheel"]], ["tail", "A botanical ", "botanical", ["garden"]],
+    ["tail", "The telescope ", "telescope", ["lens"]]
+  ],
+  "fr": [
+    ["chat", "Bonne ", "bonne", ["journée"]], ["chat", "Merci ", "merci", ["beaucoup"]],
+    ["chat", "Bonjour ", "bonjour", ["à"]], ["chat", "À ", "à", ["demain"]],
+    ["chat", "Je suis en retard ", "retard", ["de"]], ["chat", "Je suis désolé ", "désolé", ["pour"]],
+    ["chat", "Comment ", "comment", ["vas"]], ["chat", "Quelle ", "quelle", ["heure"]],
+    ["chat", "À demain ", "demain", ["matin"]], ["chat", "J'ai ", "ai", ["besoin"]],
+    ["chat", "Tout va ", "va", ["bien"]], ["chat", "Avec ", "avec", ["plaisir"]],
+    ["general", "J'ai besoin ", "besoin", ["de"]], ["general", "Une tasse ", "tasse", ["de"]],
+    ["general", "Au lieu ", "lieu", ["de"]], ["general", "Parce ", "parce", ["que"]],
+    ["general", "Afin ", "afin", ["de"]], ["general", "Malgré ", "malgré", ["les"]],
+    ["general", "Le train arrive à la ", "la", ["gare"]], ["general", "Envoyez le ", "le", ["fichier"]],
+    ["tail", "Une éruption ", "éruption", ["volcanique"]], ["tail", "Un instrument ", "instrument", ["musical"]],
+    ["tail", "Le jardin ", "jardin", ["botanique"]], ["tail", "Une roue ", "roue", ["arrière"]],
+    ["tail", "Le télescope ", "télescope", ["spatial"]]
+  ],
+  "de": [
+    ["chat", "Guten ", "guten", ["morgen"]], ["chat", "Vielen ", "vielen", ["dank"]],
+    ["chat", "Bis ", "bis", ["morgen"]], ["chat", "Kein ", "kein", ["problem"]],
+    ["chat", "Alles ", "alles", ["klar"]], ["chat", "Bitte ", "bitte", ["schick"]],
+    ["chat", "Schick ", "schick", ["mir"]], ["chat", "Ich melde ", "melde", ["mich"]],
+    ["chat", "Ich freue ", "freue", ["mich"]], ["chat", "Wie geht ", "geht", ["es"]],
+    ["chat", "Ich bin auf dem ", "dem", ["weg"]], ["chat", "Wir treffen ", "treffen", ["uns"]],
+    ["general", "Ich interessiere ", "interessiere", ["mich"]], ["general", "Es hängt ", "hängt", ["davon"]],
+    ["general", "Eine Tasse ", "tasse", ["kaffee"]], ["general", "Im Gegensatz ", "gegensatz", ["zu"]],
+    ["general", "Wegen ", "wegen", ["des"]], ["general", "Ohne ", "ohne", ["zweifel"]],
+    ["general", "Der Zug erreicht den ", "den", ["bahnhof"]], ["general", "Sende die ", "die", ["datei"]],
+    ["tail", "Ein vulkanischer ", "vulkanischer", ["ausbruch"]], ["tail", "Ein musikalisches ", "musikalisches", ["instrument"]],
+    ["tail", "Der botanische ", "botanische", ["garten"]], ["tail", "Das Fahrrad ", "fahrrad", ["rad"]],
+    ["tail", "Die Linse ", "linse", ["des"]]
+  ]
+}
