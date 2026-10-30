@@ -45,9 +45,9 @@ Learned words, preferences, shortcuts and emoji history are kept in app-private 
 
 ## Prediction data review
 
-The review candidate replaces the old next-word tables with pinned Common Voice Sentence Collector inputs and small explicit chat priors. It keeps offline English/French/German next-word hints and the existing TSV/runtime format. The three spelling/frequency dictionaries are byte-for-byte unchanged and now have reproducible pinned-source recipes.
+The review candidate uses pinned CC0 Common Voice Sentence Collector text alone for offline English/French/German next-word tables, with a 24,000-context cap per language. Generation uses corpus counts without FrequencyWords weights or historical chat seeds. The spelling/frequency dictionaries remain byte-for-byte unchanged and retain CC BY-SA 4.0 terms.
 
-This is a trade-off, not a claim of equal prediction quality: rare contexts can lose hints or offer one instead of two, German context coverage is lower, and limited chat diagnostics overlap the seed design. See [the coverage, synthetic scenarios and exploratory split comparison](docs/PREDICTION_DATA_REVIEW.md) before a shipping decision. No new next-word choice is automatically inserted as an autocorrection.
+A sealed, separate contributor-file test improves context coverage and raw top-two hit rates over the previous licensed candidate in all three languages. English still trails the legacy baseline, rare phrases remain weak, chat diagnostics regress when seeds are removed, and larger tables often offer one hint. This is not measured typing accuracy. Review [the held-out comparison and size/quality trade-offs](docs/PREDICTION_COVERAGE_REVIEW.md) and [distribution/license questions](docs/DATA_DISTRIBUTION_REVIEW.md) before shipping. No next-word hint is automatically inserted as an autocorrection.
 
 ## Context models
 
@@ -94,7 +94,7 @@ The debug build also contains two measurement screens, `EvalActivity` (dictionar
 
 ## Credits
 
-- Word frequencies: the OpenSubtitles-based [FrequencyWords](https://github.com/hermitdave/FrequencyWords) list (CC BY-SA 4.0); next-word source text from Common Voice Sentence Collector (CC0), with FrequencyWords-informed generated data and project chat choices retaining CC BY-SA 4.0.
+- Word frequencies: the OpenSubtitles-based [FrequencyWords](https://github.com/hermitdave/FrequencyWords) list (CC BY-SA 4.0); new corpus-only next-word data from Common Voice Sentence Collector (CC0), independently generated without the spelling dictionaries or previous share-alike seed data.
 - Typeface: Nunito (SIL Open Font License).
 - Inference: [llama.cpp](https://github.com/ggml-org/llama.cpp) (MIT). Models are downloaded, not bundled, and keep their own licences
   (Gemma is under the Gemma terms).

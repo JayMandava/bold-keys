@@ -1,0 +1,53 @@
+{
+  "environment": "Linux OpenJDK 17; actual release SpellEngine classes, 256 MiB heap, 8 parser warmups, median 21 loads and full-context lookup sweeps; one dummy spelling entry to isolate follower parser. Approximate incremental GC heap, excludes source String/dictionary index, not Android device memory or startup time. Lookup contexts are all table keys, not a usage distribution.",
+  "languages": {
+    "en": {
+      "prior": {
+        "contexts": 9415,
+        "load_median_ms": 20.8312,
+        "lookup_all_contexts_median_ms": 5.4706,
+        "approx_retained_followers_bytes": 2505024,
+        "guard": 386484
+      },
+      "candidate": {
+        "contexts": 24000,
+        "load_median_ms": 40.8966,
+        "lookup_all_contexts_median_ms": 12.6107,
+        "approx_retained_followers_bytes": 5164952,
+        "guard": 774984
+      }
+    },
+    "fr": {
+      "prior": {
+        "contexts": 10297,
+        "load_median_ms": 25.3352,
+        "lookup_all_contexts_median_ms": 8.7278,
+        "approx_retained_followers_bytes": 2559440,
+        "guard": 422793
+      },
+      "candidate": {
+        "contexts": 24000,
+        "load_median_ms": 28.3615,
+        "lookup_all_contexts_median_ms": 12.2185,
+        "approx_retained_followers_bytes": 5067800,
+        "guard": 840420
+      }
+    },
+    "de": {
+      "prior": {
+        "contexts": 6663,
+        "load_median_ms": 30.3349,
+        "lookup_all_contexts_median_ms": 5.1137,
+        "approx_retained_followers_bytes": 1595736,
+        "guard": 271404
+      },
+      "candidate": {
+        "contexts": 24000,
+        "load_median_ms": 26.5835,
+        "lookup_all_contexts_median_ms": 12.4068,
+        "approx_retained_followers_bytes": 4713496,
+        "guard": 729666
+      }
+    }
+  }
+}

@@ -1,3 +1,5 @@
+> Historical review of candidate `73430654a9e6667d446ccb432f6ece91a22dbc81`. Its seeded/FrequencyWords-informed predictions were superseded by [the corpus-only coverage review](PREDICTION_COVERAGE_REVIEW.md). Metrics below describe that previous candidate, not current assets.
+
 # Prediction-data replacement review — no shipping approval
 
 This local candidate replaces all three unresolved next-word tables. It preserves offline English/French/German prediction, the existing TSV schema/runtime, and byte-for-byte identical spelling dictionaries. It does **not** establish equivalent real-user quality. The rare-context and German trade-offs below require review before shipping; no push, merge, signing, dispatch or release occurred.

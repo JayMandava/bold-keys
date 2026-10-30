@@ -1,8 +1,8 @@
 {
-  "schema": 1,
-  "pipeline_sha256": "d254f742dd259011a7e7800a8287ce188f3337dade2e784613a47a1c97bfd4bc",
-  "source_registry_sha256": "47bc55d9fbf2ac0936eec228677b4ba9af713c4fcf8706e0b27938bf445899fb",
-  "seeds_sha256": "3d87398b4675e9198de21ad3e5068fdc61dd33f6200c908e032ab20a1009b4f2",
+  "schema": 2,
+  "pipeline_sha256": "bbf83969d105bd940c54c7bdf0a5e44075d8279c2afe7a011fbbb6533408dcc0",
+  "source_registry_sha256": "c720501360d208ee4474d654d88c05008918707c5f561c52ab2271eeef29bfd3",
+  "prediction_generator_sha256": "214f8dbaaea637b0a97439267dcb8722428b2fab703f44b3f8b4562fea1ad154",
   "english_adjustments_sha256": "dc8dd7d5b88789179cc66a712bf70d1fe877877b41e0e490f501d23009661ea5",
   "source_snapshots": {
     "schema": 1,
@@ -79,76 +79,84 @@
         "url": "https://raw.githubusercontent.com/common-voice/common-voice/70dde553e48d7d0da452ba4ba070c001f65db88c/server/data/en/LICENSE",
         "sha256": "bf474cdfd02e162603358e4e3615182018cad27593d2bf5e75ca13e4a5a6af0c",
         "bytes": 6556
+      },
+      "cc_by_sa_legalcode": {
+        "filename": "CC-BY-SA-4.0.txt",
+        "url": "https://raw.githubusercontent.com/creativecommons/cc-legal-tools-data/a0dac18d1a773b4cdb7d8dd5d9bf4efab7901030/docs/licenses/by-sa/4.0/legalcode.txt",
+        "sha256": "28a9529c7d0bb4dc51f4bf5c116a3d16ef247a052f7591466768ddf563fd1cf5",
+        "canonical_url": "https://creativecommons.org/licenses/by-sa/4.0/legalcode.en",
+        "purpose": "Offline copy of unchanged license legal text from Creative Commons official repository"
       }
     }
   },
   "policy": {
-    "minimum_observed_pair_count": 2,
-    "context_backoff_minimum_distinct_prompts": 3,
-    "training_observations": "Each pair/context counts at most once per normalized prompt",
+    "prediction_inputs": "Only pinned CC0 Sentence Collector text; no spelling dictionaries, FrequencyWords weights, historical seeds or held-out files",
+    "minimum_follower_distinct_prompts": 2,
+    "training_observations": "Each pair/context/unigram counts at most once per normalized prompt",
+    "ranking": "Descending pair count, then corpus unigram prompt count, then lexical order",
     "maximum_followers": 4,
-    "maximum_contexts": 12000,
-    "curated_choices": "Explicit preferred chat contexts use project priors first; elsewhere observed CC0 followers precede seed backfill. No synthetic counts"
+    "maximum_contexts": 24000,
+    "rare_contexts": "One-prompt contexts allowed if follower occurs in at least two distinct prompts; no invented counts"
   },
   "statistics": {
     "en": {
       "words": 46394,
       "unique_prompts": 61501,
-      "contexts": 9415,
-      "follower_slots": 33474,
-      "single_follower_contexts": 426,
-      "curated_contexts": 45,
-      "preferred_chat_contexts": 18
+      "contexts": 24000,
+      "follower_slots": 52590,
+      "single_follower_contexts": 11096,
+      "curated_contexts": 0,
+      "preferred_chat_contexts": 0
     },
     "fr": {
       "words": 46000,
       "unique_prompts": 94891,
-      "contexts": 10297,
-      "follower_slots": 36746,
-      "single_follower_contexts": 461,
-      "curated_contexts": 45,
-      "preferred_chat_contexts": 15
+      "contexts": 24000,
+      "follower_slots": 59178,
+      "single_follower_contexts": 7980,
+      "curated_contexts": 0,
+      "preferred_chat_contexts": 0
     },
     "de": {
       "words": 46000,
       "unique_prompts": 39403,
-      "contexts": 6663,
-      "follower_slots": 23135,
-      "single_follower_contexts": 402,
-      "curated_contexts": 46,
-      "preferred_chat_contexts": 15
+      "contexts": 24000,
+      "follower_slots": 45458,
+      "single_follower_contexts": 13254,
+      "curated_contexts": 0,
+      "preferred_chat_contexts": 0
     }
   },
   "assets": {
     "words.tsv": {
       "sha256": "e404215106bd16a1f3fa4b3e48da540c6c5e2c5b8fba83a99a8fd9c0f84d9b27",
       "bytes": 579424,
-      "license": "CC-BY-SA-4.0 (FrequencyWords-derived data; Common Voice source remains CC0-1.0)"
+      "license": "CC-BY-SA-4.0 (FrequencyWords-derived dictionary)"
     },
     "pairs.tsv": {
-      "sha256": "c67f212c7080dad8ce37cb3089207a9b643bd45fafba013815af5e5e9ad81af3",
-      "bytes": 225882,
-      "license": "CC-BY-SA-4.0 (FrequencyWords-derived data; Common Voice source remains CC0-1.0)"
+      "sha256": "855d7dbd898704cd40bc48140262e13dbcb8b3a3a756960b85ff4ea6af57eeab",
+      "bytes": 456550,
+      "license": "CC0-1.0 (Common Voice source)"
     },
     "words_fr.tsv": {
       "sha256": "aa9478d5633ee69866bc3ad6bcff40abd363b70e564c367d1133093f25c27ff3",
       "bytes": 597123,
-      "license": "CC-BY-SA-4.0 (FrequencyWords-derived data; Common Voice source remains CC0-1.0)"
+      "license": "CC-BY-SA-4.0 (FrequencyWords-derived dictionary)"
     },
     "pairs_fr.tsv": {
-      "sha256": "5e1c0c1e06113f1425ea59d8758c18c874610285138f9779cd10540a23ce1149",
-      "bytes": 244061,
-      "license": "CC-BY-SA-4.0 (FrequencyWords-derived data; Common Voice source remains CC0-1.0)"
+      "sha256": "dc3975419c5374c29674a7e3dae9ba912a4eb047ce68feb3593b77d58847666b",
+      "bytes": 484658,
+      "license": "CC0-1.0 (Common Voice source)"
     },
     "words_de.tsv": {
       "sha256": "e643893c3bb8233bc93f18a895c9503a85b217609938fb19f9fafb3b6b374798",
       "bytes": 611430,
-      "license": "CC-BY-SA-4.0 (FrequencyWords-derived data; Common Voice source remains CC0-1.0)"
+      "license": "CC-BY-SA-4.0 (FrequencyWords-derived dictionary)"
     },
     "pairs_de.tsv": {
-      "sha256": "a1d12c32e96bda5a5794737d9620d71ec651e530c193f2e9cf6593d797a77f8f",
-      "bytes": 180843,
-      "license": "CC-BY-SA-4.0 (FrequencyWords-derived data; Common Voice source remains CC0-1.0)"
+      "sha256": "1cf0a8aa1d78e2f78b72aaecc6512199b3784e73f8671c526097d671d514efab",
+      "bytes": 511048,
+      "license": "CC0-1.0 (Common Voice source)"
     }
   }
 }

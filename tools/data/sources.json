@@ -73,6 +73,13 @@
       "url": "https://raw.githubusercontent.com/common-voice/common-voice/70dde553e48d7d0da452ba4ba070c001f65db88c/server/data/en/LICENSE",
       "sha256": "bf474cdfd02e162603358e4e3615182018cad27593d2bf5e75ca13e4a5a6af0c",
       "bytes": 6556
+    },
+    "cc_by_sa_legalcode": {
+      "filename": "CC-BY-SA-4.0.txt",
+      "url": "https://raw.githubusercontent.com/creativecommons/cc-legal-tools-data/a0dac18d1a773b4cdb7d8dd5d9bf4efab7901030/docs/licenses/by-sa/4.0/legalcode.txt",
+      "sha256": "28a9529c7d0bb4dc51f4bf5c116a3d16ef247a052f7591466768ddf563fd1cf5",
+      "canonical_url": "https://creativecommons.org/licenses/by-sa/4.0/legalcode.en",
+      "purpose": "Offline copy of unchanged license legal text from Creative Commons official repository"
     }
   }
 }
