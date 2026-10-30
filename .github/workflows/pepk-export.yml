@@ -1,0 +1,59 @@
+name: BLOCKED - one-time existing-key PEPK export review
+run-name: 'BLOCKED PEPK export review at ${{ inputs.commit_sha }}'
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: Full reviewed current-main SHA; export remains intentionally unimplemented
+        type: string
+        required: true
+
+permissions: {}
+concurrency:
+  group: bold-keys-production-release
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  COMMIT_SHA: ${{ inputs.commit_sha }}
+
+jobs:
+  preflight:
+    if: github.repository == 'JayMandava/bold-keys' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Check exact main and existing owner gate without signing credentials
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tools/release/pepk_preflight.py --commit "$COMMIT_SHA"
+
+  export:
+    needs: preflight
+    if: github.repository == 'JayMandava/bold-keys' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment: production-release
+    permissions: {}
+    steps:
+      # No secret references, key decoding, tool invocation or artifact upload exists.
+      # Tool-dependent implementation is forbidden until official source review.
+      - name: Refuse unimplemented encrypted-key export
+        run: |
+          set +x
+          echo 'PEPK export unavailable: official tool/password/encryption/output behavior is unverified.' >&2
+          exit 1
+      - name: Remove this workflow's temporary directory if present
+        if: always()
+        run: rm -rf -- "$RUNNER_TEMP/bold-pepk-export"
