@@ -50,7 +50,9 @@ includes third-party notices reproduced in graphics-path-NOTICE.txt.
 
 KOTLIN RUNTIME
 Kotlin standard library 2.0.21 and kotlinx.coroutines 1.8.1 are by JetBrains and
-contributors under Apache License 2.0 (full text included separately).
+contributors; JetBrains-owned code is Apache License 2.0. JVM stdlib also
+contains GWT/Guava-derived Apache portions and Boost-licensed math portions;
+their exact upstream notices are included in Kotlin-runtime-NOTICES.txt.
 Sources: https://github.com/JetBrains/kotlin/tree/v2.0.21
 https://github.com/Kotlin/kotlinx.coroutines/tree/1.8.1
 The Kotlin project's license documentation distinguishes third-party components;
