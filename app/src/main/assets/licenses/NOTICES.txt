@@ -1,0 +1,69 @@
+BOLD KEYS — LICENSES AND CREDITS
+Copyright 2026 Jeyanth Mandava
+Application code: Apache License 2.0. Third-party material keeps its own terms.
+
+WORD FREQUENCIES
+English, French and German word-frequency tables are derived from Hermit Dave's
+FrequencyWords project and OpenSubtitles corpora. Upstream content is licensed
+under Creative Commons Attribution-ShareAlike 4.0 International; its code is MIT.
+These are separate grants. The app's Apache license does not replace data terms.
+Source: https://github.com/hermitdave/FrequencyWords
+Content license: https://creativecommons.org/licenses/by-sa/4.0/
+Bold Keys filters word forms and converts data to tab-separated word/count tables.
+French/German processing also filters accent/umlaut variants; scripts are in the
+source distribution (tools/build_fr.py and tools/build_de.py). Upstream content
+and adapted data remain subject to applicable attribution/share-alike terms.
+
+NEXT-WORD DATA
+French/German next-word counts are derived from sentences contributed to Tatoeba,
+whose default sentence license is Creative Commons Attribution 2.0 France.
+Bold Keys tokenizes sentences, counts word pairs, and retains ranked followers.
+Source: https://tatoeba.org/
+License: https://creativecommons.org/licenses/by/2.0/fr/
+English next-word hints are derived from Peter Norvig's count_2w corpus data.
+Source: https://www.norvig.com/ngrams/
+No claim is made here that the code license on that page licenses its corpus data.
+Dataset snapshot and contributor-attribution review is recorded in the source
+repository's docs/THIRD_PARTY_REVIEW.md. These notices do not grant missing rights.
+
+FONT
+Nunito ExtraLight, version 3.602.
+Copyright 2014 The Nunito Project Authors (https://github.com/googlefonts/nunito).
+SIL Open Font License 1.1; the full notice and license are included below.
+
+EMOJI DATA
+The emoji table is generated from Unicode emoji-test.txt by filtering fully
+qualified entries, grouping them, and associating available skin-tone variants.
+Copyright © 1991-2026 Unicode, Inc. Unicode License V3 (included below).
+Source and license: https://www.unicode.org/license.txt
+The table is data; emoji rendering/fonts are supplied separately by Android.
+
+NATIVE INFERENCE
+llama.cpp and ggml, pinned source commit 748d4225b9016b17ce4bcfa69fdc2c39f473a965.
+Copyright (c) 2023-2026 The ggml authors. MIT License (included below).
+Source: https://github.com/ggml-org/llama.cpp
+
+ANDROID LIBRARIES
+AndroidX libraries are Apache-2.0 software; distributed AndroidX license notices
+are also retained in the application's META-INF entries. AndroidX graphics path
+includes third-party notices reproduced in graphics-path-NOTICE.txt.
+
+KOTLIN RUNTIME
+Kotlin standard library 2.0.21 and kotlinx.coroutines 1.8.1 are by JetBrains and
+contributors under Apache License 2.0 (full text included separately).
+Sources: https://github.com/JetBrains/kotlin/tree/v2.0.21
+https://github.com/Kotlin/kotlinx.coroutines/tree/1.8.1
+The Kotlin project's license documentation distinguishes third-party components;
+this notice describes the Android runtime dependencies, not a compiler bundle.
+
+OPTIONAL MODELS
+Models are not bundled. The catalogue offers Gemma 3 270M GGUF conversions from
+https://huggingface.co/unsloth/gemma-3-270m-it-GGUF . Gemma is provided under and
+subject to the Gemma Terms of Use found at https://ai.google.dev/gemma/terms .
+Use restrictions: https://ai.google.dev/gemma/prohibited_use_policy .
+Imported models keep their own terms. The app's Apache license does not license
+model weights or grant permission to use an imported model.
+
+TRADEMARKS
+Inspired by BlackBerry Bold 9900. BlackBerry is a trademark of its owner;
+this project is independent and is not affiliated with or endorsed by BlackBerry.

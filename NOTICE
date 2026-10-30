@@ -13,3 +13,9 @@ Third-party material:
 - app/src/main/assets/emoji.tsv is built from Unicode's emoji-test.txt (Unicode License v3, https://www.unicode.org/license.txt) by tools/build_emoji.py.
 - app/src/main/assets/Nunito.ttf is licensed under the SIL Open Font License 1.1.
 - third_party/llama.cpp is a submodule under the MIT licence.
+
+Offline copies of applicable license texts and source/modification notices are
+packaged under app/src/main/assets/licenses and available in Settings > About >
+Licenses & credits. Application code licensing does not replace data/font/model
+terms. Corpus snapshot/grant/attribution decisions remain documented in
+docs/THIRD_PARTY_REVIEW.md; these notices do not grant unresolved rights.

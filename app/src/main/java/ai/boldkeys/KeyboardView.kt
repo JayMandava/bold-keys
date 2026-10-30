@@ -34,6 +34,9 @@ private const val SHIFT_HOLD_MS = 450L
  * Keys act the moment a finger lands and several fingers can type at once, so quick typing never drops a letter.
  */
 class KeyboardView(context: Context, private val feedback: Feedback, private val listener: Listener) : View(context) {
+    /** Controlled by the active editor: incognito and sensitive fields never update emoji history. */
+    var personalizedLearningAllowed = true
+
     interface Listener {
         fun onText(text: String)
         fun onDelete()
@@ -1114,7 +1117,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                 val i = cellAt(g, x, y)
                 if (i >= 0) {
                     listener.onText(pickItems[i])
-                    if (picker == Picker.EMOJI) Emoji.bump(context, pickItems[i]) // both pickers stay open until "close", so one visit can type many; the emoji one remembers what was used
+                    if (picker == Picker.EMOJI && personalizedLearningAllowed) Emoji.bump(context, pickItems[i]) // both pickers stay open until "close", so one visit can type many; the emoji one remembers what was used
                 }
             }
         }
@@ -1152,11 +1155,11 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         stopTones()
         if (item != null && tone in 0..5) {
             feedback.key()
-            Emoji.remember(context, item, tone)
+            if (personalizedLearningAllowed) Emoji.remember(context, item, tone)
             tones = Emoji.toneState(context)
             pickItems[pCell] = Emoji.shown(item, tone)
             listener.onText(Emoji.shown(item, tone))
-            Emoji.bump(context, Emoji.shown(item, tone))
+            if (personalizedLearningAllowed) Emoji.bump(context, Emoji.shown(item, tone))
         }
         invalidate()
     }
