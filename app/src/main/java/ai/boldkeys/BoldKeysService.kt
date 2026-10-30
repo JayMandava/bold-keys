@@ -190,9 +190,12 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         // Flush the previous ordinary editor before changing policy. Incognito text is never added.
         saveLearned()
         undo = null; lastSpaceAt = 0
+        smart = false; shown = emptyList() // no prior-editor candidates while new input policy is being applied
         ++lmJob // discard pending context corrections from the previous editor
         super.onStartInput(info, restarting)
         applyLearningPolicy(info)
+        if (::kb.isInitialized) kb.resetAccessibilityInput()
+        if (::bar.isInitialized) bar.setSuggestions(emptyList()) // remove prior-editor candidate nodes immediately
     }
 
     private fun applyLearningPolicy(info: EditorInfo) {
@@ -200,7 +203,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         learningAllowed = info.imeOptions and EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING == 0 &&
             info.inputType and InputType.TYPE_MASK_CLASS == InputType.TYPE_CLASS_TEXT &&
             variation !in SECRET_VARIATIONS && variation != InputType.TYPE_TEXT_VARIATION_URI
-        if (::kb.isInitialized) kb.personalizedLearningAllowed = learningAllowed
+        if (::kb.isInitialized) { kb.personalizedLearningAllowed = learningAllowed; kb.setEnterAction(info.imeOptions) }
     }
 
     override fun onStartInputView(info: EditorInfo, restarting: Boolean) {
@@ -235,8 +238,9 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
     override fun onFinishInput() {
         super.onFinishInput()
         saveLearned()
-        learningAllowed = false
-        if (::kb.isInitialized) kb.personalizedLearningAllowed = false
+        learningAllowed = false; smart = false; shown = emptyList()
+        if (::bar.isInitialized) bar.setSuggestions(emptyList())
+        if (::kb.isInitialized) { kb.personalizedLearningAllowed = false; kb.resetAccessibilityInput() }
     }
 
     /** Where the text field being typed in is on the screen (kept up to date by the system), so a tap in it is not mistaken for a tap away. */

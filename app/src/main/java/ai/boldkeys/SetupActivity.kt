@@ -366,7 +366,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.typingItems(context: 
         }
         }
     }
-    item(key = "typing-note") { Note("Passwords, email addresses and web addresses are never corrected or suggested, whatever you choose here.") }
+    item(key = "typing-note") { Note("Password and email fields suppress correction and suggestions. Web addresses are never automatically rewritten, but suggestions may appear. These protections depend on the editor reporting its input type correctly.") }
 }
 
 // ---------------------------------------------------------------- appearance
