@@ -78,3 +78,45 @@ class PublicCandidateChecks(unittest.TestCase):
         self.assertIn('steps.java.outputs.version',text);self.assertNotIn('--location',text)
         self.assertIn('pepk_candidate.py',text);self.assertNotIn('export_reviewed(',text)
         self.assertNotIn('BOLD_RELEASE_',(ROOT/'tools/release/pepk_disposable_audit.py').read_text())
+
+    def test_driver_harness_counts_real_guard_failure_as_expected_rejection(self):
+        # Harness-only regression: no PEPK execution/crypto claim. The real pin checker
+        # raises GuardFailure after the harness tampers with its synthetic helper.
+        import pepk_driver_audit as driver
+        from pepk_terminal import verify_trusted_files
+        from unittest.mock import Mock
+        baseline=Mock();baseline.private_numbers.return_value=('synthetic-baseline',)
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp);java=root/'jdk/bin/java';java.parent.mkdir(parents=True);java.write_bytes(b'fixture-java')
+            modules=root/'jdk/lib/modules';modules.parent.mkdir();modules.write_bytes(b'fixture-modules')
+            jar=root/'public.jar';jar.write_bytes(b'fixture-jar')
+            classes=root/'classes';classes.mkdir();(classes/'PepkIdentity.class').write_bytes(b'fixture-helper')
+            def identity(argv,env):
+                if '-genkeypair' in argv:
+                    Path(argv[argv.index('-keystore')+1]).write_bytes(b'synthetic-container')
+                else:
+                    Path(argv[-2]).write_bytes(b'synthetic-baseline')
+                    Path(argv[-1]).write_bytes(b'synthetic-public-cert')
+            def export(payload,output,record,commit,runner_temp,env):
+                verify_trusted_files({str(payload/'PepkIdentity.class'):record['identity_class_sha256']})
+                if output.exists():raise ValueError('existing fixture')
+                if env['PRIVATE_DELIVERY_CHECKED']!='true' or 'wrong-fixture-only' in env.values():
+                    raise ValueError('rejected synthetic input')
+                output.mkdir()
+                with zipfile.ZipFile(output/'encrypted-export.zip','w') as z:
+                    z.writestr('encryptedPrivateKey',output.name.encode())
+                (output/'public-certificate.pem').write_bytes(b'synthetic-public-cert')
+                (output/'SHA256SUMS').write_bytes(b'synthetic-sums')
+                (output/'export-provenance.json').write_bytes(b'{}')
+            def verify(output,*args):
+                if (output/'public-certificate.pem').read_bytes().endswith(b'bad'):
+                    raise ValueError('tampered synthetic cert')
+            with patch.object(driver.exporter,'run_identity_quiet',side_effect=identity), \
+                 patch.object(driver.exporter,'export_reviewed',side_effect=export), \
+                 patch.object(driver.exporter,'verify_export_output',side_effect=verify), \
+                 patch('cryptography.hazmat.primitives.serialization.load_der_private_key',return_value=baseline), \
+                 patch.object(driver,'independent_unwrap',return_value=baseline):
+                report=driver.audit_driver(jar,java,classes,hashlib.sha256(jar.read_bytes()).hexdigest(),{})
+            self.assertEqual(report['checks_passed'],20)
+            self.assertIn('driver-helper-pin-tamper-rejected',report['checks'])
+            self.assertTrue(report['private_fixtures_removed'])

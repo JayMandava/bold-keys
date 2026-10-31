@@ -19,7 +19,7 @@ import zipfile
 import pepk_export as exporter
 from pepk_disposable_audit import BASELINE_SOURCE, independent_unwrap
 from pepk_policy import require, SOURCE_SHA
-from pepk_terminal import ENV
+from pepk_terminal import ENV, GuardFailure
 
 
 def audit_driver(jar, java, classes, tool_hash, original):
@@ -60,7 +60,7 @@ def audit_driver(jar, java, classes, tool_hash, original):
             'BOLD_RELEASE_STORE_PASSWORD':password,'BOLD_RELEASE_KEY_ALIAS':'dummy-only','BOLD_RELEASE_KEY_PASSWORD':key_password}
         def reject(operation, label):
             try:operation()
-            except (ValueError,OSError):checks.append(label)
+            except (ValueError,OSError,GuardFailure):checks.append(label)
             else:raise ValueError('Disposable driver negative check unexpectedly succeeded')
         # Readiness is deliberately synthetic only inside this disposable audit process.
         with patch.object(exporter,'validate_ready'),patch.object(exporter,'CERT',fingerprint),patch.object(exporter,'TOOL_SHA',tool_hash):
