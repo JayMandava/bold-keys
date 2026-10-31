@@ -2,6 +2,8 @@
 
 This is a local review candidate, not an approved release. No upload, publication, signing-key migration or Play enrollment is part of this change.
 
+Current reconciliation onto public main and preserved signing setup are documented in [PLAY_INTEGRATION_REVIEW.md](PLAY_INTEGRATION_REVIEW.md). Historical observations below retain their original dates and source commits.
+
 ## Source and scope
 
 Base: public `main` commit `cde20679729fce28cbc1ca90ec42045c841945fa`, fetched on 2026-10-30. Public v0.6.1 is `d80866e4b7bcd5c2a298c62a7ae081a5caa32aae`. The two intervening public commits add protected release tooling and fix its SDK-manager path; they do not change production Kotlin/native application sources. This keeps their fail-closed signing behavior rather than reintroducing v0.6.1's debug-key fallback. The private debug branch and its colour features were not used. Existing public black/white themes and four backlight colours are retained.
