@@ -154,3 +154,76 @@ class ProvisionChecks(unittest.TestCase):
         with patch.object(provision,'check_host'),patch.object(provision,'verify_toolchain',return_value=java),patch.object(provision,'tree_identity',return_value={'sha256':record['github_hosted_runtime']['java_tree_sha256']}),patch.object(provision,'reviewed_build_recipe'),patch.object(provision,'probe_python_child'),patch.object(provision,'enforce_runtime_identity'),patch.object(provision,'verify_reviewed_java_runtime',side_effect=ValueError('Java host changed')):
             with self.assertRaisesRegex(ValueError,'Java host changed'):
                 provision.verify_protected_runtime(record)
+
+    def test_public_runtime_diagnostics_have_fixed_allowlisted_categories_only(self):
+        facts=provision.public_runtime_diagnostics({'phase':'toolchain'},ValueError('PRIVATE-DUMMY-PAYLOAD'))
+        self.assertEqual(facts,{'phase':'toolchain','reason':'unclassified_failure','exception_category':'ValueError'})
+        self.assertNotIn('PRIVATE-DUMMY-PAYLOAD',json.dumps(facts))
+        self.assertEqual(provision.public_runtime_diagnostics({'phase':'PRIVATE-DUMMY-PAYLOAD'},OSError('PRIVATE-DUMMY-PAYLOAD'))['phase'],'unknown')
+        for message,reason in provision.RUNTIME_REASONS.items():
+            self.assertEqual(provision.public_runtime_diagnostics({'phase':'java_components'},ValueError(message))['reason'],reason)
+
+    def test_runtime_observer_tracks_existing_order_and_original_failure(self):
+        record=self.record();java=Path('/public/jdk/bin/java');order=[]
+        phases=['host_metadata','toolchain','complete_jdk_tree','derived_recipe','python_build_child','java_components']
+        for failing in phases+[None]:
+            state={};order=[]
+            def observed(name,result=None):
+                order.append(name)
+                self.assertEqual(state['phase'],name)
+                if name==failing:raise ValueError('PRIVATE-DUMMY-PAYLOAD')
+                return result
+            with patch.object(provision,'check_host',side_effect=lambda r:observed('host_metadata')),patch.object(provision,'verify_toolchain',side_effect=lambda r:observed('toolchain',java)),patch.object(provision,'tree_identity',side_effect=lambda p:observed('complete_jdk_tree',{'sha256':record['github_hosted_runtime']['java_tree_sha256']})),patch.object(provision,'reviewed_build_recipe',side_effect=lambda j,r:observed('derived_recipe')),patch.object(provision,'probe_python_child',side_effect=lambda:observed('python_build_child',{})),patch.object(provision,'enforce_runtime_identity'),patch.object(provision,'verify_reviewed_java_runtime',side_effect=lambda r,j:observed('java_components')):
+                if failing:
+                    with self.assertRaisesRegex(ValueError,'PRIVATE-DUMMY-PAYLOAD'):provision.verify_protected_runtime(record,state)
+                    self.assertEqual(order,phases[:phases.index(failing)+1])
+                    self.assertEqual(provision.public_runtime_diagnostics(state,ValueError())['phase'],failing)
+                else:
+                    provision.verify_protected_runtime(record,state)
+                    self.assertEqual(order,phases)
+
+    def test_public_runtime_diagnostic_opt_in_is_only_in_unprivileged_prepare_job(self):
+        text=(ROOT/'.github/workflows/pepk-export.yml').read_text()
+        public=text.split('  prepare_public:')[1].split('  export:')[0]
+        protected=text.split('  export:')[1]
+        self.assertEqual(text.count('--public-runtime-diagnostics'),1)
+        self.assertIn('--verify-runtime --public-runtime-diagnostics',public)
+        self.assertNotIn('${{ secrets.',public);self.assertNotIn('environment:',public)
+        self.assertNotIn('--public-runtime-diagnostics',protected)
+
+    def test_runtime_cli_diagnostics_opt_in_does_not_leak_payload(self):
+        import subprocess
+        from pepk_runtime import python_child_env
+        env=python_child_env()|self.env()|{'RUNNER_OS':'WrongOS','BOLD_RELEASE_STORE_PASSWORD':'PRIVATE-DUMMY-PAYLOAD'}
+        result=subprocess.run([sys.executable,str(ROOT/'tools/release/pepk_provision.py'),'--verify-runtime','--public-runtime-diagnostics'],env=env,capture_output=True,text=True,timeout=30)
+        self.assertEqual(result.returncode,1)
+        self.assertNotIn('PRIVATE-DUMMY-PAYLOAD',result.stdout+result.stderr)
+        line=next(line for line in result.stderr.splitlines() if line.startswith('Public runtime-check diagnostics:'))
+        facts=json.loads(line.split(': ',1)[1])
+        self.assertEqual(set(facts),{'phase','reason','exception_category'})
+        self.assertEqual(facts['phase'],'host_metadata')
+
+    def test_public_runtime_snapshot_hashes_and_native_diff_redact_unknown_paths(self):
+        record=self.record();home=Path(sys.executable).resolve().parent.parent
+        # Avoid I/O against an actual installation: test public diagnostic formatting.
+        rows=[{'path':str(home/'lib/libpython3.12.so.1.0'),'sha256':'2'*64},
+              {'path':'/PRIVATE-DUMMY-PAYLOAD.so','sha256':'3'*64}]
+        with patch.object(provision,'digest',return_value='1'*64),patch.object(provision,'tree_identity',return_value={'sha256':'1'*64}),patch('pepk_runtime.loaded_native_libraries',return_value=rows),patch.dict(__import__('os').environ,{'BOLD_RELEASE_STORE_PASSWORD':'PRIVATE-DUMMY-PAYLOAD'}):
+            facts=provision.public_runtime_snapshot(record)
+        encoded=json.dumps(facts)
+        self.assertNotIn('PRIVATE-DUMMY-PAYLOAD',encoded)
+        self.assertEqual(facts['comparisons']['python_packages']['observed'],'1'*64)
+        self.assertFalse(facts['comparisons']['python_packages']['matches'])
+        diff=facts['native_differences']['python']
+        self.assertEqual(diff['unreviewed_hashes'],['3'*64])
+        self.assertTrue(diff['changed'])
+        self.assertEqual(facts['probe_errors']['java_probe'],'SkippedUnverifiedStaticBytes')
+        self.assertNotIn('environment',facts)
+
+    def test_public_snapshot_error_categories_never_include_exception_payload(self):
+        record=self.record()
+        with patch.object(provision,'digest',side_effect=PermissionError('PRIVATE-DUMMY-PAYLOAD')),patch.object(provision,'tree_identity',side_effect=OSError('PRIVATE-DUMMY-PAYLOAD')),patch('pepk_runtime.loaded_native_libraries',side_effect=ValueError('PRIVATE-DUMMY-PAYLOAD')):
+            facts=provision.public_runtime_snapshot(record)
+        self.assertNotIn('PRIVATE-DUMMY-PAYLOAD',json.dumps(facts))
+        self.assertEqual(facts['probe_errors']['python_packages'],'OSError')
+        self.assertEqual(facts['probe_errors']['python_native_inventory'],'ValueError')

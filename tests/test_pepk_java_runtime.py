@@ -108,3 +108,11 @@ class JavaRuntimeChecks(unittest.TestCase):
         self.assertEqual(pins['host:/usr/lib/x86_64-linux-gnu/librt.so.1'],'6d072187d88e092e81561a44c03a4a41397319022c6d43519757cc051c576d82')
         self.assertEqual(contract['evidence_report_sha256'],'07f2460566d6749ddceceec65d9290a9e6200d6828c621a8efa881976f9f5633')
         self.assertEqual(len(record['toolchain']['native_library_pins']),41)
+
+    def test_public_unresolved_dependency_diagnostics_are_bounded_names_only(self):
+        from subprocess import CompletedProcess
+        home=fixture_java().parent.parent;state={}
+        result=CompletedProcess([],0,b'libmissing.so.1 => not found\nUNSAFE/PRIVATE-DUMMY-PAYLOAD => not found\n',b'PRIVATE-DUMMY-PAYLOAD')
+        with patch.object(probe.subprocess,'run',return_value=result),self.assertRaises(ValueError):
+            probe.java_native_dependencies(home/'lib/libjava.so',home,diagnostic_state=state)
+        self.assertEqual(state,{'unresolved_library_names':['libmissing.so.1']})
