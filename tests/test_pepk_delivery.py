@@ -98,3 +98,32 @@ class DeliveryChecks(unittest.TestCase):
         client=Fake();client.repo['private']=False
         with self.assertRaises(ValueError):self.transfer(client)
         self.assertEqual(client.puts,[])
+
+    def test_runtime_rejection_precedes_token_lookup_or_client_creation(self):
+        class NoTokenReads:
+            def get(self,name):raise AssertionError('Token must not be looked up')
+        with patch.object(d,'validate_ready'),patch.object(d,'verify_runtime_identities',side_effect=ValueError('runtime drift')),patch.object(d,'Client') as client:
+            with self.assertRaisesRegex(ValueError,'runtime drift'):d.checked_client({'toolchain':{}},NoTokenReads())
+            client.assert_not_called()
+
+    def test_ready_and_runtime_guards_precede_dedicated_mock_token_client(self):
+        class Token:
+            def get(self,name):
+                if name!='BOLD_PEPK_DELIVERY_TOKEN':raise AssertionError('Wrong credential selector')
+                return 'github_pat_fixture_only'
+        with patch.object(d,'validate_ready') as ready,patch.object(d,'verify_runtime_identities') as runtime,patch.object(d,'Client') as client:
+            d.checked_client({'toolchain':{'public':'fixture'}},Token())
+            ready.assert_called_once();runtime.assert_called_once_with({'public':'fixture'})
+            client.assert_called_once_with('github_pat_fixture_only')
+
+    def test_context_validation_reads_only_public_identity_before_runtime_token_guard(self):
+        class PublicContext(dict):
+            def get(self,name,*args):
+                if name not in ('GITHUB_EVENT_NAME','GITHUB_REPOSITORY','GITHUB_REF','GITHUB_SHA','GITHUB_WORKFLOW_SHA'):
+                    raise AssertionError('Context must not read a credential')
+                return super().get(name,*args)
+        context=PublicContext(GITHUB_EVENT_NAME='workflow_dispatch',GITHUB_REPOSITORY='JayMandava/bold-keys',
+                              GITHUB_REF='refs/heads/main',GITHUB_SHA=SHA,GITHUB_WORKFLOW_SHA=SHA)
+        d.check_delivery_context(SHA,context)
+        context['GITHUB_REF']='refs/heads/other'
+        with self.assertRaises(ValueError):d.check_delivery_context(SHA,context)

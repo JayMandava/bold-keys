@@ -229,3 +229,70 @@ required an explicit derived-recipe fixture pin, enforced the build child, and r
 changed libpython/stdlib/package/host-libz identities. These in-memory fixture pins were
 never written to the production record. New full-source PEPK/driver execution remains
 for independent review; no original Google source request was retried in this worker.
+
+## Staged protected provisioning/pinning candidate (execution still disabled)
+
+Independent public audit run41179835311/job124474806090 at2b2dd4c passed71 tests,
+two matching complete source builds,11 actual disposable PEPK checks and20 actual
+exporter/verifier checks. Its canonical sorted/indented/newline report was retrieved
+through the public GitHub connector and independently rehashed here to
+379d4e1132d5cd3cbd21078299c826186f5e8a09c84718f4f9b49485ddd0f052.
+The review-branch record now stages that report's exact GitHub runtime pins and
+41-entry final native allowlist. No production approval flag/review ID is filled,
+and status remains disabled pending exact production/private-delivery review and
+owner authorization for enabling/merge. These staged values are not a dispatch.
+
+The reviewed host is Ubuntu24.04 x64 image20261025.353.1. Its host libz is
+/usr/lib/x86_64-linux-gnu/libz.so.1.3, hash
+f61677c7bdb7c2aa2a243ea781bfd16afcb361cede7b4ef76127a9d8eb9a5242.
+Local Debian/libz1.3.1 evidence is deliberately not substituted. The original
+certificate, recipient, Google source/JAR, Java helper and immutable base recipe
+remain unchanged. The derived recipe pin is
+6a1e635d5926ac0a7a0406eed88da3f7f9b13f2d816cbe86d9bf426f4eca61ab;
+it recomputes from the supplied base recipe and exact hosted Java path.
+
+Both public preparation and the protected owner-approved job provision exact
+Temurin21.0.13+9 using the pinned setup-java action with forced download and vendor
+signature verification, then install the unchanged checksum-pinned Python/wheels
+in an isolated prefix. No tool/source artifact crosses the public Actions boundary.
+`pepk_provision.py` rejects missing/different ImageVersion, runner architecture,
+Ubuntu release, installer-manifest SHA, complete JDK tree, compiler/modules/Python
+identities, native/tree pins or derived recipe. The live build child is checked too.
+The standard ImageVersion variable is documented by the runner-image implementation:
+https://github.com/actions/runner-images/blob/4da2307112a0fad2fd2ecaca8ba7d08683b8c581/images/ubuntu/scripts/build/configure-environment.sh .
+An image update must stop the operation and receive a new public audit and explicit
+reviewed pin update. No workflow repins from observed values.
+
+Host/manifest checks precede the explicit GH_TOKEN preflight step; checkout uses its
+normal scoped repository-read token. Complete runtime checks
+precede transfer-token and signing steps and repeat before their CLI entry points.
+The delivery CLI reads only an allowlist of public context fields, then verifies live
+runtime pins before looking up its dedicated token; it never copies the full environment. The signing driver continues to verify payload/runtime before reading the
+four signing inputs. Runtime selectors are step-local; children use only the verified
+prefix, not arbitrary loader paths/preload or inherited credentials. Production-release
+owner approval/main restriction and current-main rechecks are preserved. Only the
+existing4 signing inputs enter the export step; only the dedicated delivery token
+enters the two fixed-private-destination steps. Always cleanup removes the runtime,
+public build/tool copies, private temporary material and local encrypted copies.
+No ciphertext/tool/source upload-artifact step exists.
+
+Remaining steps: independently review this exact provisioning/private-delivery patch;
+complete the existing secure token handoff (private repository Contents-only,
+expiry<=24h, production-release environment only); obtain owner authorization for
+any reviewed enabling/merge. Only a later explicitly approved record may fill the
+independent production/private-delivery review IDs, implementation flag and approved
+status. Dispatch remains manual on main with commit_sha equal to the final enabled
+main SHA, plus delivery_token_expires_at as an explicit UTC upper bound. The owner
+then approves the production-release job. This task neither dispatches nor approves it.
+A drift failure requires review, never bypass. After verified private delivery,
+revoke/remove the token; private Git history is not erased by deleting files. Parent
+handles the already-authorized authenticated Play import/save separately. No raw keys
+are requested in chat, and no private repository/API/secret values were read here.
+
+Preparation validation:98 repository tests and81 controlled pinned-runtime PEPK tests
+pass; actionlint/diff checks pass.31 Python-native files and the JDK executable/modules/
+complete tree match the staged GitHub bytes locally. The local non-GitHub host is
+correctly rejected without mutating pins. Hosted provisioning/owner approval and all
+private-destination API/write checks remain unexecuted or mocked here; no claim of a
+real private transfer is made. The exact new workflow/private-delivery patch still
+requires independent review before any owner-authorized enabling/merge or execution.

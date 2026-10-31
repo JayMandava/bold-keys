@@ -16,7 +16,8 @@ import sys
 import urllib.error
 import urllib.request
 
-from pepk_policy import require, validate_ready
+from pepk_policy import require, validate_ready, validate_execution_context
+from pepk_runtime import verify_runtime_identities
 
 TARGET = 'JayMandava/bold-keys-signing-delivery'
 OWNER_ID = 202737776
@@ -57,6 +58,20 @@ class Client:
             raise ValueError('Private delivery API request rejected') from None
         except (OSError, ValueError):
             raise ValueError('Private delivery request failed or outcome uncertain') from None
+
+
+def check_delivery_context(commit,environ):
+    # Read only public execution identity before runtime validation; never copy all env values.
+    public={name:environ.get(name) for name in ('GITHUB_EVENT_NAME','GITHUB_REPOSITORY',
+            'GITHUB_REF','GITHUB_SHA','GITHUB_WORKFLOW_SHA')}
+    public['PRIVATE_DELIVERY_CHECKED']='true'  # This CLI establishes/revalidates the separate proof.
+    validate_execution_context(commit,public)
+
+
+def checked_client(record,environ):
+    validate_ready(record)
+    verify_runtime_identities(record['toolchain'])  # BEFORE dedicated token lookup.
+    return Client(environ.get('BOLD_PEPK_DELIVERY_TOKEN'))
 
 
 def instant(value):
@@ -157,9 +172,8 @@ if __name__ == '__main__':
         os.umask(0o077)
         record = json.loads(Path(__file__).with_name('pepk-export-review.json').read_text())
         validate_ready(record)  # BEFORE token lookup; unchanged production-disabled gate.
-        from pepk_policy import validate_execution_context
-        validate_execution_context(args.commit, dict(os.environ, PRIVATE_DELIVERY_CHECKED='true'))
-        client = Client(os.environ.get('BOLD_PEPK_DELIVERY_TOKEN'))
+        check_delivery_context(args.commit,os.environ)
+        client = checked_client(record,os.environ)
         run, attempt = os.environ['GITHUB_RUN_ID'], os.environ['GITHUB_RUN_ATTEMPT']
         if args.deliver:
             require(args.output is not None and args.payload is not None, 'Delivery inputs missing')
