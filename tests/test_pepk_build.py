@@ -1,6 +1,8 @@
 """Public-only deterministic packaging/manifest/toolchain tests, not an official PEPK rebuild."""
 import hashlib
 import json
+import os
+import zlib
 from pathlib import Path
 import shutil
 import stat
@@ -20,16 +22,28 @@ from pepk_policy import BUILD_SHA
 class BuildChecks(unittest.TestCase):
     def record(self):return json.loads((ROOT/'tools/release/pepk-export-review.json').read_text())
 
+    def selected_record(self):
+        # In-memory fixture identities only, never a promotion of production pins.
+        home=os.environ.get('JAVA_HOME')
+        java=(Path(home)/'bin/java' if home else Path('/usr/bin/java')).resolve(strict=True)
+        record=self.record()
+        record['toolchain']={
+            'java_realpath':str(java),'java_sha256':hashlib.sha256(java.read_bytes()).hexdigest(),
+            'modules_sha256':hashlib.sha256((java.parent.parent/'lib/modules').read_bytes()).hexdigest(),
+            'python_sha256':hashlib.sha256(Path(sys.executable).resolve().read_bytes()).hexdigest(),
+            'python_version':'.'.join(map(str,sys.version_info[:3])),
+            'zlib_build':zlib.ZLIB_VERSION,'zlib_runtime':zlib.ZLIB_RUNTIME_VERSION}
+        return record
+
     def test_exact_supplied_build_script_hash(self):
         self.assertEqual(hashlib.sha256((ROOT/'tools/release/build_pepk_local.py').read_bytes()).hexdigest(),BUILD_SHA)
 
-    def test_actual_public_toolchain_matches_audit_and_wrong_pin_fails(self):
-        record=self.record()
-        # Reference bytes need not match an unprivileged candidate host; mismatch must reject.
-        try:build.verify_toolchain(record)
-        except ValueError:pass
-        record['toolchain']['java_sha256']='0'*64
-        with self.assertRaises(ValueError):build.verify_toolchain(record)
+    def test_selected_public_toolchain_wrong_pin_fails_before_runtime_verification(self):
+        record=self.selected_record();record['toolchain']['java_sha256']='0'*64
+        with patch.object(build,'verify_runtime_identities') as runtime:
+            with self.assertRaisesRegex(ValueError,'Public input SHA256 mismatch'):
+                build.verify_toolchain(record)
+            runtime.assert_not_called()
 
     def test_source_tree_manifest_and_groups_detect_change(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -86,9 +100,9 @@ class BuildChecks(unittest.TestCase):
             with self.assertRaises(ValueError):build.verify_built_jar(jar,{'class_files':5990})
 
     def test_mismatched_stack_fails_before_source_or_compiler(self):
-        record=self.record();record['toolchain']['zlib_runtime']='not-the-audit'
+        record=self.selected_record();record['toolchain']['zlib_runtime']='not-the-audit'
         with tempfile.TemporaryDirectory() as temp,patch.object(build.subprocess,'run') as compiler:
-            with self.assertRaises(ValueError):build.build(Path(temp)/'absent.jar',Path(temp)/'out',record)
+            with self.assertRaisesRegex(ValueError,'Audit zlib stack differs'):build.build(Path(temp)/'absent.jar',Path(temp)/'out',record)
             compiler.assert_not_called()
             self.assertFalse((Path(temp)/'out').exists())
 
@@ -117,3 +131,31 @@ class BuildChecks(unittest.TestCase):
             pin=hashlib.sha256(derived).hexdigest()
             self.assertEqual(build.reviewed_build_recipe(java,{'derived_build_recipe_sha256':pin}),(derived,pin))
             with self.assertRaisesRegex(ValueError,'pin differs'):build.reviewed_build_recipe(java,{'derived_build_recipe_sha256':'0'*64})
+
+    def test_rejection_fixtures_work_with_debian_path_absent_and_github_jdk_layout(self):
+        production_record=ROOT/'tools/release/pepk-export-review.json';before=production_record.read_bytes()
+        selected=Path(self.selected_record()['toolchain']['java_realpath'])
+        with tempfile.TemporaryDirectory() as temp:
+            # Copy only the two public inputs these rejection tests inspect. No JDK
+            # execution/key fixture is needed; bytes come from the selected runtime.
+            home=Path(temp)/'hostedtoolcache/Java_Temurin-Hotspot_jdk/21/x64'
+            (home/'bin').mkdir(parents=True);(home/'lib').mkdir()
+            shutil.copyfile(selected,home/'bin/java')
+            shutil.copyfile(selected.parent.parent/'lib/modules',home/'lib/modules')
+            original_resolve=Path.resolve
+            def missing_debian(path,*args,**kwargs):
+                if str(path).startswith('/usr/lib/jvm/java-21-openjdk-amd64'):
+                    raise FileNotFoundError('Debian reference JDK deliberately absent in runner fixture')
+                return original_resolve(path,*args,**kwargs)
+            with patch.dict(os.environ,{'JAVA_HOME':str(home)}),patch.object(Path,'resolve',missing_debian):
+                self.test_selected_public_toolchain_wrong_pin_fails_before_runtime_verification()
+                self.test_mismatched_stack_fails_before_source_or_compiler()
+            self.assertEqual(production_record.read_bytes(),before)
+
+    def test_missing_reviewed_compiler_never_substitutes_available_configured_jdk(self):
+        record=self.selected_record();available_home=Path(record['toolchain']['java_realpath']).parent.parent
+        with tempfile.TemporaryDirectory() as temp:
+            record['toolchain']['java_realpath']=str(Path(temp)/'missing-reviewed-jdk/bin/java')
+            with patch.dict(os.environ,{'JAVA_HOME':str(available_home)}),patch.object(build.subprocess,'run') as compiler,patch.object(build,'verify_runtime_identities') as runtime:
+                with self.assertRaises(FileNotFoundError):build.verify_toolchain(record)
+                compiler.assert_not_called();runtime.assert_not_called()
