@@ -13,6 +13,7 @@ import zipfile
 import zlib
 
 from pepk_public import verify_public_file
+from pepk_runtime import python_child_env, verify_runtime_identities, probe_python_child, enforce_runtime_identity
 from pepk_policy import BUILD_SHA, SOURCE_SHA, TOOL_SHA, require
 
 ROOT = Path(__file__).resolve().parent
@@ -21,7 +22,7 @@ ENV = {'PATH': '/usr/bin:/bin', 'LANG': 'C.UTF-8'}
 
 def verify_toolchain(record):
     pins = record['toolchain']
-    java = Path('/usr/bin/java').resolve(strict=True)
+    java = Path(pins['java_realpath']).resolve(strict=True)
     require(str(java) == pins['java_realpath'], 'Audit Java realpath differs; do not substitute a runner JDK')
     verify_public_file(java, pins['java_sha256'])
     verify_public_file(java.parent.parent / 'lib/modules', pins['modules_sha256'])
@@ -29,6 +30,7 @@ def verify_toolchain(record):
     require('.'.join(map(str, sys.version_info[:3])) == pins['python_version'], 'Audit Python version differs')
     require(zlib.ZLIB_VERSION == pins['zlib_build'] and zlib.ZLIB_RUNTIME_VERSION == pins['zlib_runtime'],
             'Audit zlib stack differs; no alternate output hash is accepted')
+    verify_runtime_identities(pins)
     return java
 
 
@@ -96,28 +98,46 @@ def verify_built_jar(path, record):
                     and i.external_attr == 0o100644 << 16 for i in infos), 'Deterministic ZIP metadata differs')
 
 
+def reviewed_build_recipe(java, record):
+    """Preserve original recipe; any selected-compiler substitution requires its own pin."""
+    verify_public_file(ROOT/'build_pepk_local.py', BUILD_SHA)
+    original=(ROOT/'build_pepk_local.py').read_bytes()
+    pin=record.get('derived_build_recipe_sha256')
+    if pin is None:
+        require(Path('/usr/bin/java').resolve(strict=True)==java, 'Selected compiler requires reviewed derived recipe pin')
+        return original,BUILD_SHA
+    text=original.decode('utf-8')
+    require(text.count("'/usr/bin/java'")==2,'Reviewed base build recipe structure changed')
+    derived=text.replace("'/usr/bin/java'",repr(str(java))).encode('utf-8')
+    require(hashlib.sha256(derived).hexdigest()==pin, 'Derived build recipe pin differs')
+    return derived,pin
+
+
 def build(source_jar, destination, record):
     require(not any(c.isspace() for c in str(destination.resolve())), 'Build path must have no whitespace')
     require(not destination.exists(), 'Build destination must be new')
     verify_public_file(ROOT / 'build_pepk_local.py', BUILD_SHA)
-    verify_toolchain(record)  # Fail before compilation on GitHub stacks that differ from the audit.
+    java=verify_toolchain(record)  # Still requires explicitly reviewed runtime byte pins.
+    recipe,recipe_pin=reviewed_build_recipe(java,record)
+    child_env=python_child_env()
+    enforce_runtime_identity(record['toolchain'],probe_python_child())
     verify_public_file(source_jar, SOURCE_SHA, record['official_source_size_bytes'])
     destination.mkdir(mode=0o700)
     try:
         shutil.copyfile(source_jar, destination / 'pepk-src.jar')
-        shutil.copyfile(ROOT / 'build_pepk_local.py', destination / 'build_local.py')
+        (destination/'build_local.py').write_bytes(recipe)
         extract_source(destination / 'pepk-src.jar', destination / 'source', record)
         for repeat in range(2):
             validate_source_tree(destination / 'source', record)
-            verify_public_file(destination / 'build_local.py', BUILD_SHA)
+            verify_public_file(destination / 'build_local.py', recipe_pin)
             subprocess.run([str(Path(sys.executable).resolve()), str(destination / 'build_local.py')],
-                           cwd=destination, env=ENV, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                           cwd=destination, env=child_env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                            check=True, timeout=240)
             verify_built_jar(destination / 'local-build/pepk-local-source-build.jar', record)
         classes = destination / 'identity'
         classes.mkdir(mode=0o700)
         verify_public_file(ROOT / 'PepkIdentity.java', record['identity_source_sha256'])
-        subprocess.run(['/usr/bin/java','-m','jdk.compiler/com.sun.tools.javac.Main','-encoding','UTF-8',
+        subprocess.run([str(java),'-m','jdk.compiler/com.sun.tools.javac.Main','-encoding','UTF-8',
                         '-d',str(classes),str(ROOT / 'PepkIdentity.java')], env=ENV,
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True, timeout=30)
         verify_public_file(classes / 'PepkIdentity.class', record['identity_class_sha256'])

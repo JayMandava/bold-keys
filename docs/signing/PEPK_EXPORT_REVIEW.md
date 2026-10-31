@@ -177,3 +177,55 @@ and actual Console acceptance of this exact build remain unproven.
   the official source is unavailable under this task's old network policy, and
   its denied URL was not retried. Independent reference audit results above remain
   separate evidence. The new candidate execution is the next public workflow step.
+
+## Loaded-runtime provenance correction (pins/readiness unchanged)
+
+The successful public run41175240814 proved repeat builds and disposable checks, but
+its old diagnostic `ldd` call dropped LD_LIBRARY_PATH. That field described a different
+search environment, and its system-libpython hash is not an approved runtime identity.
+The corrected candidate records file-backed executable ELF mappings from its own
+/proc/self/maps, checks path/device/inode and file hashes, and separately records loaded
+host libz. It verifies mapped libpython equals the interpreter/library bytes derived
+from the existing checksum-pinned publisher archive. It also probes a child with the
+same environment used to run the build recipe. Deleted/replaced mappings, conflicting
+or missing shared libpython, and unresolved ldd entries (including exit0) fail closed.
+The diagnostic child receives only PATH/LANG and the verified prefix's library path;
+Python build children also receive that prefix's Python selectors. No arbitrary loader
+path, LD_PRELOAD, LD_AUDIT, token or signing input is inherited. This records mapped
+file identities; it does not attest that in-memory pages were never modified.
+
+Production enforcement now requires reviewed python_sha256, python_library_sha256,
+python_standard_library_sha256, python_packages_sha256 and native_library_pins.
+The latter uses python:<prefix-relative path> and host:<canonical absolute path> keys.
+Every observed native mapping must match a reviewed entry; loaded shared host libz is
+mandatory. These checks run during strict toolchain preparation, for the build probe
+child, and at payload verification before signing-secret reads. The readiness policy
+rejects missing runtime identities even if other synthetic approval fields are filled.
+Candidate-derived identities remain labelled NOT_APPROVED; no configuration pins,
+review IDs or readiness status have been promoted by this correction.
+
+Strict builder compatibility selects the already-reviewed canonical Java path instead
+of the runner default, and preserves only the verified Python prefix in child startup.
+A compiler substitution in the immutable base recipe requires an explicit
+`derived_build_recipe_sha256` matching the derived script. The unchanged original recipe
+is permitted only when /usr/bin/java resolves to the reviewed compiler. The protected
+workflow has NOT yet been changed to install/use the candidate runtime; that provisioning
+and explicit runtime/recipe pin promotion remain later reviewed steps. It cannot become
+ready merely by changing a status string.
+
+Local standalone test hosts without a shared libpython mapping are explicitly reported
+as unverified executable-only identities. That fallback supports local fixture tests;
+production enforcement rejects it. The official extracted shared-library runtime must
+always have the exact archive-derived live mapping. No system-libpython hash is adopted
+to make conflicting provenance agree. No PEPK crypto, Java helper or expected JAR hash
+changes are part of this correction.
+
+Correction validation:86 repository tests and69 PEPK tests on the actual pinned runtime
+pass. Live parent/build-child probes both mapped archive-matching libpython
+1fa3c52ba5aa8f6b2852836a4bf6cbb23161f7cf379f6f19248d87124b28b38a and separately
+mapped host libz.so.1.3.1 (local hash85590dd58edf5445e18bc7193e5ebc01ac5841f1ae187e97705a662e90c6421e).
+A live public-only strict-toolchain probe selected the nondefault reviewed compiler,
+required an explicit derived-recipe fixture pin, enforced the build child, and rejected
+changed libpython/stdlib/package/host-libz identities. These in-memory fixture pins were
+never written to the production record. New full-source PEPK/driver execution remains
+for independent review; no original Google source request was retried in this worker.
