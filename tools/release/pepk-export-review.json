@@ -1,6 +1,6 @@
 {
   "schema": 3,
-  "status": "awaiting_private_delivery_notices_and_independent_production_review",
+  "status": "awaiting_candidate_runtime_pins_and_independent_production_review",
   "expected_certificate_sha256": "b237e1aec0bfdae579caebe1a0d97517af1b7c066adc4b3d197b641adfa46c34",
   "official_source_url": "https://www.gstatic.com/play-apps-publisher-rapid/signing-tool/prod/pepk-src.jar",
   "official_source_sha256": "dc29a1d192eef9371eec0d2c134879fefc0a9dcf0c7046d6c8f3d302d0009b09",
@@ -11,10 +11,10 @@
   "tool_origin": "official_source_build",
   "source_built_tool_sha256": "7923237dd6ea1c0198b0ee91a1bfc0dafbd858aa88936f2ce847652e93d1e18a",
   "audit_thread": "01a18fd0-933b-76c1-a435-89f248eee029",
-  "audit_evidence_origin": "parent-reported independent public audit; not reproduced in this task",
+  "audit_evidence_origin": "Parent-reported independent source and actual-code audit; actual official PEPK execution occurred in that separate task, not this local environment",
   "build_recipe_review_id": "01a18fd0-933b-76c1-a435-89f248eee029/exact-build-script",
-  "source_licence_review_id": null,
-  "controlled_pty_protocol_review_id": null,
+  "source_licence_review_id": "01a18fd0-933b-76c1-a435-89f248eee029/scoped-internal-use-only",
+  "controlled_pty_protocol_review_id": "01a18fd0-933b-76c1-a435-89f248eee029/actual-code-11-checks",
   "export_implementation_reviewed": false,
   "reported_source_behavior": {
     "password_flags": "literal values; env: syntax unsupported; parse failures may print argv",
@@ -25,7 +25,7 @@
       "certificate.pem"
     ]
   },
-  "reported_build_environment": "OpenJDK 21.0.12.1; 3613 bundled sources; jdk.compiler/com.sun.tools.javac.Main; UTF-8; -d/-sourcepath; sorted source arguments; no external Java dependencies; exact build/ZIP script transfer pending",
+  "reported_build_environment": "Reference audit OpenJDK21.0.12.1/Python3.12.14/zlib1.3.2; exact supplied build script verified locally; separate actual-code audit rebuilt entire official source twice to the pinned JAR hash",
   "reported_licence_findings": {
     "application": "Apache-2.0 header in ExportEncryptedPrivateKeyTool.java lines1\u201315",
     "dependencies": "Bouncy Castle permissive; Checker qualifiers MIT; concurrency annotations CC Attribution; some annotation notices incomplete",
@@ -37,11 +37,10 @@
       "Enter password for key '<alias>':"
     ],
     "guards": "After each exact prompt, wait until both ECHO and ECHONL clear; nonblocking deadline-bound writes; recheck echo before every partial write; reject unexpected prompts; bound input/output; kill and reap on failure; never retain raw transcript",
-    "limit": "Terminal inspection and write are not atomic against a malicious child; trusted pinned source is essential; exact audited wrapper transfer pending"
+    "limit": "Check/write is not atomic against malicious code; trusted pinned child/runtime remain essential. Hardened local controller was independently exercised against actual PEPK with disposable fixtures."
   },
   "reported_validation_limits": "25 disposable audit tests and reproducible builds do not establish formal Google support for this exact local build or actual Play acceptance",
   "build_script_sha256": "bbbd1e62b16bf37f87242e00da5b9b2c7f5e00779f98590c09cc81bc6a5b0a48",
-  "require_repository_private": true,
   "private_delivery_review_id": null,
   "independent_production_review_id": null,
   "identity_source_sha256": "90f1c50bc3ece94d24cd9ce432c0bc35899dbf7006e39ef6ef24cee12154b2c6",
@@ -110,10 +109,25 @@
       "deb1535133fce848007203595444fb54f17519a2de33c95cbaf94a960230e350"
     ]
   ],
-  "third_party_notices_sha256": null,
+  "third_party_notices_sha256": "f3ab51dd74579c68f5b48f0290aff985d272f3a82008ea574d5c20ac1436cb92",
   "console_encryption_pem_spki_sha256": "4a269c18760f5159742cb14ea8235359d3b4fd9bf45c2492d5dedde4036c90b4",
   "console_encryption_pem_size_bytes": 625,
   "console_encryption_rsa_bits": 3072,
   "console_encryption_rsa_exponent": 65537,
-  "console_encryption_pem_provenance": "Owner-supplied current Console download via authorized Drive; public RSA key only; independently rehashed/parsed here; not a cryptographic Google attestation"
+  "console_encryption_pem_provenance": "Owner-supplied current Console download via authorized Drive; public RSA key only; independently rehashed/parsed here; not a cryptographic Google attestation",
+  "notice_scope": "internal-use provenance/available-notice register only; unresolved redistribution review remains open",
+  "public_redistribution_reviewed": false,
+  "source_manifest_path_convention": "Complete-file manifest uses literal source/ prefix; dependency-group manifests use archive-relative paths",
+  "actual_code_audit_report": {
+    "transferred_patch_sha256": "713efd0fff959d4b25d23e60d41ba8223fde2478e029c4e0520cca3b1bcff490",
+    "all_8_transport_chunks_verified": true,
+    "PEPK_tests_after_prefix_correction": 43,
+    "actual_hardened_PTY_checks": 11,
+    "actual_export_driver_and_final_verifier_checks": 22,
+    "strict_full_source_rebuilds_matching_pinned_JAR": 2,
+    "key_scope": "fresh disposable identities only; no production approval or Google acceptance inferred",
+    "workflow_guards": "mocked/unit validation; no protected GitHub run performed"
+  },
+  "private_delivery_repository": "JayMandava/bold-keys-signing-delivery",
+  "private_delivery_authorization": "Owner approved private destination and <=1-day repository-contents token; independent implementation review and secure token provisioning still pending"
 }

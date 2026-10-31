@@ -1,61 +1,179 @@
-# One-time PEPK export — local implementation, disabled pending review/delivery
+# One-time encrypted signing-identity transfer: implemented, production disabled
 
-Owner authorized the protected GitHub route, PEPK-encrypted existing-key export, transfer to Google Play and saving the existing signing identity. This change implements that path locally; it does not push/merge/dispatch, approve a job, read production signing values, export production keys, upload or change Play. No replacement production key or credential is generated. Production sources/releases/screenshots are unchanged. Existing Library401 was not retried.
+The production review candidate remains `225268bd029319dc7c62fc47feef38b11e5c0e6c`.
+This branch contains public workflow/helpers/tests, a public Console encryption key and
+internal-use notice evidence. No application source, production credential, existing
+signing identity or Play state is changed. Review-branch push is authorized; merge,
+workflow dispatch, protected-job approval and real-key execution have not occurred.
+The prior Library401 and restricted gstatic request have not been retried.
 
-## Implemented code and gates
+## Public candidate: next executable validation
 
-- pepk_policy.py: secret-independent readiness checks. The authenticated recipient pin, reviewed notice payload, PTY/licence/private-delivery/independent-production review IDs, final reviewed-implementation flag and explicit approved status are required before any signing-environment lookup. The current record remains disabled.
-- pepk_preflight.py: manual event, repository, ref, source/workflow SHA and current-main checks, existing production-release sole-owner/no-admin-bypass/main-only policy checks, then private-artifact visibility and readiness checks. Repeated after protected owner approval. No security settings are changed.
-- pepk_build.py /build_pepk_local.py: approved-reference public build. Verify official archive size/hash before safe extraction, complete/dependency manifests and3613 Java sources; verify exact supplied script; rebuild twice; enforce5990 classes and identical approved JAR SHA. Sorted entries, CRLF manifest, fixed1980 timestamps, ZIP_DEFLATED9 and external_attr0100644<<16 match the provided audit script. Current reference Java/Python/zlib pins are checked explicitly; mismatches never silently receive a new approved hash.
-- pepk_terminal.py: private controlling PTY, sanitized child environment and hash-pinned Java/modules/tool/helper/recipient inputs. Omit both password flags. Exact ordered prompts derive from release.keystore and validated alias; require both ECHO/ECHONL off before every nonblocking partial write. Bound total/echo waits, output64KiB, and input below PC_MAX_CANON plus a253-byte exporter cap. Reject invalid UTF-8/control characters, unsupported labels, unexpected/extra prompts, early EOF, nonzero exit, detected exact password echo, timeout and unexpected exceptions. Kill the child process group and poll/reap with bounded deadlines; no blocking waitpid/write. Clear owned buffers and never return/store raw transcript. An unreaped child is failure, not success.
-- PepkIdentity.java: related local helper compiled/pinned before credentials. Public-only UTF-8 Java-console probe; for the approved selected JKS entry, compare certificate DER SHA256, require RSA2048+, sign/verify a random in-memory challenge to prove private/public-key correspondence, and export only the public certificate with CREATE_NEW. Password values stay out of argv/diagnostics. Wrong store/key/certificate/mismatched-pair cases fail closed.
-- pepk_stage.py: public recipient/tool/notice/hash/console validation and exact public-input artifact allowlist, before any protected job and again before secret injection.
-- pepk_export.py: reads signing inputs only after readiness/context/payload checks; uses0700 temporary directory/0600 encrypted-keystore container, no core dumps, sanitized child environments, bounded quiet identity process and PTY. SIGINT/SIGTERM/SIGHUP are converted into exceptions so cleanup can run. Only the related reviewed helper/exporter/tool executes with credentials; no app build/unrelated application code, download or GH token runs in the secret-bearing step. The PEPK child receives passwords only through its private console. Verify certificate, exactly encryptedPrivateKey/certificate.pem, ZIP CRC/bounds/framing; final output is exactly encrypted-export.zip, public-certificate.pem, SHA256SUMS, export-provenance.json. Reverify before upload. Cleanup is on failure/success, with a workflow always step as well.
+`.github/workflows/pepk-public-audit.yml` is manual, exact-current-main only, with no
+protected environment or secret references. After parent review and a separately
+authorized merge to main, launch on `main` with `commit_sha` equal to that complete
+40-character main SHA. A branch push alone does not register a new manual workflow
+on GitHub's default branch. This task does not dispatch it.
 
-The protected workflow's existing signing-secret names are BOLD_RELEASE_KEYSTORE_BASE64, BOLD_RELEASE_STORE_PASSWORD, BOLD_RELEASE_KEY_ALIAS and BOLD_RELEASE_KEY_PASSWORD. Values are not inspected here. Only the export step references them. Its production-release owner gate and expected signing certificate remain B2:37:E1:AE:C0:BF:DA:E5:79:CA:EB:E1:A0:D9:75:17:AF:1B:7C:06:6A:DC:4B:3D:19:7B:64:1A:DF:A4:6C:34.
+The compiler is exact Temurin `21.0.13+9`, installed by the SHA-pinned setup-java
+action with forced download and required vendor signature verification. The helper
+also compares all installed JDK regular files/link targets against the independently
+checksum-pinned publisher archive. Python `3.12.14` is a checksum-pinned
+`actions/python-versions` release, extracted into an isolated prefix. Its setup.sh
+is deliberately not run because it performs an unpinned pip upgrade. Cryptography,
+cffi and pycparser wheels are hash-pinned, downloaded as public inputs and installed
+offline with no dependency resolution. Exact URLs, release/asset IDs and hashes are
+in `tools/release/pepk-candidate-runtime.json`; requirements have matching hashes.
+Publisher metadata/TLS/hash provenance is not described as a PSF signature.
 
-## Workable unprivileged route for a different GitHub toolchain
+The candidate workflow runs adversarial PTY/policy unit tests on that runtime,
+verifies the unchanged official Google source archive before extraction, checks the
+complete `source/` manifest and archive-relative dependency-group manifests, and
+builds all3613 Java sources twice (5990 classes). The supplied base recipe remains
+byte-pinned; the explicit candidate delta is the selected canonical Java path.
+It records both build hashes, compiled `PepkIdentity.class` hash, runtime/compiler
+bytes, complete standard-library/package manifests, libpython/zlib identities and
+resolved native-library hashes. It executes real PEPK console/crypto checks and
+actual export-driver/final-verifier checks using newly generated disposable keys.
+No source/tool archive, JAR, fixture keys or ciphertext are uploaded as artifacts.
+Only nonsensitive candidate evidence is printed to the public job log.
 
-pepk-public-audit.yml is a separate manual exact-main public-only workflow, with no protected environment, signing-secret references or binary/source/private-fixture artifact upload. It provisions Temurin21 through pinned actions/setup-java b843ebf9b913146b38da2eaa7aeddf76074ae1ad with forced download and verify-signature:true. The selected version is intentionally resolved only for this UNPRIVILEGED audit; the action's verified output version, actual Java/modules binary hashes, Python executable/version, zlib and crypto backend hashes/version are recorded for review. The official pinned action.yml was inspected: its resolved version output is version, and explicit signature verification fails rather than warns on verification failure.
+Independent review must assess the resulting evidence, explicitly update the
+production recipe/runtime/tool/helper pins and provision that reviewed runtime in
+the protected workflow before any production execution. There is no automatic
+promotion, no assumption that Ubuntu equals the prior Debian audit, and no
+permanent requirement to reproduce that particular installed Debian image.
+The strict reference builder currently still requires those old pins, so the
+protected workflow is intentionally unexecutable on an unmatched runner.
 
-pepk_candidate.py verifies the same exact official source and base recipe, then makes one explicit recipe delta: canonical selected Java21 path replaces both /usr/bin/java literals. Compiler flags/source inputs/ZIP recipe remain unchanged; the derived script hash is reported. Two clean builds must produce identical bytes. A changed candidate JAR hash is reported as UNPRIVILEGED_CANDIDATE_NOT_APPROVED_FOR_REAL_KEYS, never silently substituted into protected pins.
+## Approved private delivery implementation
 
-pepk_disposable_audit.py generates ALL fixture keys/passwords locally in a new temporary directory and accepts no existing keystore/password input. It exercises two real PEPK PTY exports when a built candidate is available, exact ZIP/certificate checks, independent Python cryptography RSA-OAEP SHA1/MGF1 plus RFC5649 AES unwrap and complete private-number comparison, randomized ciphertext, no overwrite, wrong store/key passwords and malformed recipient failure. Dummy PKCS8 baseline bytes are confined to the disposable fixture directory and removed. Only nonsensitive checks/hash/provenance summary leaves the run. The cryptography dependency is checked before fixture creation; absence fails this unprivileged audit and cannot authorize export.
+The public source repository must remain public. The owner approved the fixed
+private destination `JayMandava/bold-keys-signing-delivery`; parent has verified
+it exists and is private. Parent handles repository/token setup in supported UI.
+`BOLD_PEPK_DELIVERY_TOKEN` must be a fine-grained token limited to that repository's
+Contents read/write, expiring within24hours, stored only in `production-release`.
+No token exists as of the parent's last checkpoint; GitHub Mobile sudo confirmation
+is pending. No production signing secret is copied to the delivery repository.
 
-This avoids a permanent Debian-byte dependency: run the public audit on the intended GitHub stack, independently review the signed compiler provenance/derived recipe/reproducible hash/crypto results, then explicitly update the protected recipe/runtime/tool/helper pins and provisioning in a reviewed commit. Protected code continues rejecting unknown hashes until that promotion review. Formal Google support for a locally built JAR and actual Play acceptance remain unproven. No separate Google-distributed binary is required solely because its download failed.
+The export workflow retains the existing production-release sole-owner approval,
+main-only/no-admin-bypass controls, exact source/workflow/current-main SHA checks,
+and disabled readiness record. All tool preparation precedes signing injection.
+Public and protected jobs rebuild locally rather than transfer third-party tools
+through public Actions artifacts. After owner approval and before the four signing
+secrets enter their separate export step, `pepk_delivery.py` checks the fixed
+private repository's owner/ID/visibility/main branch and write permission, plus
+bounded token expiry. It saves only a run-bound, nonsensitive local proof.
 
-## Verified public inputs
+The dispatch input `delivery_token_expires_at` is a nonsensitive explicit UTC upper
+bound within one day. Where GitHub returns its token-expiry header, the helper
+checks it against that bound. Without that header, this remains an owner/UI expiry
+assertion, not independent API proof. Fine-grained target restriction and actual
+expiry must be verified in secure token setup; a token prefix cannot prove scopes.
+The helper does not create credentials or claim it can inspect all token grants.
 
-Independent audit task01a18fd0-933b-76c1-a435-89f248eee029 reported HTTP200/TLS/no-redirect official source retrieval and25 disposable checks. This task has not obtained the source archive, compiled its3613 sources or run PEPK. The audit source/build pins are:
+After local final verification, a separate step with only the delivery token
+rechecks destination identity/privacy/expiry immediately before each write. It
+sends exactly `encrypted-export.zip` and `public-certificate.pem` under
+`transfers/<reviewed-sha>/<run-id>-<attempt>/`. Both paths must be absent. PUT is
+attempted once, never automatically retried. Readback checks blob SHA, size and
+SHA256; uncertain PUT outcomes can be resolved by readback alone. Failed or partial
+transfers require private destination inspection before a new attempt. Authenticated
+redirects and out-of-allowlist paths are rejected. API bodies, tokens and ciphertext
+are never logged; no Actions artifact upload is used. Local metadata/receipt is
+cleaned rather than published. The token must be revoked and its stored environment
+secret removed after confirmed delivery. Committed ciphertext remains in private
+Git history; deletion does not promise erasure. Repository administrators and
+collaborators with access remain part of the private trust boundary.
 
-- Official source: https://www.gstatic.com/play-apps-publisher-rapid/signing-tool/prod/pepk-src.jar ;5268938 bytes; SHA256dc29a1d192eef9371eec0d2c134879fefc0a9dcf0c7046d6c8f3d302d0009b09.
-- Exact supplied build script matches SHA256bbbd1e62b16bf37f87242e00da5b9b2c7f5e00779f98590c09cc81bc6a5b0a48 locally.
-- Prior two source builds reportedly matched7923237dd6ea1c0198b0ee91a1bfc0dafbd858aa88936f2ce847652e93d1e18a. The strict reference stack is Debian OpenJDK21.0.12.1, Python3.12.14, zlib1.3.2. This task independently checked its installed Java executable/modules/Python hashes and versions match the supplied records. This does not imply GitHub Ubuntu matches them.
-- Source password flags are literal, env: is unsupported, and parse failures can print argv. Omitted passwords call System.console().readPassword with no stdin fallback. Prompts: KeystoreHelper.java44–48 and60–61. RSA/AES: ExportEncryptedPrivateKeyTool.java275–310; ZIP319–332; argument disclosure142–145. These are attributed audit references, not fresh source inspection here.
+## Key, encryption and execution safeguards
 
-The owner supplied the current Console encryption PUBLIC PEM through authorized Drive; its625 exact bytes including trailing newline are in pepk-console-encryption.pem. Independently rehashed and parsed here:
+Expected existing signing certificate DER SHA256:
+`B2:37:E1:AE:C0:BF:DA:E5:79:CA:EB:E1:A0:D9:75:17:AF:1B:7C:06:6A:DC:4B:3D:19:7B:64:1A:DF:A4:6C:34`.
+The current Console recipient is a distinct public RSA3072 key supplied by the owner;
+PEM SHA256 `ac50890bea088f457fd6ebdb56fd48ed1c58f42b4e7c380b2608ec9b2085e623`,
+SPKI SHA256 `4a269c18760f5159742cb14ea8235359d3b4fd9bf45c2492d5dedde4036c90b4`.
+Its provenance is the owner's current Console download, not independent Google
+cryptographic attestation. Neither is the Console's different51:A2 app-signing cert.
 
-- PEM SHA256ac50890bea088f457fd6ebdb56fd48ed1c58f42b4e7c380b2608ec9b2085e623.
-- SubjectPublicKeyInfo DER SHA2564a269c18760f5159742cb14ea8235359d3b4fd9bf45c2492d5dedde4036c90b4.
-- RSA3072/exponent65537. Owner-supplied current Console provenance is not a cryptographic Google attestation. This recipient public key is distinct from the B237 signing certificate and the Console's current51:A2 signing certificate.
+Readiness is checked before any production-secret/token lookup. The review record
+still has `export_implementation_reviewed:false`, missing independent production
+and private-delivery review IDs, and a disabled status. Existing signing inputs
+are only referenced in the export step: BOLD_RELEASE_KEYSTORE_BASE64,
+BOLD_RELEASE_STORE_PASSWORD, BOLD_RELEASE_KEY_ALIAS, BOLD_RELEASE_KEY_PASSWORD.
+No app build, unrelated application code, GH token or download runs with these.
 
-## Concrete remaining blockers/actions
+The source-verified tool has no env: password syntax and no stdin fallback; parse
+errors may print argv. Password flags are omitted. A private PTY controller matches
+ordered exact prompts and waits for ECHO and ECHONL to clear before each bounded
+nonblocking write; input/output/timeouts/reaping are bounded and raw transcripts
+are discarded. A hash-pinned helper checks the public certificate and proves
+private/public-key correspondence through an in-memory challenge. Only an encrypted
+keystore container is temporarily written; no raw private-key serialization.
+Temporary directories/permissions/core-dump limits, signal cleanup and workflow
+always cleanup are applied. Terminal flag checking/writing is not atomic against
+malicious code, making trusted child/runtime pins essential. Full VM/string/host
+forensic erasure is not promised.
 
-1. Execute/review the source-pinned unprivileged build + REAL disposable PEPK round-trip on the intended runner (or a fresh approved environment with source access). This task's previous403 was not retried. It retained only curl exit22/HTTP403, no headers/body/reason; old task policy omitted www.gstatic.com. Origin/proxy cause cannot be inferred from that403. No mirror/proxy bypass was used. New public source access succeeded only in the separately authorized fresh audit task.
-2. Complete/pin the bundled notice payload and licence review before redistributing the built tool. Application header is Apache2.0, while dependencies include Bouncy Castle permissive, Checker MIT and concurrency CC Attribution with some incomplete annotation notices. Do not label/distribute the whole archive as wholly Apache. No third-party archive/JAR is committed publicly here. Notice SHA/review ID remain unset, independently blocking secrets.
-3. Resolve the PRIVATE artifact route explicitly. Repository API on2026-10-31 reports JayMandava/bold-keys private:false. GitHub documents signed-in repository readers can download artifacts; public-repository Actions artifacts are not owner-private merely because retention is one day. The preflight rejects this route before credentials/uploads. A reviewed private delivery design/audience is required; do not automatically change repository visibility, create credentials/repos or weaken the gate. Reference: https://docs.github.com/en/actions/how-tos/manage-workflow-runs/download-workflow-artifacts .
-4. Independently review the new PTY/identity/output/workflow code and public candidate result, explicitly approve/pin any promoted recipe/tool/runtime, and set the final review IDs/status. The implementation flag is false and status disabled. Owner already authorized the stated encrypted transfer/save purpose; no generic duplicate approval is required. Source push/merge/dispatch and existing protected owner-job approval have NOT occurred.
-5. After any separately authorized real export, verify final artifacts; owner/parent uploads to the authenticated Console correction and confirms actual app-signing B237 identity continuity. This workflow never performs Play upload/save. App-signing/upload-key roles remain separate; no new upload key is generated. Current Console51:A2:1E:9F:DB:ED:4D:08:61:2B:0D:E3:47:A8:72:9F:3B:D7:F3:B3:A4:9C:69:A9:B2:C5:97:12:8B:50:D1:4B must not be confused with B237 or the encryption recipient.
+The audited source uses fresh AES256, RSA-OAEP SHA1/MGF1 and RFC5649 wrapping;
+certificate-inclusive ZIP has exactly encryptedPrivateKey and certificate.pem.
+Local checks prove key/cert pairing, allowlist/CRC/bounds/framing and independent
+round trips with disposable recipients. They cannot decrypt Google's production
+ciphertext or prove Play acceptance. This workflow performs no Play upload/save.
 
-## Tested here and limits
+## Evidence and licensing scope
 
-Executed local tests use pinned harmless mock children, tiny public Java packaging fixtures and fresh disposable JKS/RSA keys only. They cover incremental/extra/unknown prompts, ECHO/ECHONL, partial writes and rechecks, nonblocking backpressure, time/output limits, exact-echo rejection, unexpected exceptions and bounded reap; source-tree manifests/path rejection; two identical tiny fixture builds; readiness-before-secret lookup; private-repository delivery guard; exact ZIP/output allowlists and partial-output cleanup; actual Java UTF-8 console; real disposable correct/wrong password/certificate/key-pair mismatch/no-overwrite identity checks; candidate nonpromotion and an independently generated RSA/AES checker fixture; current public PEM hashes/shape. No local result is represented as actual PEPK execution. The separate audit's25 PEPK tests remain attributed evidence, not this task's execution.
+Independent audit task `01a18fd0-933b-76c1-a435-89f248eee029` verified the complete
+transferred implementation, found the complete-manifest-prefix defect, rebuilt
+Google source twice to `7923237dd6ea1c0198b0ee91a1bfc0dafbd858aa88936f2ce847652e93d1e18a`,
+and reported43 corrected unit tests,11 actual hardened-PTY checks and22 actual
+export-driver/final-verifier checks with fresh disposable identities. Those actual
+PEPK executions occurred in that separate environment, not this restricted worker.
+New local delivery API tests mock GitHub; they do not prove a real token/repository
+write, reviewer approval, GitHub provisioning or Google acceptance.
 
-Terminal inspection/write cannot be atomic against malicious code; trusted pinned child/compiler/runtime and runner are essential. Exact-byte echo detection cannot detect all transformed fragments. Java/Python environment strings, VM memory, host-loss/SIGKILL/OOM and forensic file erasure are not guaranteed zeroized by ordinary cleanup. Child reap timeout fails closed; it cannot fix an uninterruptible host process. ZIP/certificate/framing/hash checks cannot prove Google decryptability or actual imported identity. Real Google acceptance must be checked in Console after owner-controlled upload.
+`pepk-third-party-notices.txt` retains internal copyright/permission/disclaimer and
+attribution evidence. Scoped internal compilation/one-time execution is supported
+by inspected permissive notices. Public redistribution clearance for the combined
+archive is incomplete: application Apache2.0, Bouncy Castle permissive, Checker MIT,
+concurrency annotations CC Attribution and incomplete annotation notice details
+must not be collapsed into a wholly-Apache claim. No third-party source or compiled
+PEPK binary is committed or published. The separate Google binary is not a necessary
+gate; the official source build is a viable reviewed tool choice. Formal support
+and actual Console acceptance of this exact build remain unproven.
 
-Primary references: https://developer.android.com/studio/publish/app-signing ; https://support.google.com/googleplay/android-developer/answer/9842756?hl=en ; https://cryptography.io/en/latest/hazmat/primitives/keywrap/ ; https://cryptography.io/en/latest/hazmat/primitives/asymmetric/rsa/ .
+## Remaining protected steps
 
+1. Review/merge public code, then owner launches the nonsecret exact-main candidate
+   workflow with its full main SHA. Independently review hashes/real dummy tests.
+2. Explicitly promote reviewed runtime/tool/helper/recipe pins and provision that
+   runtime in the protected workflow. Review this new delivery implementation.
+   Keep readiness disabled until those reviews are complete.
+3. Parent completes secure dedicated token setup after the owner's Mobile sudo
+   confirmation; no token/password should be pasted in chat. Confirm Contents-only,
+   single-private-repo scope and expiry≤24h, then record UTC upper bound.
+4. On separately authorized reviewed main, dispatch export with commit_sha and
+   delivery_token_expires_at, then owner approves production-release. No action
+   here does that. Verify two private files and revoke/remove the transfer token.
+5. Parent/owner performs the already authorized authenticated Play import/save and
+   verifies the final B237 certificate identity. No replacement key is generated.
 
-## Final local validation result
+## Local validation for this revision
 
-2026-10-31: `python3 -m unittest discover -s tests -v` passed82 tests (42 PEPK build/controller/identity/output/candidate/policy tests and40 existing tests). Both pepk-export.yml and pepk-public-audit.yml pass actionlint; git diff --check passes. The fresh disposable JKS fixtures and synthetic crypto fixtures were removed; no production credentials were inspected. All49 production app/src/main files equal225268bd029319dc7c62fc47feef38b11e5c0e6c; the original production worktree is clean. Screenshot ZIP remainscc142a25e8654fc9ff18ff8e524bdb4c386821e16f9e3e549f85c876fd1bd456, unsigned AAB remains801258658fb56c113019133dd2e143833295e22e9556a5d693a034ff9f1ba2e9. No third-party source archive/JAR is added to this repository; the new625-byte PEM is public encryption material only. No push, dispatch, approval, real export, upload or Play change occurred.
+- Full repository Python suite:96 passed. PEPK subset:56 passed.
+- The same56 PEPK tests passed using the actual hash-verified GitHub Python3.12.14
+  prefix and Temurin21.0.13+9 installed locally. This includes real disposable
+  identity/helper tests and adversarial mock children; the one-source build fixture
+  is explicitly not an official PEPK build.
+- Public runtime bootstrap completed:454 JDK files/links compared,7802 standard
+  library files/links inventoried,1031 package files/links inventoried. No setup.sh
+  or network package resolution was used. Local archive comparison is distinct
+  from the workflow's future setup-java signature verification.
+- actionlint passed both PEPK workflows; git diff --check passed.
+- Application `app/src/main` diff against225268bd is empty. Existing unsigned AAB
+  SHA256 remains801258658fb56c113019133dd2e143833295e22e9556a5d693a034ff9f1ba2e9;
+  submission ZIP remainscc142a25e8654fc9ff18ff8e524bdb4c386821e16f9e3e549f85c876fd1bd456.
+- The new full-source candidate build/actual driver audit was NOT executed here:
+  the official source is unavailable under this task's old network policy, and
+  its denied URL was not retried. Independent reference audit results above remain
+  separate evidence. The new candidate execution is the next public workflow step.

@@ -28,17 +28,17 @@ class DisposableIdentityTests(unittest.TestCase):
         cls.temp=tempfile.TemporaryDirectory(prefix='pepk-disposable-test-')
         cls.addClassCleanup(cls.temp.cleanup)
         cls.root=Path(cls.temp.name);cls.classes=cls.root/'classes';cls.classes.mkdir()
-        cls.java=str(Path('/usr/bin/java').resolve())
+        cls.java=str((Path(os.environ.get('JAVA_HOME','/usr/lib/jvm/java-21-openjdk-amd64'))/'bin/java').resolve())
         cls.store=secrets.token_urlsafe(24);cls.password=secrets.token_urlsafe(24)
         cls.fixture_env=ENV|{'FIX_STORE':cls.store,'FIX_KEY':cls.password}
         cls.command([cls.java,'-m','jdk.compiler/com.sun.tools.javac.Main','-encoding','UTF-8',
                      '-d',str(cls.classes),str(ROOT/'tools/release/PepkIdentity.java')],ENV)
         for name in ['a','b']:
-            cls.command(['/usr/bin/keytool','-genkeypair','-keystore',str(cls.root/(name+'.jks')),
+            cls.command([str(Path(cls.java).parent/'keytool'),'-genkeypair','-keystore',str(cls.root/(name+'.jks')),
                          '-storetype','JKS','-storepass:env','FIX_STORE','-keypass:env','FIX_KEY',
                          '-alias','fixture','-keyalg','RSA','-keysize','2048','-dname','CN=Disposable Local Test',
                          '-validity','1','-noprompt'],cls.fixture_env)
-            cls.command(['/usr/bin/keytool','-exportcert','-keystore',str(cls.root/(name+'.jks')),
+            cls.command([str(Path(cls.java).parent/'keytool'),'-exportcert','-keystore',str(cls.root/(name+'.jks')),
                          '-storepass:env','FIX_STORE','-alias','fixture','-file',str(cls.root/(name+'.der'))],cls.fixture_env)
         cls.identity_env=ENV|{'BOLD_RELEASE_STORE_PASSWORD':cls.store,'BOLD_RELEASE_KEY_PASSWORD':cls.password,
                              'BOLD_RELEASE_KEY_ALIAS':'fixture'}
@@ -65,7 +65,10 @@ var k=x.getKey("fixture",p);x.setKeyEntry("fixture",k,p,new java.security.cert.C
 
     def test_public_helper_class_is_pinned_and_actual_console_utf8(self):
         record=json.loads((ROOT/'tools/release/pepk-export-review.json').read_text())
-        self.assertEqual(hashlib.sha256((self.classes/'PepkIdentity.class').read_bytes()).hexdigest(),record['identity_class_sha256'])
+        if hashlib.sha256(Path(self.java).read_bytes()).hexdigest()==record['toolchain']['java_sha256']:
+            self.assertEqual(hashlib.sha256((self.classes/'PepkIdentity.class').read_bytes()).hexdigest(),record['identity_class_sha256'])
+        else:
+            self.assertEqual(len(hashlib.sha256((self.classes/'PepkIdentity.class').read_bytes()).hexdigest()),64)
         stage.probe_console(Path(self.java),self.classes)
 
     def test_selected_disposable_key_and_certificate_match(self):

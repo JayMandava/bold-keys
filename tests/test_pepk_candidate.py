@@ -29,9 +29,10 @@ class PublicCandidateChecks(unittest.TestCase):
             digest=build.source_manifest(tree,[tree/'Fixture.java'])
             record={'official_source_size_bytes':source.stat().st_size,'java_sources':1,
                     'complete_source_manifest_sha256':build.source_manifest(tree,[tree/'Fixture.java'],'source/'),'group_manifests':[['Fixture',1,digest]],
-                    'class_files':1,'source_built_tool_sha256':policy.TOOL_SHA}
+                    'class_files':1,'source_built_tool_sha256':policy.TOOL_SHA,
+                    'identity_source_sha256':hashlib.sha256((ROOT/'tools/release/PepkIdentity.java').read_bytes()).hexdigest()}
             java=Path('/usr/bin/java').resolve()
-            with patch.object(candidate,'SOURCE_SHA',sha),patch.object(build,'SOURCE_SHA',sha),patch.object(candidate,'audit',return_value={'scope':'mock only; not PEPK execution'}):
+            with patch.object(candidate,'SOURCE_SHA',sha),patch.object(build,'SOURCE_SHA',sha),patch.object(candidate,'audit',return_value={'scope':'mock only; not PEPK execution'}),patch('pepk_driver_audit.audit_driver',return_value={'scope':'mock only; not real driver'}):
                 report=candidate.candidate(source,root/'candidate',java,record)
             self.assertEqual(report['status'],'UNPRIVILEGED_CANDIDATE_NOT_APPROVED_FOR_REAL_KEYS')
             self.assertTrue(report['two_clean_builds_identical'])

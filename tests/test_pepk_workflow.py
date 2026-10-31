@@ -46,7 +46,7 @@ class PepkWorkflowChecks(unittest.TestCase):
         class NoSecretReads:
             def get(self,name):raise AssertionError('Environment must not be read before readiness')
         with tempfile.TemporaryDirectory() as temp,patch.object(exporter,'verify_payload') as verify:
-            with self.assertRaisesRegex(ValueError,'notice payload'):
+            with self.assertRaisesRegex(ValueError,'independent production'):
                 exporter.export_reviewed(Path(temp)/'payload',Path(temp)/'out',self.record(),SHA,Path(temp),NoSecretReads())
             self.assertEqual(list(Path(temp).iterdir()),[])
             verify.assert_not_called()
@@ -66,12 +66,10 @@ class PepkWorkflowChecks(unittest.TestCase):
         with patch.dict(os.environ,self.env()),patch.object(pepk.release,'api',return_value={'object':{'sha':'b'*40}}),patch.object(pepk.release,'gate') as gate,self.assertRaisesRegex(ValueError,'Main moved'):pepk.preflight(SHA)
         gate.assert_not_called()
 
-    def test_public_repository_cannot_be_called_private_artifact_delivery(self):
-        with patch.dict(os.environ,self.env()),patch.object(pepk.release,'api',side_effect=[{'object':{'sha':SHA}},{'private':False}]),patch.object(pepk.release,'gate') as gate,self.assertRaisesRegex(ValueError,'Private artifact delivery'):pepk.preflight(SHA)
+    def test_public_source_remains_public_and_still_needs_independent_review(self):
+        with patch.dict(os.environ,self.env()),patch.object(pepk.release,'api',return_value={'object':{'sha':SHA}}) as api,patch.object(pepk.release,'gate') as gate,self.assertRaisesRegex(ValueError,'independent production'):pepk.preflight(SHA)
         gate.assert_called_once_with()
-
-    def test_private_repository_still_needs_pem_and_independent_review(self):
-        with patch.dict(os.environ,self.env()),patch.object(pepk.release,'api',side_effect=[{'object':{'sha':SHA}},{'private':True}]),patch.object(pepk.release,'gate'),self.assertRaisesRegex(ValueError,'notice payload'):pepk.preflight(SHA)
+        self.assertEqual(api.call_count,1)  # No requirement to privatize the source repository.
 
     def test_public_byte_pins_reject_corruption_missing_pin_and_symlink(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -82,26 +80,24 @@ class PepkWorkflowChecks(unittest.TestCase):
             link=Path(temp)/'link';link.symlink_to(path)
             with self.assertRaises(ValueError):public.verify_public_file(link,digest)
 
-    def test_workflow_secrets_scoped_and_public_build_precedes_gate(self):
+    def test_workflow_secrets_scoped_and_private_delivery_precedes_keys(self):
         text=(ROOT/'.github/workflows/pepk-export.yml').read_text()
         import re
         self.assertTrue(all(re.fullmatch(r'actions/[a-z-]+@[a-f0-9]{40}',action) for action in re.findall(r'uses: ([^\s]+)',text)))
-        self.assertNotIn('push:',text);self.assertNotIn('pull_request',text);self.assertNotIn('contents: write',text)
+        for forbidden in ['push:', 'pull_request', 'contents: write', 'upload-artifact@', 'download-artifact@']:
+            self.assertNotIn(forbidden,text)
         public_job=text.split('  prepare_public:')[1].split('  export:')[0]
         self.assertNotIn('environment:',public_job);self.assertNotIn('${{ secrets.',public_job)
-        self.assertIn('pepk_build.py --verify-toolchain',public_job);self.assertNotIn('--location',public_job)
-        self.assertIn('  export:\n    needs: prepare_public',text)
+        self.assertIn('pepk_build.py --verify-toolchain',public_job)
         self.assertIn('environment: production-release',text)
-        self.assertEqual(text.count('pepk_preflight.py --commit'),2)
+        self.assertEqual(text.count('pepk_preflight.py --commit'),3)
         secret=text.split('- name: Export only encrypted existing key')[1].split('- name: Reverify exact encrypted-only')[0]
-        self.assertEqual(text.count('${{ secrets.'),4);self.assertEqual(secret.count('${{ secrets.'),4)
-        for forbidden in ['curl ','javac','gradlew','GH_TOKEN','--storepass=','--keypass=']:
+        self.assertEqual(text.count('${{ secrets.'),6);self.assertEqual(secret.count('${{ secrets.'),4)
+        for forbidden in ['curl ','javac','gradlew','GH_TOKEN','BOLD_PEPK_DELIVERY_TOKEN','--storepass=','--keypass=']:
             self.assertNotIn(forbidden,secret)
-        self.assertIn('set +x',secret);self.assertIn('trap ',secret)
-        self.assertIn('digest-mismatch: error',text);self.assertEqual(text.count('retention-days: 1'),2)
-        final=text.split('name: encrypted-existing-key-')[1].split('- name: Remove private')[0]
-        self.assertNotIn('pepk.jar',final);self.assertNotIn('keystore',final)
-        for name in exporter.EXPORT_NAMES:self.assertIn('/'+name,final)
-        for module in ['pepk_export.py','pepk_policy.py','pepk_terminal.py','pepk_public.py']:
+        self.assertIn('steps.delivery.outputs.verified',secret);self.assertIn('set +x',secret)
+        self.assertLess(text.index('id: delivery'),text.index('- name: Export only encrypted existing key'))
+        self.assertIn('pepk_delivery.py --deliver',text)
+        for module in ['pepk_export.py','pepk_policy.py','pepk_terminal.py','pepk_public.py','pepk_delivery.py']:
             self.assertNotIn('import release',(ROOT/'tools/release'/module).read_text())
             self.assertNotIn('data_pipeline',(ROOT/'tools/release'/module).read_text())

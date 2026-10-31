@@ -105,7 +105,7 @@ def validate_encrypted_zip(path, expected_certificate, rsa_bytes):
 def verify_payload(payload, record, commit):
     exact_files(payload, PAYLOAD_NAMES)
     toolchain = record['toolchain']
-    java = Path('/usr/bin/java').resolve(strict=True)
+    java = Path(toolchain['java_realpath']).resolve(strict=True)
     require(str(java) == toolchain['java_realpath'], 'Java runtime path differs from audit')
     pins = {str(java): toolchain['java_sha256'],
             str(java.parent.parent / 'lib/modules'): toolchain['modules_sha256'],

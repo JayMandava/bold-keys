@@ -44,7 +44,7 @@ jobs:
         id: java
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: '21.0.13+9'
           java-package: jdk
           architecture: x64
           force-download: true
@@ -52,8 +52,18 @@ jobs:
           cache-jdk: false
           overwrite-settings: false
           problem-matcher: false
-      - name: Check independent test dependency before generating any disposable fixture
-        run: /usr/bin/python3 -c 'import cryptography'
+      - name: Install exact checksum-pinned public Python wheels and verify installed JDK archive
+        id: runtime
+        run: |
+          /usr/bin/python3 tools/release/pepk_runtime.py \
+            --root "$RUNNER_TEMP/public-pepk-runtime" --java-home "$JAVA_HOME"
+      - name: Run adversarial PTY and policy unit tests on pinned public Python stack
+        env:
+          PEPK_CANDIDATE_PYTHON_HOME: ${{ steps.runtime.outputs.python_home }}
+          PYTHONHOME: ${{ steps.runtime.outputs.python_home }}
+          LD_LIBRARY_PATH: ${{ steps.runtime.outputs.python_home }}/lib
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: '"${{ steps.runtime.outputs.python }}" -m unittest discover -s tests -p "test_pepk*.py" -v'
       - name: Fetch exact public source without redirects and verify size and SHA256
         run: |
           set -euo pipefail
@@ -65,9 +75,13 @@ jobs:
           /usr/bin/python3 tools/release/pepk_public.py --source "$RUNNER_TEMP/public-pepk-candidate/pepk-src.jar"
       - name: Build twice capture compiler provenance and independently decrypt fresh disposable exports
         env:
-          PUBLIC_COMPILER_PROVENANCE: 'actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad; Temurin21; resolved ${{ steps.java.outputs.version }}; vendor signature enforced; not a production approval'
+          PUBLIC_COMPILER_PROVENANCE: 'actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad; Temurin21.0.13+9; resolved ${{ steps.java.outputs.version }}; vendor signature enforced; not a production approval'
+          PEPK_CANDIDATE_PYTHON_HOME: ${{ steps.runtime.outputs.python_home }}
+          PYTHONHOME: ${{ steps.runtime.outputs.python_home }}
+          LD_LIBRARY_PATH: ${{ steps.runtime.outputs.python_home }}/lib
+          PYTHONDONTWRITEBYTECODE: '1'
         run: |
-          /usr/bin/python3 tools/release/pepk_candidate.py \
+          "${{ steps.runtime.outputs.python }}" tools/release/pepk_candidate.py \
             --source "$RUNNER_TEMP/public-pepk-candidate/pepk-src.jar" \
             --work "$RUNNER_TEMP/public-pepk-candidate/build" \
             --java "$JAVA_HOME/bin/java"
@@ -76,4 +90,4 @@ jobs:
       - name: Delete source builds public tools and any remaining disposable fixture directory
         if: always()
         run: |
-          rm -rf -- "$RUNNER_TEMP/public-pepk-candidate"
+          rm -rf -- "$RUNNER_TEMP/public-pepk-candidate" "$RUNNER_TEMP/public-pepk-runtime"
