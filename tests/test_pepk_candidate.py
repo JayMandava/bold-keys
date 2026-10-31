@@ -28,7 +28,7 @@ class PublicCandidateChecks(unittest.TestCase):
             tree=root/'manifest';tree.mkdir();(tree/'Fixture.java').write_bytes(original)
             digest=build.source_manifest(tree,[tree/'Fixture.java'])
             record={'official_source_size_bytes':source.stat().st_size,'java_sources':1,
-                    'complete_source_manifest_sha256':digest,'group_manifests':[['Fixture',1,digest]],
+                    'complete_source_manifest_sha256':build.source_manifest(tree,[tree/'Fixture.java'],'source/'),'group_manifests':[['Fixture',1,digest]],
                     'class_files':1,'source_built_tool_sha256':policy.TOOL_SHA}
             java=Path('/usr/bin/java').resolve()
             with patch.object(candidate,'SOURCE_SHA',sha),patch.object(build,'SOURCE_SHA',sha),patch.object(candidate,'audit',return_value={'scope':'mock only; not PEPK execution'}):

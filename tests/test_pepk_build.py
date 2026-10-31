@@ -32,11 +32,23 @@ class BuildChecks(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             root=Path(temp);a=root/'com/A.java';a.parent.mkdir();a.write_text('class A {}')
             b=root/'extra.txt';b.write_text('public notice')
-            record={'java_sources':1,'complete_source_manifest_sha256':build.source_manifest(root,[a,b]),
+            record={'java_sources':1,'complete_source_manifest_sha256':build.source_manifest(root,[a,b],'source/'),
                     'group_manifests':[['com/',1,build.source_manifest(root,[a])]]}
             build.validate_source_tree(root,record)
             b.write_text('changed')
             with self.assertRaisesRegex(ValueError,'Complete extracted'):build.validate_source_tree(root,record)
+
+    def test_complete_manifest_uses_source_prefix_but_group_manifest_is_archive_relative(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp);path=root/'A.java';path.write_bytes(b'class A {}\n')
+            file_hash=hashlib.sha256(path.read_bytes()).hexdigest()
+            full_hash=hashlib.sha256((file_hash+'  source/A.java\n').encode('utf-8')).hexdigest()
+            group_hash=hashlib.sha256((file_hash+'  A.java\n').encode('utf-8')).hexdigest()
+            self.assertNotEqual(full_hash,group_hash)
+            self.assertEqual(build.source_manifest(root,[path],'source/'),full_hash)
+            self.assertEqual(build.source_manifest(root,[path]),group_hash)
+            build.validate_source_tree(root,{'java_sources':1,'complete_source_manifest_sha256':full_hash,
+                                            'group_manifests':[['A.java',1,group_hash]]})
 
     def test_unsafe_archive_paths_symlinks_and_duplicates_cleanup(self):
         for mode in ['traversal','symlink','duplicate']:
