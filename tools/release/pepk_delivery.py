@@ -76,12 +76,18 @@ def checked_client(record,environ):
 
 def instant(value):
     require(isinstance(value, str) and re.fullmatch(r'\d{4}-\d\d-\d\d[T ]\d\d:\d\d:\d\d(?:Z|\+00:00| UTC)', value),
-            'Expected explicit UTC delivery token expiry')
+            'Expected explicit UTC operational cutoff or API-reported credential expiry')
     return datetime.fromisoformat(value.replace(' UTC', '+00:00').replace('Z', '+00:00').replace(' ', 'T'))
 
 
-def destination(client, declared_expiry, now=None, expected_id=None):
-    now = now or datetime.now(timezone.utc)
+def utc_now():
+    return datetime.now(timezone.utc)
+
+
+def destination(client, cutoff_at, now=None, expected_id=None):
+    cutoff=instant(cutoff_at)
+    observed=utc_now() if now is None else now
+    require(observed < cutoff <= observed + timedelta(days=1), 'Operational cutoff must be future and within one day')
     status, repo, headers = client.request()
     require(status == 200 and repo.get('full_name') == TARGET and repo.get('private') is True
             and repo.get('visibility') == 'private' and repo.get('owner', {}).get('login') == 'JayMandava'
@@ -91,18 +97,21 @@ def destination(client, declared_expiry, now=None, expected_id=None):
             'Fixed private destination identity/visibility/write permission check failed')
     if expected_id is not None:
         require(repo['id'] == expected_id, 'Private destination repository identity changed')
-    declared = instant(declared_expiry)
-    require(now < declared <= now + timedelta(days=1), 'Declared delivery token expiry must be within one day')
+    # Recheck after the network response, so a slow GET cannot preserve a stale deadline.
+    observed=utc_now() if now is None else now
+    require(observed < cutoff <= observed + timedelta(days=1), 'Operational cutoff must be future and within one day')
     header = next((v for k, v in headers.items() if k.lower() == 'github-authentication-token-expiration'), None)
-    expiry = declared
-    evidence = 'owner-supplied UTC expiry; token scope/expiry must also be checked in secure account UI'
+    credential_expiry=None
     if header:
-        expiry = instant(header)
-        require(now < expiry <= now + timedelta(days=1) and expiry <= declared,
-                'API-reported delivery token expiry is expired or exceeds approved limit')
-        evidence = 'API-reported expiry checked against owner-supplied upper bound'
+        credential_expiry=instant(header)
+        require(observed < credential_expiry <= observed + timedelta(days=1),
+                'API-reported credential expiry is expired or exceeds one day')
+    deadline=min(cutoff,credential_expiry) if credential_expiry else cutoff
     return {'repository': TARGET, 'repository_id': repo['id'], 'private': True,
-            'expires_at': expiry.isoformat(), 'expiry_evidence': evidence}
+            'operational_cutoff_at':cutoff.isoformat(),
+            'credential_expires_at':credential_expiry.isoformat() if credential_expiry else None,
+            'credential_expiry_status':'API_REPORTED' if credential_expiry else 'UNKNOWN',
+            'effective_deadline_at':deadline.isoformat()}
 
 
 def context(commit, run, attempt):
@@ -111,18 +120,20 @@ def context(commit, run, attempt):
     return {'commit': commit, 'run_id': run, 'run_attempt': attempt}
 
 
-def precheck(client, expiry, commit, run, attempt):
-    return destination(client, expiry) | context(commit, run, attempt)
+def precheck(client, cutoff_at, commit, run, attempt):
+    return destination(client, cutoff_at) | context(commit, run, attempt)
 
 
-def deliver(client, expiry, proof, output, payload, record, commit, run, attempt):
-    # This rechecks final verifier without any signing variables, then private visibility/expiry.
+def deliver(client, cutoff_at, proof, output, payload, record, commit, run, attempt):
+    # Recheck final output, destination and operational/known-credential deadlines.
     from pepk_export import verify_export_output
     validate_ready(record)
     require(all(proof.get(k) == v for k, v in context(commit, run, attempt).items()), 'Delivery proof run mismatch')
     require(proof.get('private') is True and proof.get('repository') == TARGET, 'Private delivery proof missing')
+    require(proof.get('operational_cutoff_at')==instant(cutoff_at).isoformat(), 'Operational cutoff differs from precheck proof')
     verify_export_output(output, payload, record, commit)
-    destination(client, expiry, expected_id=proof['repository_id'])
+    state=destination(client, cutoff_at, expected_id=proof['repository_id'])
+    deadline=min(instant(proof['effective_deadline_at']),instant(state['effective_deadline_at']))
     prefix = f'/contents/transfers/{commit}/{run}-{attempt}/'
     files = []
     for name, limit in zip(NAMES, LIMITS):
@@ -131,10 +142,19 @@ def deliver(client, expiry, proof, output, payload, record, commit, run, attempt
         data = path.read_bytes()
         require(client.request(prefix + name + '?ref=main')[0] == 404, 'Delivery path already exists; no overwrite allowed')
         files.append((name, data))
-    receipt = {'repository': TARGET, 'repository_id': proof['repository_id'], **context(commit, run, attempt), 'files': []}
+    reported=[instant(value) for value in (proof.get('credential_expires_at'),state['credential_expires_at']) if value]
+    known_expiry=min(reported).isoformat() if reported else None
+    receipt = {'repository': TARGET, 'repository_id': proof['repository_id'], **context(commit, run, attempt),
+               'operational_cutoff_at':proof['operational_cutoff_at'],'files': []}
     for name, data in files:
-        # Privacy and expiry can change between requests: check immediately before each write.
-        destination(client, expiry, expected_id=proof['repository_id'])
+        # Deadlines only tighten: retain earlier authoritative observations if a header disappears.
+        state=destination(client, cutoff_at, expected_id=proof['repository_id'])
+        deadline=min(deadline,instant(state['effective_deadline_at']))
+        if state['credential_expires_at']:
+            known_expiry=min(instant(known_expiry),instant(state['credential_expires_at'])).isoformat() if known_expiry else state['credential_expires_at']
+        require(utc_now() < deadline, 'Effective delivery deadline reached before write')
+        receipt.update(effective_deadline_at=deadline.isoformat(),credential_expires_at=known_expiry,
+                       credential_expiry_status='API_REPORTED' if known_expiry else 'UNKNOWN')
         uncertain = False
         try:
             status, _, _ = client.request(prefix + name, 'PUT', {
@@ -163,7 +183,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--commit', required=True)
     parser.add_argument('--proof', type=Path, required=True)
-    parser.add_argument('--expiry', required=True)
+    parser.add_argument('--cutoff', required=True)
     parser.add_argument('--deliver', action='store_true')
     parser.add_argument('--output', type=Path)
     parser.add_argument('--payload', type=Path)
@@ -177,12 +197,12 @@ if __name__ == '__main__':
         run, attempt = os.environ['GITHUB_RUN_ID'], os.environ['GITHUB_RUN_ATTEMPT']
         if args.deliver:
             require(args.output is not None and args.payload is not None, 'Delivery inputs missing')
-            result = deliver(client, args.expiry, json.loads(args.proof.read_text()), args.output, args.payload,
+            result = deliver(client, args.cutoff, json.loads(args.proof.read_text()), args.output, args.payload,
                              record, args.commit, run, attempt)
             args.proof.with_name('private-delivery-receipt.json').write_text(json.dumps(result, sort_keys=True) + '\n')
         else:
             require(not args.proof.exists(), 'Delivery proof must be new')
-            result = precheck(client, args.expiry, args.commit, run, attempt)
+            result = precheck(client, args.cutoff, args.commit, run, attempt)
             args.proof.write_text(json.dumps(result, sort_keys=True) + '\n')
             with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
                 stream.write('verified=true\n')

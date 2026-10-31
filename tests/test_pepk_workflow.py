@@ -122,6 +122,8 @@ class PepkWorkflowChecks(unittest.TestCase):
         self.assertEqual(text.count('verify-signature: true'),2)
         self.assertEqual(text.count('force-download: true'),2)
         self.assertEqual(text.count('id: runtime'),2)
+        self.assertIn('delivery_cutoff_at',text);self.assertNotIn('delivery_token_expires_at',text)
+        self.assertIn('--cutoff',text);self.assertNotIn('--expiry',text)
         for job in [text.split('  prepare_public:')[1].split('  export:')[0],text.split('  export:')[1]]:
             self.assertLess(job.index('pepk_provision.py --check-host'),job.index('actions/setup-java@'))
             self.assertLess(job.index('pepk_runtime.py'),job.index('pepk_provision.py --verify-runtime'))
