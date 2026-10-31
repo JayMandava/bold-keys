@@ -100,19 +100,22 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
             val model = lm ?: return@execute
             if (job != lmJob) return@execute // a newer word has been typed: this one is stale
             val pick = ContextJudge.judge(model, e, left, word, fixed, sep != " ") ?: return@execute
-            ui.post {
-                val ic = currentInputConnection ?: return@post
-                val tail = shownWord + sep
-                if (job != lmJob || ic.getTextBeforeCursor(tail.length, 0)?.toString() != tail) return@post
-                val out = matchCase(word, pick)
-                ic.beginBatchEdit()
-                ic.deleteSurroundingText(tail.length, 0)
-                ic.commitText(out + sep, 1)
-                ic.endBatchEdit()
-                undo = Undo(word, out, sep)
-                refreshAutoCaps(); refreshStrip()
-            }
+            ui.post { applyContextPick(e, job, word, shownWord, pick, sep) }
         }
+    }
+
+    /** Revalidate delayed model output against the current editor and the local output policy. */
+    private fun applyContextPick(e: SpellEngine, job: Int, word: String, shownWord: String, pick: String, sep: String) {
+        val ic = currentInputConnection ?: return
+        val tail = shownWord + sep
+        if (!smart || !contextOn || urlLike || engine !== e || !SuggestionSafety.allows(pick) || job != lmJob || ic.getTextBeforeCursor(tail.length, 0)?.toString() != tail) return
+        val out = matchCase(word, pick)
+        ic.beginBatchEdit()
+        ic.deleteSurroundingText(tail.length, 0)
+        ic.commitText(out + sep, 1)
+        ic.endBatchEdit()
+        undo = Undo(word, out, sep)
+        refreshAutoCaps(); refreshStrip()
     }
 
     // ---- closing when the user taps outside the keyboard
@@ -295,7 +298,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
             val word = currentWord()
             if (word.isNotEmpty()) {
                 val ctx = ic.getTextBeforeCursor(160, 0)?.toString()?.dropLast(word.length) ?: ""
-                val fix = if (!urlLike && lang == "en" && word == "i" && !ctx.lastOrNull().let { it != null && (it.isLetterOrDigit() || it in "@#/._-") }) "I" else if (autocorrectOn && !urlLike) Autofix.fix(e, word, ctx)?.let { matchCase(word, it) } else null
+                val fix = if (!urlLike && lang == "en" && word == "i" && !ctx.lastOrNull().let { it != null && (it.isLetterOrDigit() || it in "@#/._-") }) "I" else if (autocorrectOn && !urlLike) Autofix.fix(e, word, ctx)?.takeIf(SuggestionSafety::allows)?.let { matchCase(word, it) } else null
                 if (fix != null && fix != word) {
                     ic.deleteSurroundingText(word.length, 0)
                     ic.commitText(fix + text, 1)
@@ -428,8 +431,8 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
             nextWordOn && ic.getSelectedText(0).isNullOrEmpty() -> nextWordSuggestions(e, ic)
             else -> emptyList()
         }
-        shown = out
-        bar.setSuggestions(out)
+        shown = out.filter(SuggestionSafety::allows)
+        bar.setSuggestions(shown)
     }
 
     /** With no word being typed: the words that most often follow the one just finished, or the usual ways to start a sentence. */
@@ -449,6 +452,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         if (kb.pickerOpen()) return // a tap on the trackpad must not drop a word into the text while the picker is open
         val ic = currentInputConnection ?: return
         val pick = shown.getOrNull(index) ?: return
+        if (!smart || !suggestOn || !SuggestionSafety.allows(pick)) return
         lastSpaceAt = 0
         val word = currentWord()
         if (word.isEmpty()) { // a next-word suggestion: just add it

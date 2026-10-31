@@ -85,7 +85,7 @@ class SpellEngine(entries0: List<Pair<String, Int>>, val accented: Boolean = fal
     /** Likely words after [prev], best first (empty when nothing is known). */
     fun nextWords(prev: String, n: Int): List<String> {
         val p = prev.lowercase()
-        return (follow[p] ?: return emptyList()).filter { it != p && allowed(it) }.map { w -> if (british) usToUk[w] ?: w else w }.take(n)
+        return (follow[p] ?: return emptyList()).filter { it != p && allowed(it) }.map { w -> if (british) usToUk[w] ?: w else w }.filter(SuggestionSafety::allows).take(n)
     }
 
     fun loadLearned(map: Map<String, Int>) { learned.clear(); learned.putAll(map) }
@@ -123,18 +123,21 @@ class SpellEngine(entries0: List<Pair<String, Int>>, val accented: Boolean = fal
         var i = lo; var scanned = 0
         while (i < alpha.size && key[alpha[i]].startsWith(p) && scanned < 4000) {
             val w = words[alpha[i]]
-            if (w.length > p.length && allowed(w)) {
+            if (w.length > p.length && allowed(w) && SuggestionSafety.allows(w)) {
                 val s = logf[alpha[i]] - 0.15f * (w.length - p.length) // a short completion beats a long one of similar frequency
                 insert(best, Cand(w, s, 0f, true), n)
             }
             i++; scanned++
         }
-        for ((w, c) in learned) if (c >= LEARN_AFTER && fold(w).startsWith(p) && w.length > p.length) insert(best, Cand(w, learnedLog(w)!! - 0.15f * (w.length - p.length), 0f, true), n)
+        for ((w, c) in learned) if (c >= LEARN_AFTER && SuggestionSafety.allows(w) && fold(w).startsWith(p) && w.length > p.length) insert(best, Cand(w, learnedLog(w)!! - 0.15f * (w.length - p.length), 0f, true), n)
         return best
     }
 
     /** Words close to [typed] in what a thumb might have hit, best first. Empty if nothing is close enough. */
-    fun correct(typed: String, n: Int): List<Cand> {
+    fun correct(typed: String, n: Int): List<Cand> = correctionCandidates(typed, n, true)
+
+    /** Unfiltered competitors are retained for conservative automatic decisions, never displayed. */
+    internal fun correctionCandidates(typed: String, n: Int, safeOnly: Boolean = false): List<Cand> {
         val t = typed.lowercase()
         if (t.isEmpty() || t.length > MAX_LEN) return emptyList()
         val maxCost = if (t.length <= 3) 1.05f else if (t.length <= 5) 1.55f else 2.05f
@@ -145,11 +148,11 @@ class SpellEngine(entries0: List<Pair<String, Int>>, val accented: Boolean = fal
         for (j in ft.indices) lookup(ft.substring(0, j) + ft.substring(j + 1), found)
         for (i in found) {
             val w = words[i]
-            if (w == t || !allowed(w)) continue
+            if (w == t || !allowed(w) || (safeOnly && !SuggestionSafety.allows(w))) continue
             val c = cost(t, w, maxCost)
             if (c <= maxCost) insert(best, Cand(w, logf[i] - COST_WEIGHT * c, c, false), n)
         }
-        for ((w, cnt) in learned) if (cnt >= LEARN_AFTER && w != t && abs(w.length - t.length) <= 2) {
+        for ((w, cnt) in learned) if (cnt >= LEARN_AFTER && (!safeOnly || SuggestionSafety.allows(w)) && w != t && abs(w.length - t.length) <= 2) {
             val c = cost(t, w, maxCost)
             if (c <= maxCost) insert(best, Cand(w, learnedLog(w)!! - COST_WEIGHT * c, c, false), n)
         }
@@ -174,14 +177,16 @@ class SpellEngine(entries0: List<Pair<String, Int>>, val accented: Boolean = fal
      * Only words the dictionary does not know are changed, and only to something clearly closer than the alternatives.
      */
     fun autocorrect(typed: String, maxCost: Float = AC_COST): String? {
+        if (!SuggestionSafety.allows(typed)) return null // a listed word typed deliberately is never sanitized
         val t = typed.lowercase()
         // the other English: "colour" for someone who writes American, "color" for someone who writes British
-        (if (british) usToUk[t] else ukToUs[t])?.let { return it }
+        (if (british) usToUk[t] else ukToUs[t])?.let { return it.takeIf(SuggestionSafety::allows) }
         if (t.length < 2 || isWord(t)) return null
         if (!t.all { it.isLetter() || it == '\'' }) return null
-        val c = correct(t, 2)
+        val c = correctionCandidates(t, 2)
         if (c.isEmpty()) return null
         val top = c[0]
+        if (!SuggestionSafety.allows(top.word)) return null
         if (top.cost > maxCost) return null // only fix what is plainly a slip
         if (top.score + COST_WEIGHT * top.cost < AC_MIN_LOG) return null // and only to a word people actually use
         if (c.size > 1 && (top.score - c[1].score) < TIE_MARGIN && top.cost >= c[1].cost) return null // not when two words are about equally likely

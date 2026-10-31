@@ -36,23 +36,33 @@ object ContextJudge {
      * (null if it would leave [word] alone). [endsClause] is true when punctuation follows the word. Lower case in, lower case out.
      */
     fun judge(lm: ContextLm, engine: SpellEngine, left: String, word: String, fixed: String?, endsClause: Boolean = false): String? {
+        return judgeCandidates(engine, left, word, fixed, endsClause, lm::score)
+    }
+
+    internal fun judgeCandidates(engine: SpellEngine, left: String, word: String, fixed: String?, endsClause: Boolean = false, score: (String, List<String>) -> FloatArray): String? {
         val w = word.lowercase()
         confusables[w]?.let { set ->
             if (endsClause) return null // "me too." "is that yours?": the model only sees what comes before, so a word that ends a clause is left alone
-            val cands = listOf(w) + set.filter { it != w }
-            val s = lm.score(left, cands)
+            val cands = listOf(w) + set.filter { it != w && SuggestionSafety.allows(it) }
+            val s = score(left, cands)
+            if (s.size != cands.size || s.any { !it.isFinite() }) return null
             var best = 0
             for (i in 1 until cands.size) if (s[i] > s[best]) best = i
             val margin = REAL_MARGIN + (EXTRA[w] ?: 0f)
             return if (best != 0 && s[best] - s[0] > margin) cands[best] else null
         }
         if (engine.isWord(w) || Autofix.isKnownForm(engine, w)) return null // a word the dictionary knows is only swapped for the confusable pairs above
-        val c = engine.correct(w, 5)
+        val c = engine.correctionCandidates(w, 5)
+        // Do not promote a weaker alternative by removing an unsafe confidence competitor.
+        if (c.any { !SuggestionSafety.allows(it.word) }) return null
         if (c.isEmpty() || (fixed == null && c.size < 2)) return null
-        val s = lm.score(left, c.map { it.word })
-        val fused = FloatArray(c.size) { c[it].score + ALPHA * s[it] }
+        // The verbatim original remains a baseline, even if it is itself blocked as an output.
+        val s = score(left, listOf(w) + c.map { it.word })
+        if (s.size != c.size + 1 || s.any { !it.isFinite() }) return null
+        val fused = FloatArray(c.size) { c[it].score + ALPHA * s[it + 1] }
         var best = 0
         for (i in c.indices) if (fused[i] > fused[best]) best = i
+        if (!SuggestionSafety.allows(w) || s[0] >= s[best + 1]) return null
         if (fixed != null) return if (c[best].word != fixed.lowercase()) c[best].word else null
         // the dictionary alone would not touch this word: correct it only when the sentence makes one candidate clearly the best
         val second = fused.indices.filter { it != best }.maxOfOrNull { fused[it] } ?: return null

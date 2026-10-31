@@ -41,4 +41,10 @@ class PredictionTablesTest {
             assertTrue(engine.nextWords(row[0], 2).size <= 1)
         }
     }
+    @Test fun shippedNeutralContextOutputsRespectSafetyWithoutChangingTheTables() {
+        for ((lang, context) in listOf("en" to "instigating", "fr" to "secteur", "de" to "namens")) {
+            assertTrue("$lang/$context", engine(lang).nextWords(context, 4).all(SuggestionSafety::allows))
+        }
+    }
+
 }

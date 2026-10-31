@@ -131,4 +131,54 @@ class PersonalizedLearningTest {
         assertTrue(ReflectionHelpers.getField<List<String>>(bar,"words").isEmpty())
     }
 
+    @Test fun safetyDoesNotCensorCommittedTypingPasteOrUndo() {
+        start()
+        ReflectionHelpers.setField(service, "autocorrectOn", true)
+        for (typed in listOf("fuck", "merde", "scheiße", "sexual", "Dick")) {
+            word(typed)
+            assertEquals("$typed ", connection.editable.toString())
+        }
+        connection.editable!!.clear()
+        connection.commitText("verbatim fuck merde scheiße", 1) // external paste/commit is never rewritten
+        service.onText(" ")
+        assertEquals("verbatim fuck merde scheiße ", connection.editable.toString())
+        connection.editable!!.clear(); connection.commitText("hellp", 1)
+        service.onText(" "); assertEquals("hello ", connection.editable.toString())
+        service.onDelete(); assertEquals("hellp ", connection.editable.toString())
+    }
+
+    @Test fun staleUnsafeSuggestionCannotBeActivatedEvenFromLearnedWord() {
+        val keyboard = KeyboardView(service, Feedback(service), service)
+        ReflectionHelpers.setField(service, "kb", keyboard)
+        start()
+        ReflectionHelpers.setField(service, "suggestOn", true)
+        engine.teach("fuck")
+        ReflectionHelpers.setField(service, "shown", listOf("fuck"))
+        service.onPick(0)
+        assertEquals("", connection.editable.toString())
+    }
+
+    @Test fun delayedModelOutputRechecksSafetyEditorAndJob() {
+        start()
+        ReflectionHelpers.setField(service, "contextOn", true)
+        ReflectionHelpers.setField(service, "lmJob", 7)
+        connection.commitText("helo ", 1)
+        fun apply(pick: String, job: Int = 7) = ReflectionHelpers.callInstanceMethod<Unit>(service, "applyContextPick",
+            ReflectionHelpers.ClassParameter.from(SpellEngine::class.java, engine),
+            ReflectionHelpers.ClassParameter.from(Int::class.javaPrimitiveType, job),
+            ReflectionHelpers.ClassParameter.from(String::class.java, "helo"),
+            ReflectionHelpers.ClassParameter.from(String::class.java, "helo"),
+            ReflectionHelpers.ClassParameter.from(String::class.java, pick),
+            ReflectionHelpers.ClassParameter.from(String::class.java, " "))
+        apply("fuck"); assertEquals("helo ", connection.editable.toString())
+        apply("hello", 6); assertEquals("helo ", connection.editable.toString())
+        ReflectionHelpers.setField(service, "urlLike", true)
+        apply("hello"); assertEquals("helo ", connection.editable.toString())
+        ReflectionHelpers.setField(service, "urlLike", false)
+        ReflectionHelpers.setField(service, "smart", false)
+        apply("hello"); assertEquals("helo ", connection.editable.toString())
+        ReflectionHelpers.setField(service, "smart", true)
+        apply("hello"); assertEquals("hello ", connection.editable.toString())
+    }
+
 }
