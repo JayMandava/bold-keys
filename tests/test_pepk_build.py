@@ -91,3 +91,29 @@ class BuildChecks(unittest.TestCase):
             with self.assertRaises(ValueError):build.build(Path(temp)/'absent.jar',Path(temp)/'out',record)
             compiler.assert_not_called()
             self.assertFalse((Path(temp)/'out').exists())
+
+    def test_reviewed_compiler_selected_without_runner_default_substitution(self):
+        import sys,zlib
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp);java=root/'jdk/bin/java';java.parent.mkdir(parents=True);java.write_bytes(b'public compiler fixture')
+            modules=root/'jdk/lib/modules';modules.parent.mkdir();modules.write_bytes(b'public module fixture')
+            record={'toolchain':{'java_realpath':str(java),'java_sha256':hashlib.sha256(java.read_bytes()).hexdigest(),
+                    'modules_sha256':hashlib.sha256(modules.read_bytes()).hexdigest(),
+                    'python_sha256':hashlib.sha256(Path(sys.executable).resolve().read_bytes()).hexdigest(),
+                    'python_version':'.'.join(map(str,sys.version_info[:3])),'zlib_build':zlib.ZLIB_VERSION,'zlib_runtime':zlib.ZLIB_RUNTIME_VERSION}}
+            with patch.object(build,'verify_runtime_identities') as runtime:
+                self.assertEqual(build.verify_toolchain(record),java)
+                runtime.assert_called_once_with(record['toolchain'])
+            modules.write_bytes(b'changed')
+            with patch.object(build,'verify_runtime_identities') as runtime,self.assertRaises(ValueError):build.verify_toolchain(record)
+            runtime.assert_not_called()
+
+    def test_selected_compiler_recipe_requires_explicit_derived_pin(self):
+        with tempfile.TemporaryDirectory() as temp:
+            java=Path(temp)/'reviewed-java';java.write_bytes(b'public compiler fixture')
+            with self.assertRaisesRegex(ValueError,'derived recipe pin'):build.reviewed_build_recipe(java,{})
+            original=(ROOT/'tools/release/build_pepk_local.py').read_text()
+            derived=original.replace("'/usr/bin/java'",repr(str(java))).encode()
+            pin=hashlib.sha256(derived).hexdigest()
+            self.assertEqual(build.reviewed_build_recipe(java,{'derived_build_recipe_sha256':pin}),(derived,pin))
+            with self.assertRaisesRegex(ValueError,'pin differs'):build.reviewed_build_recipe(java,{'derived_build_recipe_sha256':'0'*64})

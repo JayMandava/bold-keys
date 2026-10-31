@@ -31,6 +31,8 @@ def validate_ready(record):
     require(record.get('export_implementation_reviewed') is True, 'Independent production implementation review missing')
     require(record.get('private_delivery_repository') == 'JayMandava/bold-keys-signing-delivery', 'Fixed private destination is mandatory')
     require(record.get('status') == 'approved_for_one_time_export', 'One-time export remains disabled')
+    from pepk_runtime import validate_runtime_pins
+    validate_runtime_pins(record.get('toolchain',{}))
 
 
 def validate_execution_context(commit, env):

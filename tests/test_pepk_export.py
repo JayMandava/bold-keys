@@ -127,3 +127,9 @@ class OpaqueOutputChecks(unittest.TestCase):
         text=(ROOT/'tools/release/pepk_export.py').read_text()
         for bad in ['import release','import data_pipeline','gradlew','curl ']:self.assertNotIn(bad,text)
         self.assertIn('validate_ready(record)',text.split('def export_reviewed')[1].split('values =')[0])
+
+    def test_runtime_enforcement_precedes_payload_or_secret_access(self):
+        with tempfile.TemporaryDirectory() as temp,patch.object(e,'verify_runtime_identities',side_effect=ValueError('unreviewed runtime')),patch.object(e,'exact_files') as files:
+            with self.assertRaisesRegex(ValueError,'unreviewed runtime'):
+                e.verify_payload(Path(temp)/'missing',{'toolchain':{}},SHA)
+            files.assert_not_called()

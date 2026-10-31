@@ -21,6 +21,7 @@ import zipfile
 
 from pepk_policy import CERT, SOURCE_SHA, TOOL_SHA, require, validate_ready, validate_execution_context
 from pepk_public import verify_public_file
+from pepk_runtime import verify_runtime_identities
 from pepk_terminal import ENV, checked_label, terminal_run, verify_trusted_files, GuardFailure
 
 ROOT = Path(__file__).resolve().parent
@@ -103,6 +104,7 @@ def validate_encrypted_zip(path, expected_certificate, rsa_bytes):
 
 
 def verify_payload(payload, record, commit):
+    verify_runtime_identities(record['toolchain'])  # Before any signing-secret lookup.
     exact_files(payload, PAYLOAD_NAMES)
     toolchain = record['toolchain']
     java = Path(toolchain['java_realpath']).resolve(strict=True)

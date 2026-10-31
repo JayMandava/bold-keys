@@ -101,3 +101,16 @@ class PepkWorkflowChecks(unittest.TestCase):
         for module in ['pepk_export.py','pepk_policy.py','pepk_terminal.py','pepk_public.py','pepk_delivery.py']:
             self.assertNotIn('import release',(ROOT/'tools/release'/module).read_text())
             self.assertNotIn('data_pipeline',(ROOT/'tools/release'/module).read_text())
+
+    def test_missing_runtime_pins_block_even_synthetic_approval_before_secret_access(self):
+        record=self.record()
+        for name in ('build_recipe_review_id','source_licence_review_id','controlled_pty_protocol_review_id',
+                     'private_delivery_review_id','independent_production_review_id'):
+            record[name]='synthetic-review-only'
+        record['status']='approved_for_one_time_export';record['export_implementation_reviewed']=True
+        class NoSecretReads:
+            def get(self,name):raise AssertionError('No secret/environment lookup permitted')
+        with tempfile.TemporaryDirectory() as temp,patch.object(exporter,'verify_payload') as payload:
+            with self.assertRaisesRegex(ValueError,'runtime identity pins'):
+                exporter.export_reviewed(Path(temp)/'public',Path(temp)/'out',record,SHA,Path(temp),NoSecretReads())
+            payload.assert_not_called();self.assertEqual(list(Path(temp).iterdir()),[])

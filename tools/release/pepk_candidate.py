@@ -16,17 +16,9 @@ import zipfile
 
 from pepk_build import ENV, ROOT, extract_source, validate_source_tree
 from pepk_disposable_audit import audit
-from pepk_runtime import python_env, tree_identity, digest
+from pepk_runtime import (tree_identity, digest, native_libraries, actual_python_runtime, python_child_env, probe_python_child, runtime_identity, candidate_runtime_pins)
 from pepk_policy import BUILD_SHA, SOURCE_SHA, require
 from pepk_public import verify_public_file
-
-
-def native_libraries(binary):
-    result=subprocess.run(['/usr/bin/ldd',str(binary)],env=ENV,capture_output=True,timeout=10)
-    require(result.returncode==0 and len(result.stdout)<=65536,'Native runtime dependency inventory failed')
-    paths=set(re.findall(rb'(?:=> )?(/[A-Za-z0-9_./+\-]+)',result.stdout))
-    return [{'path':str(Path(path.decode()).resolve(strict=True)),
-             'sha256':digest(Path(path.decode()).resolve(strict=True))} for path in sorted(paths)]
 
 
 def compiler_provenance(java):
@@ -37,15 +29,16 @@ def compiler_provenance(java):
     modules=java.parent.parent/'lib/modules'
     def digest(path):
         with path.open('rb') as stream:return hashlib.file_digest(stream,'sha256').hexdigest()
-    library=Path(sys.executable).resolve().parent.parent/'lib'/sysconfig.get_config_var('LDLIBRARY')
-    if not library.exists():library=Path(sysconfig.get_config_var('LIBDIR'))/sysconfig.get_config_var('LDLIBRARY')
+    runtime=runtime_identity()
+    library=Path(runtime['python_library']['path'])
     return {'java_path':str(java),'java_sha256':digest(java),'java_modules_sha256':digest(modules),
             'java_version':version,'python_path':str(Path(sys.executable).resolve()),
             'python_sha256':digest(Path(sys.executable).resolve()),'python_version':sys.version,
-            'python_standard_library':tree_identity(Path(os.__file__).parent,('site-packages',)),
-            'python_library':{'path':str(library.resolve()),'sha256':digest(library)},
+            **runtime,
             'zlib_binary':{'sha256':digest(Path(zlib.__file__)) if getattr(zlib,'__file__',None) else digest(library),
                            'identity':'extension module' if getattr(zlib,'__file__',None) else 'built into hash-recorded libpython'},
+            'build_child_runtime':probe_python_child(),
+            'diagnostic_native_library_scope':'ldd with controlled verified runtime loader path; active mappings recorded separately',
             'native_libraries':{'python':native_libraries(Path(sys.executable).resolve()),
                                 'zlib':native_libraries(Path(zlib.__file__) if getattr(zlib,'__file__',None) else library)},
             'zlib_build':zlib.ZLIB_VERSION,'zlib_runtime':zlib.ZLIB_RUNTIME_VERSION,'platform':platform.platform(),
@@ -69,7 +62,7 @@ def candidate(source,work,java,record):
         hashes=[]
         for repeat in range(2):
             validate_source_tree(work/'source',record)
-            subprocess.run([str(Path(sys.executable).resolve()),str(script)],cwd=work,env=(python_env(Path(os.environ['PEPK_CANDIDATE_PYTHON_HOME'])) if os.environ.get('PEPK_CANDIDATE_PYTHON_HOME') else ENV),
+            subprocess.run([str(Path(sys.executable).resolve()),str(script)],cwd=work,env=python_child_env(),
                            stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,check=True,timeout=240)
             jar=work/'local-build/pepk-local-source-build.jar'
             with zipfile.ZipFile(jar) as archive:
@@ -90,6 +83,7 @@ def candidate(source,work,java,record):
         runtime_report=None
         if os.environ.get('PEPK_CANDIDATE_PYTHON_HOME'):
             runtime_report=json.loads((Path(os.environ['PEPK_CANDIDATE_PYTHON_HOME']).parent/'runtime-input-provenance.json').read_text())
+        final_runtime=runtime_identity()
         report={'status':'UNPRIVILEGED_CANDIDATE_NOT_APPROVED_FOR_REAL_KEYS','source_sha256':SOURCE_SHA,
                 'base_recipe_sha256':BUILD_SHA,'derived_recipe_sha256':hashlib.sha256(script.read_bytes()).hexdigest(),
                 'recipe_delta':'canonical selected Java21 path replaces /usr/bin/java; flags/packaging unchanged',
@@ -98,7 +92,8 @@ def candidate(source,work,java,record):
                 'two_clean_builds_identical':True,'workflow_commit':os.environ.get('GITHUB_SHA'),
                 'workflow_run_id':os.environ.get('GITHUB_RUN_ID'),'compiler_stack':provenance,'disposable_validation':result,
                 'actual_export_driver_validation':driver,'identity_class_sha256':identity_hash,
-                'runtime_installation':runtime_report,
+                'runtime_installation':runtime_report,'runtime_after_disposable_checks':final_runtime,
+                'candidate_runtime_identity_pins_NOT_APPROVED':candidate_runtime_pins(final_runtime),
                 'next_step':'Independent review compiler provenance/recipe/hash/tests, then explicit protected pin update; no automatic promotion'}
         (work/'candidate-public-report.json').write_text(json.dumps(report,indent=2,sort_keys=True)+'\n')
         return report
