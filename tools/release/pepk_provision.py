@@ -39,10 +39,10 @@ def safe_error_category(error):
     return name if name in allowed else 'OtherError'
 
 
-def public_host_diagnostics(record,error,environ=None,os_release=None):
+def public_host_facts(record,environ=None,os_release=None):
     """Only public compared fields; never exception text, argv or an environment dump.
 
-    This is a fresh readonly observation after failure, not an assertion of drift.
+    This is a fresh readonly observation, not approval, enforcement or a pin update.
     """
     env=os.environ if environ is None else environ
     expected=(record or {}).get('github_hosted_runtime',{})
@@ -69,10 +69,15 @@ def public_host_diagnostics(record,error,environ=None,os_release=None):
     try:manifest_sha=digest(ROOT/'pepk-candidate-runtime.json')
     except Exception as read_error:manifest_error=safe_error_category(read_error)
     compared('installer_manifest_sha256',manifest_sha,expected.get('installer_manifest_sha256'))
-    return {'observation':'public allowlist reread after check-host failure; no pin changes',
+    return {'checks':checks,'os_release_read_error':os_error,'manifest_read_error':manifest_error}
+
+
+def public_host_diagnostics(record,error,environ=None,os_release=None):
+    facts=public_host_facts(record,environ,os_release)
+    checks=facts['checks']
+    return {**facts,'observation':'public allowlist reread after check-host failure; no pin changes',
             'failure_category':safe_error_category(error),
             'first_nonmatching_public_field':next((key for key,value in checks.items() if not value['matches']),None),
-            'checks':checks,'os_release_read_error':os_error,'manifest_read_error':manifest_error,
             'system_python_version':'.'.join(map(str,sys.version_info[:3]))}
 
 

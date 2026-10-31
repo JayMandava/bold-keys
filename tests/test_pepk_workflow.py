@@ -15,6 +15,7 @@ import pepk_preflight as pepk
 import pepk_policy as policy
 import pepk_public as public
 import pepk_export as exporter
+from pepk_fixtures import disabled_record
 SHA='a'*40
 
 
@@ -23,7 +24,7 @@ class PepkWorkflowChecks(unittest.TestCase):
         return dict(GITHUB_EVENT_NAME='workflow_dispatch',GITHUB_REPOSITORY='JayMandava/bold-keys',
                     GITHUB_REF='refs/heads/main',GITHUB_SHA=SHA,GITHUB_WORKFLOW_SHA=SHA)
 
-    def record(self):return json.loads(pepk.RECORD.read_text())
+    def record(self):return disabled_record(json.loads(pepk.RECORD.read_text()))
 
     def test_missing_authenticated_pem_still_blocks(self):
         with self.assertRaisesRegex(ValueError,'Console encryption PEM'):
@@ -67,7 +68,9 @@ class PepkWorkflowChecks(unittest.TestCase):
         gate.assert_not_called()
 
     def test_public_source_remains_public_and_still_needs_independent_review(self):
-        with patch.dict(os.environ,self.env()),patch.object(pepk.release,'api',return_value={'object':{'sha':SHA}}) as api,patch.object(pepk.release,'gate') as gate,self.assertRaisesRegex(ValueError,'independent production'):pepk.preflight(SHA)
+        with tempfile.TemporaryDirectory() as temp:
+            fixture=Path(temp)/'disabled.json';fixture.write_text(json.dumps(self.record()))
+            with patch.object(pepk,'RECORD',fixture),patch.dict(os.environ,self.env()),patch.object(pepk.release,'api',return_value={'object':{'sha':SHA}}) as api,patch.object(pepk.release,'gate') as gate,self.assertRaisesRegex(ValueError,'independent production'):pepk.preflight(SHA)
         gate.assert_called_once_with()
         self.assertEqual(api.call_count,1)  # No requirement to privatize the source repository.
 
