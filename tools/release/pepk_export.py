@@ -22,6 +22,7 @@ import zipfile
 from pepk_policy import CERT, SOURCE_SHA, TOOL_SHA, require, validate_ready, validate_execution_context
 from pepk_public import verify_public_file
 from pepk_runtime import verify_runtime_identities
+from pepk_java_runtime import verify_java_native_files
 from pepk_terminal import ENV, checked_label, terminal_run, verify_trusted_files, GuardFailure
 
 ROOT = Path(__file__).resolve().parent
@@ -116,6 +117,7 @@ def verify_payload(payload, record, commit):
             str(payload / 'encryption-public-key.pem'): record['console_encryption_pem_sha256'],
             str(payload / 'THIRD_PARTY_NOTICES.txt'): record['third_party_notices_sha256']}
     verify_trusted_files(pins)
+    verify_java_native_files(record,java)  # Independently fail before signing-input lookup.
     provenance = json.loads((payload / 'public-provenance.json').read_text())
     require(provenance == {'commit':commit,'source_sha256':SOURCE_SHA,'tool_sha256':TOOL_SHA,
                           'pem_sha256':record['console_encryption_pem_sha256'],

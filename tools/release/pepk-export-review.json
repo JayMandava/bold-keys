@@ -42,7 +42,7 @@
   "reported_validation_limits": "25 disposable audit tests and reproducible builds do not establish formal Google support for this exact local build or actual Play acceptance",
   "build_script_sha256": "bbbd1e62b16bf37f87242e00da5b9b2c7f5e00779f98590c09cc81bc6a5b0a48",
   "private_delivery_review_id": "independent-audit/9f2e7128943b9d8c1498b9096cb5f5380a5a3bd7/private-delivery-cutoff-v1",
-  "independent_production_review_id": "independent-audit/9f2e7128943b9d8c1498b9096cb5f5380a5a3bd7/production-runtime-export-v1",
+  "independent_production_review_id": "independent-audit/05ed02c39257ea22d16a5efea0190a6fc2750052/production-component-contract-v1",
   "identity_source_sha256": "90f1c50bc3ece94d24cd9ce432c0bc35899dbf7006e39ef6ef24cee12154b2c6",
   "identity_class_sha256": "6291fdabe0285fe9d5b45b87934047f387388eba8c27f66bc6b715adc76e9a3b",
   "complete_source_manifest_sha256": "05e3ad6047ff56efd2a0dd34d1c713a8facc69973b74d3bb13eb059c7bd06e93",
@@ -188,7 +188,33 @@
     "evidence_run_id": "41179835311",
     "evidence_job_id": "124474806090",
     "evidence_commit": "2b2dd4c764e83c86cdcafe185ed4cffe12476847",
-    "evidence_report_sha256": "379d4e1132d5cd3cbd21078299c826186f5e8a09c84718f4f9b49485ddd0f052"
+    "evidence_report_sha256": "379d4e1132d5cd3cbd21078299c826186f5e8a09c84718f4f9b49485ddd0f052",
+    "host_contract": "component-bytes-v1"
   },
-  "runtime_pin_scope": "Staged GitHub run41179835311 image20261025.353.1 pins; no execution approval, automatic repinning or production enable"
+  "runtime_pin_scope": "Component-bytes-v1: immutable installer, complete JDK tree, Python/native identities and separate Java native contract; ImageVersion is informational historical evidence, never automatic byte repinning",
+  "java_runtime_contract": {
+    "probe_source_sha256": "bf61c3f02468be1fca291e73c876184c9e35b201ee1c1b0aa8a6f187f20f7499",
+    "probe_class_sha256": "2caa77a48e17de350e64419ecf029d7f724d3d7a16b0ded2c0d0f5031c19f6e0",
+    "native_library_pins": {
+      "java:bin/java": "9cad3f2620d3ef2ed10b26f922af7e773d54fdaa05f615d6d6df014f3fec4155",
+      "java:lib/libjava.so": "424cd3c925897c3f4c285e2220b48482e00af95baf6e8d934375503b596eb540",
+      "java:lib/libjimage.so": "b9ea2b93651469ede268071aefbb70d81a9e88ace15adf3a1f9339b2661322a8",
+      "java:lib/libjli.so": "97ba6c831c598e9fec7c44092f9f6f633caeac6c9d47c64d03753db0b5d0466a",
+      "java:lib/libjsvml.so": "4e4e0083eed81082833347c9b684601a57eec965479e8b5c725eef52e3ec3609",
+      "java:lib/libnet.so": "134396b9b991de4176f17d4b328545371739eba25dd8517744ccd87ab9243018",
+      "java:lib/libnio.so": "1b1bd068e77d86d3b6fe5833d5a2c3f7e7cbab941599f71bb3860b2c3375aa57",
+      "java:lib/libzip.so": "ee142b8280889ba75de90c61e178158fec203ea68ff538f3463ba9fdac605343",
+      "java:lib/server/libjvm.so": "b1a6a98962406718a491922ea6a3f8d898ea7c4a9ebe814a7963defc61ce62b2",
+      "host:/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2": "c20a2dc8917c755f02b94049356320fe1f62ac7d9f8994731f807d9df39302da",
+      "host:/usr/lib/x86_64-linux-gnu/libc.so.6": "3a15d66867d83762c7f2f1e37359cb8f6c5743edb369c65285cb0b1c4f7498bf",
+      "host:/usr/lib/x86_64-linux-gnu/libdl.so.2": "c2994527172cc23b7fb0f7d611b71e00a37da27af12c2e5e9e0dc1a742886c96",
+      "host:/usr/lib/x86_64-linux-gnu/libm.so.6": "fce00b6f25f459cf4ae0b7fae4257909a1a8a86f9149e7c029a5d617baf1ccd0",
+      "host:/usr/lib/x86_64-linux-gnu/libpthread.so.0": "90491a21ce44efcf3bd4b65ec82501c091d7ebe7f8d9b341dd01d721001d9ecd",
+      "host:/usr/lib/x86_64-linux-gnu/librt.so.1": "6d072187d88e092e81561a44c03a4a41397319022c6d43519757cc051c576d82"
+    },
+    "evidence_run_id": "41196109347",
+    "evidence_commit": "c2220832b07eed08047fb472d316c4138726daf6",
+    "evidence_report_sha256": "07f2460566d6749ddceceec65d9290a9e6200d6828c621a8efa881976f9f5633",
+    "scope": "Reviewed public synthetic JCA/compiler/BC probe; static byte pins plus live JDK probe and resolved dependency enforcement before signing inputs; not in-memory integrity or Google acceptance attestation"
+  }
 }

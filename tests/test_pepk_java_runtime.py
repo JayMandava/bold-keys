@@ -61,3 +61,50 @@ class JavaRuntimeChecks(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'unresolved'):
                 probe.java_native_dependencies(home/'lib/libjava.so',home)
         self.assertEqual(run.call_args.kwargs['env'],probe.ENV|{'LD_LIBRARY_PATH':str(home/'lib/server')+':'+str(home/'lib')})
+
+    def test_live_fixture_contract_is_enforced_without_promoting_production_pins(self):
+        import json
+        before=(ROOT/'tools/release/pepk-export-review.json').read_bytes()
+        java=fixture_java()
+        with tempfile.TemporaryDirectory() as temp:
+            evidence=probe.java_runtime_evidence(java,Path(temp)/'probe')
+        record={'java_runtime_contract':probe.java_contract_from_evidence(evidence)}
+        probe.verify_java_native_files(record,java)
+        probe.enforce_java_runtime_evidence(record,java,evidence)
+        self.assertEqual((ROOT/'tools/release/pepk-export-review.json').read_bytes(),before)
+        self.assertEqual(json.loads(before)['java_runtime_contract']['evidence_run_id'],'41196109347')
+
+    def test_changed_extra_missing_or_unresolved_java_components_rejected(self):
+        import copy
+        java=fixture_java()
+        with tempfile.TemporaryDirectory() as temp:
+            evidence=probe.java_runtime_evidence(java,Path(temp)/'probe')
+        record={'java_runtime_contract':probe.java_contract_from_evidence(evidence)}
+        changes=[]
+        bad=copy.deepcopy(evidence);bad['loaded_native_libraries'][0]['sha256']='0'*64;changes.append(bad)
+        bad=copy.deepcopy(evidence);bad['loaded_native_libraries'].append({'path':'/unreviewed/libextra.so','sha256':'0'*64});changes.append(bad)
+        bad=copy.deepcopy(evidence);bad['loaded_native_libraries']=[r for r in bad['loaded_native_libraries'] if Path(r['path']).name!='libdl.so.2'];changes.append(bad)
+        bad=copy.deepcopy(evidence);bad['probe_class_sha256']='0'*64;changes.append(bad)
+        bad=copy.deepcopy(evidence);bad['java_home']='/different/jdk';changes.append(bad)
+        bad=copy.deepcopy(evidence);bad['resolved_native_dependencies'].pop(next(iter(bad['resolved_native_dependencies'])));changes.append(bad)
+        bad=copy.deepcopy(evidence);next(iter(bad['resolved_native_dependencies'].values()))[0]['sha256']='0'*64;changes.append(bad)
+        for bad in changes:
+            with self.subTest(change=changes.index(bad)),self.assertRaises(ValueError):
+                probe.enforce_java_runtime_evidence(record,java,bad)
+        for key in ('java:bin/java','host:/usr/lib/x86_64-linux-gnu/libdl.so.2','host:/usr/lib/x86_64-linux-gnu/librt.so.1'):
+            wrong=copy.deepcopy(record)
+            wrong['java_runtime_contract']['native_library_pins'][key]='0'*64
+            with self.subTest(pin=key),patch.object(probe,'java_runtime_evidence') as child,self.assertRaisesRegex(ValueError,'SHA256 mismatch'):
+                probe.verify_reviewed_java_runtime(wrong,java)
+            child.assert_not_called()
+
+    def test_separate_approved_java_pins_match_reviewed_public_evidence(self):
+        import json
+        record=json.loads((ROOT/'tools/release/pepk-export-review.json').read_text())
+        contract=record['java_runtime_contract'];pins=contract['native_library_pins']
+        self.assertEqual(len(pins),15)
+        self.assertEqual(len([key for key in pins if key.startswith('host:')]),6)
+        self.assertEqual(pins['host:/usr/lib/x86_64-linux-gnu/libdl.so.2'],'c2994527172cc23b7fb0f7d611b71e00a37da27af12c2e5e9e0dc1a742886c96')
+        self.assertEqual(pins['host:/usr/lib/x86_64-linux-gnu/librt.so.1'],'6d072187d88e092e81561a44c03a4a41397319022c6d43519757cc051c576d82')
+        self.assertEqual(contract['evidence_report_sha256'],'07f2460566d6749ddceceec65d9290a9e6200d6828c621a8efa881976f9f5633')
+        self.assertEqual(len(record['toolchain']['native_library_pins']),41)

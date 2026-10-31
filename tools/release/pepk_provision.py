@@ -10,17 +10,18 @@ import sys
 from pepk_build import verify_toolchain, reviewed_build_recipe
 from pepk_policy import require
 from pepk_public import verify_public_file
+from pepk_java_runtime import verify_reviewed_java_runtime
 from pepk_runtime import tree_identity, probe_python_child, enforce_runtime_identity, digest
 
 ROOT=Path(__file__).resolve().parent
 
 
 def check_host(record,environ=None,os_release=None):
-    """Reject image/installer drift before provisioning or injecting any secret step."""
+    """Require trusted OS/architecture and immutable installer; image label is metadata."""
     env=os.environ if environ is None else environ
     expected=record['github_hosted_runtime']
-    for name,value in [('RUNNER_OS',expected['runner_os']),('RUNNER_ARCH',expected['runner_arch']),
-                       ('ImageVersion',expected['image_version'])]:
+    require(expected.get('host_contract')=='component-bytes-v1','Missing reviewed component host contract')
+    for name,value in [('RUNNER_OS',expected['runner_os']),('RUNNER_ARCH',expected['runner_arch'])]:
         require(env.get(name)==value,'Hosted runner image/architecture differs from reviewed evidence')
     if os_release is None:
         os_release={}
@@ -52,7 +53,8 @@ def public_host_facts(record,environ=None,os_release=None):
         return value if isinstance(value,str) and re.fullmatch(r'[A-Za-z0-9_.-]{0,80}',value) else '<invalid>'
     checks={}
     def compared(name,observed,wanted):
-        checks[name]={'observed':safe(observed),'expected':safe(wanted),'matches':observed==wanted}
+        checks[name]={'observed':safe(observed),'expected':safe(wanted),'matches':observed==wanted,
+                      'enforced':name!='ImageVersion'}
     for name,key in [('RUNNER_OS','runner_os'),('RUNNER_ARCH','runner_arch'),('ImageVersion','image_version')]:
         compared(name,env.get(name),expected.get(key))
     os_error=None
@@ -77,7 +79,7 @@ def public_host_diagnostics(record,error,environ=None,os_release=None):
     checks=facts['checks']
     return {**facts,'observation':'public allowlist reread after check-host failure; no pin changes',
             'failure_category':safe_error_category(error),
-            'first_nonmatching_public_field':next((key for key,value in checks.items() if not value['matches']),None),
+            'first_nonmatching_public_field':next((key for key,value in checks.items() if value['enforced'] and not value['matches']),None),
             'system_python_version':'.'.join(map(str,sys.version_info[:3]))}
 
 
@@ -88,6 +90,7 @@ def verify_protected_runtime(record):
             'Complete installed JDK tree differs from reviewed publisher archive')
     reviewed_build_recipe(java,record)  # Explicit derived-recipe hash, no compiler substitution.
     enforce_runtime_identity(record['toolchain'],probe_python_child())
+    verify_reviewed_java_runtime(record,java)
 
 
 if __name__=='__main__':

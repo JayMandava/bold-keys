@@ -133,3 +133,19 @@ class OpaqueOutputChecks(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'unreviewed runtime'):
                 e.verify_payload(Path(temp)/'missing',{'toolchain':{}},SHA)
             files.assert_not_called()
+
+    def test_java_native_rejection_precedes_signing_secret_reads_or_private_files(self):
+        class ContextOnly(dict):
+            def get(self,name,*args):
+                if name.startswith('BOLD_'):raise AssertionError('Signing inputs must not be read')
+                return super().get(name,*args)
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp);java=root/'java';java.write_bytes(b'public synthetic executable')
+            record=json.loads((ROOT/'tools/release/pepk-export-review.json').read_text())
+            record['toolchain']['java_realpath']=str(java)
+            env=ContextOnly({key:value for key,value in self.env().items() if not key.startswith('BOLD_')})
+            with patch.object(e,'verify_runtime_identities'),patch.object(e,'exact_files'),patch.object(e,'verify_trusted_files'),patch.object(e,'verify_java_native_files',side_effect=ValueError('Java native bytes changed')) as java_check:
+                with self.assertRaisesRegex(ValueError,'Java native bytes changed'):
+                    e.export_reviewed(root/'payload',root/'output',record,SHA,root,env)
+                java_check.assert_called_once_with(record,java)
+            self.assertEqual([p.name for p in root.iterdir()],['java'])

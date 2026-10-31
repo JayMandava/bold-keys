@@ -264,13 +264,12 @@ Both public preparation and the protected owner-approved job provision exact
 Temurin21.0.13+9 using the pinned setup-java action with forced download and vendor
 signature verification, then install the unchanged checksum-pinned Python/wheels
 in an isolated prefix. No tool/source artifact crosses the public Actions boundary.
-`pepk_provision.py` rejects missing/different ImageVersion, runner architecture,
-Ubuntu release, installer-manifest SHA, complete JDK tree, compiler/modules/Python
-identities, native/tree pins or derived recipe. The live build child is checked too.
+`pepk_provision.py` requires the reviewed Linux/X64 Ubuntu24.04 tuple and
+immutable installer. The component-contract revision below supersedes the original
+exact ImageVersion gate: that coarse label remains reported historical evidence,
+while reviewed Python and Java component bytes are enforced without repinning.
 The standard ImageVersion variable is documented by the runner-image implementation:
 https://github.com/actions/runner-images/blob/4da2307112a0fad2fd2ecaca8ba7d08683b8c581/images/ubuntu/scripts/build/configure-environment.sh .
-An image update must stop the operation and receive a new public audit and explicit
-reviewed pin update. No workflow repins from observed values.
 
 Host/manifest checks precede the explicit GH_TOKEN preflight step; checkout uses its
 normal scoped repository-read token. Complete runtime checks
@@ -312,3 +311,38 @@ cutoff exhaustion during a GET/between writes, and retention of an earlier known
 expiry. Full suites pass103 repository tests and86 controlled pinned-runtime PEPK
 tests. Runtime/crypto pins and approval fields are unchanged; no credential/API use
 or production execution occurred in this correction.
+
+
+## Component contract candidate (awaiting exact-patch review and merge)
+
+Public run41196109347 at c2220832b07eed08047fb472d316c4138726daf6 captured
+raw ImageVersion20261026.354.1. Independently reviewed canonical report SHA256 is
+07f2460566d6749ddceceec65d9290a9e6200d6828c621a8efa881976f9f5633.
+Every prior Python/native/archive/JDK/tool/recipe identity matched run41179835311;
+99 unit tests,11 actual PEPK and20 actual driver checks passed. The new Java probe
+captured15 executable ELF mappings, including six host libraries. Image-label drift
+alone did not indicate changed relevant component bytes.
+
+The proposed component-bytes-v1 contract retains trusted OS/architecture, immutable
+installer/archive inputs, complete JDK tree, Java executable/modules, Python library/
+stdlib/packages and41 Python-native pins. A separate15-entry Java contract pins nine
+JDK files plus six host files, including libdl.so.2 and librt.so.1. ImageVersion is
+informational and cannot silently approve changed components. Existing production
+approval IDs, owner/main gates, recipient/certificate, private delivery and cutoff
+rules are unchanged; this local patch is not execution authorization.
+
+Before the public Java probe starts, all15 approved file identities and probe source
+are checked. At the existing pre-secret runtime boundary a clean-environment JCA/
+compiler probe must reproduce the approved probe class, load exactly the reviewed
+host library set, and resolve every mapped JDK binary's dependencies to approved
+bytes. A JDK-only probe may omit unused reviewed JDK mappings; the complete JDK tree
+and all15 static file pins still apply. No extra mapped or resolved native identity
+is accepted. The signing driver separately rechecks Java file pins before reading
+signing inputs. The probe records mapped file bytes, not in-memory integrity of a
+later key-bearing child; existing host trust and check/use limitations still apply.
+
+Disposable driver audits derive in-memory fixture Java identities from their own
+public probe. These fixture records never update production approval or pin files.
+No source/JAR redistribution or container redesign is introduced. A later owner
+launch needs a fresh UTC operational cutoff within24hours; this does not establish
+more precise credential expiry. No token handoff needs to be repeated.
