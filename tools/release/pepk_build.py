@@ -32,11 +32,11 @@ def verify_toolchain(record):
     return java
 
 
-def source_manifest(root, paths):
+def source_manifest(root, paths, path_prefix=""):
     rows = []
     for path in sorted(paths, key=lambda p: p.relative_to(root).as_posix()):
         require(path.is_file() and not path.is_symlink(), 'Invalid extracted source file')
-        rows.append(hashlib.sha256(path.read_bytes()).hexdigest() + '  ' + path.relative_to(root).as_posix() + '\n')
+        rows.append(hashlib.sha256(path.read_bytes()).hexdigest() + '  ' + path_prefix + path.relative_to(root).as_posix() + '\n')
     return hashlib.sha256(''.join(rows).encode('utf-8')).hexdigest()
 
 
@@ -78,7 +78,7 @@ def validate_source_tree(source, record):
     java_files = [p for p in files if p.suffix == '.java']
     require(len(java_files) == record['java_sources'], 'Java source count differs')
     require(not any(any(c.isspace() for c in str(p)) for p in java_files), 'Audit compiler argfile cannot represent whitespace paths')
-    require(source_manifest(source, files) == record['complete_source_manifest_sha256'], 'Complete extracted-file manifest differs')
+    require(source_manifest(source, files, 'source/') == record['complete_source_manifest_sha256'], 'Complete extracted-file manifest differs')
     for prefix, count, digest in record['group_manifests']:
         group = [p for p in java_files if p.relative_to(source).as_posix().startswith(prefix)]
         require(len(group) == count and source_manifest(source, group) == digest, 'Dependency-group source manifest differs')
