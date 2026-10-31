@@ -1,0 +1,133 @@
+{
+  "schema": 3,
+  "status": "awaiting_candidate_runtime_pins_and_independent_production_review",
+  "expected_certificate_sha256": "b237e1aec0bfdae579caebe1a0d97517af1b7c066adc4b3d197b641adfa46c34",
+  "official_source_url": "https://www.gstatic.com/play-apps-publisher-rapid/signing-tool/prod/pepk-src.jar",
+  "official_source_sha256": "dc29a1d192eef9371eec0d2c134879fefc0a9dcf0c7046d6c8f3d302d0009b09",
+  "console_encryption_pem_sha256": "ac50890bea088f457fd6ebdb56fd48ed1c58f42b4e7c380b2608ec9b2085e623",
+  "password_input_source_verified": true,
+  "encryption_and_output_source_verified": true,
+  "official_source_size_bytes": 5268938,
+  "tool_origin": "official_source_build",
+  "source_built_tool_sha256": "7923237dd6ea1c0198b0ee91a1bfc0dafbd858aa88936f2ce847652e93d1e18a",
+  "audit_thread": "01a18fd0-933b-76c1-a435-89f248eee029",
+  "audit_evidence_origin": "Parent-reported independent source and actual-code audit; actual official PEPK execution occurred in that separate task, not this local environment",
+  "build_recipe_review_id": "01a18fd0-933b-76c1-a435-89f248eee029/exact-build-script",
+  "source_licence_review_id": "01a18fd0-933b-76c1-a435-89f248eee029/scoped-internal-use-only",
+  "controlled_pty_protocol_review_id": "01a18fd0-933b-76c1-a435-89f248eee029/actual-code-11-checks",
+  "export_implementation_reviewed": false,
+  "reported_source_behavior": {
+    "password_flags": "literal values; env: syntax unsupported; parse failures may print argv",
+    "omitted_passwords": "System.console().readPassword; no stdin fallback",
+    "rsa_aes": "RSA-OAEP SHA-1/MGF1; fresh AES-256; RFC5649 wrapping",
+    "certificate_zip_entries": [
+      "encryptedPrivateKey",
+      "certificate.pem"
+    ]
+  },
+  "reported_build_environment": "Reference audit OpenJDK21.0.12.1/Python3.12.14/zlib1.3.2; exact supplied build script verified locally; separate actual-code audit rebuilt entire official source twice to the pinned JAR hash",
+  "reported_licence_findings": {
+    "application": "Apache-2.0 header in ExportEncryptedPrivateKeyTool.java lines1\u201315",
+    "dependencies": "Bouncy Castle permissive; Checker qualifiers MIT; concurrency annotations CC Attribution; some annotation notices incomplete",
+    "distribution_limit": "Do not label or redistribute the full archive as wholly Apache-2.0; exact inventory/notices review pending"
+  },
+  "reported_pty_protocol": {
+    "prompts": [
+      "Enter password for store '<filename>':",
+      "Enter password for key '<alias>':"
+    ],
+    "guards": "After each exact prompt, wait until both ECHO and ECHONL clear; nonblocking deadline-bound writes; recheck echo before every partial write; reject unexpected prompts; bound input/output; kill and reap on failure; never retain raw transcript",
+    "limit": "Check/write is not atomic against malicious code; trusted pinned child/runtime remain essential. Hardened local controller was independently exercised against actual PEPK with disposable fixtures."
+  },
+  "reported_validation_limits": "25 disposable audit tests and reproducible builds do not establish formal Google support for this exact local build or actual Play acceptance",
+  "build_script_sha256": "bbbd1e62b16bf37f87242e00da5b9b2c7f5e00779f98590c09cc81bc6a5b0a48",
+  "private_delivery_review_id": null,
+  "independent_production_review_id": null,
+  "identity_source_sha256": "90f1c50bc3ece94d24cd9ce432c0bc35899dbf7006e39ef6ef24cee12154b2c6",
+  "identity_class_sha256": "6291fdabe0285fe9d5b45b87934047f387388eba8c27f66bc6b715adc76e9a3b",
+  "complete_source_manifest_sha256": "05e3ad6047ff56efd2a0dd34d1c713a8facc69973b74d3bb13eb059c7bd06e93",
+  "java_sources": 3613,
+  "class_files": 5990,
+  "toolchain": {
+    "java_realpath": "/usr/lib/jvm/java-21-openjdk-amd64/bin/java",
+    "java_sha256": "6698f6f10143ed8463b06062281c727152d2e0ae2a3569b1716fbb2c6cedf0ba",
+    "modules_sha256": "f82ec56fbf7c7b69da09a04d4fb103c74c44e6443c8a1b2744e59c5539e7f781",
+    "python_sha256": "fa67443527ed9647f760d807e2a38f26340757123e643c4639cf273ed15d5ea7",
+    "python_version": "3.12.14",
+    "zlib_build": "1.3.2",
+    "zlib_runtime": "1.3.2"
+  },
+  "group_manifests": [
+    [
+      "com/google/wireless/",
+      5,
+      "512d67cc5702f8efd29ad87f06da2649c52df9485f8cd55cf1295e61fc82421e"
+    ],
+    [
+      "com/google/security/",
+      2,
+      "b7ceb9b55475f973a410c296f3d6c51e031018f1aaa7a806d264a6056054997a"
+    ],
+    [
+      "com/google/common/",
+      351,
+      "bac24e3d1638b98d1a02e3b6e2309e297a17d3d139fa049c3552e99ddf1d8a56"
+    ],
+    [
+      "com/google/errorprone/",
+      33,
+      "d79a9c2eb9487f16a3d3eb21d2a4bfbc58cc94684e7f8651dd8552d84bd246fb"
+    ],
+    [
+      "com/google/j2objc/",
+      11,
+      "a29a7c9cb958fbf80780885408992f731484e530acc29836d62010852a29f09f"
+    ],
+    [
+      "org/bouncycastle/",
+      2824,
+      "cfc3f1f40389e3d44578bf427885e97cf2e811fe42397e7a99f19b9176df9c1d"
+    ],
+    [
+      "main/jdk1.11/",
+      4,
+      "85925f0127cb1b5f030efd9656693fcc622b405833886e2885fc5169cb533490"
+    ],
+    [
+      "org/checkerframework/",
+      350,
+      "f4dc7d252bfc79f12a2488c3623de6671b0e0fbeee80aa1eb3024914369dc54e"
+    ],
+    [
+      "org/jspecify/",
+      2,
+      "4c875f6c1345159967f5925c57800f6f01df7bebcdb174ecfa9c400bb70da980"
+    ],
+    [
+      "javax/annotation/",
+      31,
+      "deb1535133fce848007203595444fb54f17519a2de33c95cbaf94a960230e350"
+    ]
+  ],
+  "third_party_notices_sha256": "f3ab51dd74579c68f5b48f0290aff985d272f3a82008ea574d5c20ac1436cb92",
+  "console_encryption_pem_spki_sha256": "4a269c18760f5159742cb14ea8235359d3b4fd9bf45c2492d5dedde4036c90b4",
+  "console_encryption_pem_size_bytes": 625,
+  "console_encryption_rsa_bits": 3072,
+  "console_encryption_rsa_exponent": 65537,
+  "console_encryption_pem_provenance": "Owner-supplied current Console download via authorized Drive; public RSA key only; independently rehashed/parsed here; not a cryptographic Google attestation",
+  "notice_scope": "internal-use provenance/available-notice register only; unresolved redistribution review remains open",
+  "public_redistribution_reviewed": false,
+  "source_manifest_path_convention": "Complete-file manifest uses literal source/ prefix; dependency-group manifests use archive-relative paths",
+  "actual_code_audit_report": {
+    "transferred_patch_sha256": "713efd0fff959d4b25d23e60d41ba8223fde2478e029c4e0520cca3b1bcff490",
+    "all_8_transport_chunks_verified": true,
+    "PEPK_tests_after_prefix_correction": 43,
+    "actual_hardened_PTY_checks": 11,
+    "actual_export_driver_and_final_verifier_checks": 22,
+    "strict_full_source_rebuilds_matching_pinned_JAR": 2,
+    "key_scope": "fresh disposable identities only; no production approval or Google acceptance inferred",
+    "workflow_guards": "mocked/unit validation; no protected GitHub run performed"
+  },
+  "private_delivery_repository": "JayMandava/bold-keys-signing-delivery",
+  "private_delivery_authorization": "Owner approved private destination and <=1-day repository-contents token; independent implementation review and secure token provisioning still pending"
+}

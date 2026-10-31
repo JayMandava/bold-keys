@@ -1,0 +1,159 @@
+name: BLOCKED pending runtime pins and review - one-time PEPK export
+run-name: 'PEPK export review at ${{ inputs.commit_sha }}'
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: Full reviewed current-main SHA; missing runtime pins/review/private delivery blocks all signing inputs
+        type: string
+        required: true
+      delivery_token_expires_at:
+        description: Dedicated private-repo token UTC expiry upper bound (within 24h); NEVER paste token
+        type: string
+        required: true
+
+permissions: {}
+concurrency:
+  group: bold-keys-production-release
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  COMMIT_SHA: ${{ inputs.commit_sha }}
+
+jobs:
+  preflight:
+    if: github.repository == 'JayMandava/bold-keys' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Check exact main, existing owner gate, private delivery and reviewed pins
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tools/release/pepk_preflight.py --commit "$COMMIT_SHA"
+
+  prepare_public:
+    needs: preflight
+    if: github.repository == 'JayMandava/bold-keys' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Refuse a runner compiler or Python zlib stack differing from audited byte pins
+        run: python3 tools/release/pepk_build.py --verify-toolchain
+      - name: Fetch hash-pinned official source without redirects
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -m 700 "$RUNNER_TEMP/bold-pepk-public"
+          curl --fail --show-error --proto '=https' --tlsv1.2 --max-time 120 \
+            'https://www.gstatic.com/play-apps-publisher-rapid/signing-tool/prod/pepk-src.jar' \
+            -o "$RUNNER_TEMP/bold-pepk-public/pepk-src.jar"
+          python3 tools/release/pepk_public.py --source "$RUNNER_TEMP/bold-pepk-public/pepk-src.jar"
+      - name: Rebuild twice verify all pins and prepare public recipient notices and UTF-8 console proof
+        run: |
+          python3 tools/release/pepk_stage.py --commit "$COMMIT_SHA" \
+            --source "$RUNNER_TEMP/bold-pepk-public/pepk-src.jar" \
+            --build-root "$RUNNER_TEMP/bold-pepk-public/build" \
+            --payload "$RUNNER_TEMP/bold-pepk-public/payload"
+      # No public Actions tool/source artifact. Protected job rebuilds the same pinned inputs.
+      - name: Remove public build and input copies
+        if: always()
+        run: rm -rf -- "$RUNNER_TEMP/bold-pepk-public"
+
+  export:
+    needs: prepare_public
+    if: github.repository == 'JayMandava/bold-keys' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: production-release
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Recheck exact main owner policy private delivery and pins after approval
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tools/release/pepk_preflight.py --commit "$COMMIT_SHA"
+      - name: Rebuild pinned public tool locally before any signing or delivery token injection
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -m 700 "$RUNNER_TEMP/bold-pepk-public"
+          curl --fail --show-error --proto '=https' --tlsv1.2 --max-time 120 \
+            'https://www.gstatic.com/play-apps-publisher-rapid/signing-tool/prod/pepk-src.jar' \
+            -o "$RUNNER_TEMP/bold-pepk-public/pepk-src.jar"
+          python3 tools/release/pepk_stage.py --commit "$COMMIT_SHA" \
+            --source "$RUNNER_TEMP/bold-pepk-public/pepk-src.jar" \
+            --build-root "$RUNNER_TEMP/bold-pepk-public/build" \
+            --payload "$RUNNER_TEMP/bold-pepk-verified-inputs"
+      - name: Verify fixed private destination and one-day token expiry before signing inputs
+        id: delivery
+        env:
+          BOLD_PEPK_DELIVERY_TOKEN: ${{ secrets.BOLD_PEPK_DELIVERY_TOKEN }}
+          DELIVERY_EXPIRY: ${{ inputs.delivery_token_expires_at }}
+        run: |
+          set +x
+          python3 tools/release/pepk_delivery.py --commit "$COMMIT_SHA" \
+            --expiry "$DELIVERY_EXPIRY" --proof "$RUNNER_TEMP/bold-pepk-delivery-proof.json"
+      - name: Recheck current main and existing owner controls immediately before signing step
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tools/release/pepk_preflight.py --commit "$COMMIT_SHA"
+      - name: Export only encrypted existing key with reviewed bounded PTY controller
+        env:
+          PRIVATE_DELIVERY_CHECKED: ${{ steps.delivery.outputs.verified }}
+          BOLD_RELEASE_KEYSTORE_BASE64: ${{ secrets.BOLD_RELEASE_KEYSTORE_BASE64 }}
+          BOLD_RELEASE_STORE_PASSWORD: ${{ secrets.BOLD_RELEASE_STORE_PASSWORD }}
+          BOLD_RELEASE_KEY_ALIAS: ${{ secrets.BOLD_RELEASE_KEY_ALIAS }}
+          BOLD_RELEASE_KEY_PASSWORD: ${{ secrets.BOLD_RELEASE_KEY_PASSWORD }}
+        run: |
+          set +x
+          set -euo pipefail
+          umask 077
+          trap 'rm -rf -- "$RUNNER_TEMP"/bold-pepk-private-*' EXIT HUP INT TERM
+          python3 tools/release/pepk_export.py --commit "$COMMIT_SHA" \
+            --payload "$RUNNER_TEMP/bold-pepk-verified-inputs" \
+            --output "$RUNNER_TEMP/bold-pepk-export-artifact"
+      - name: Reverify exact encrypted-only final allowlist without signing credentials
+        run: |
+          python3 tools/release/pepk_export.py --verify-output --commit "$COMMIT_SHA" \
+            --payload "$RUNNER_TEMP/bold-pepk-verified-inputs" \
+            --output "$RUNNER_TEMP/bold-pepk-export-artifact"
+      - name: Deliver only encrypted ZIP and public certificate to fixed verified private repository
+        env:
+          BOLD_PEPK_DELIVERY_TOKEN: ${{ secrets.BOLD_PEPK_DELIVERY_TOKEN }}
+          DELIVERY_EXPIRY: ${{ inputs.delivery_token_expires_at }}
+        run: |
+          set +x
+          python3 tools/release/pepk_delivery.py --deliver --commit "$COMMIT_SHA" \
+            --expiry "$DELIVERY_EXPIRY" --proof "$RUNNER_TEMP/bold-pepk-delivery-proof.json" \
+            --payload "$RUNNER_TEMP/bold-pepk-verified-inputs" \
+            --output "$RUNNER_TEMP/bold-pepk-export-artifact"
+      - name: Remove private temporary material verified inputs and local encrypted copies
+        if: always()
+        run: |
+          rm -rf -- "$RUNNER_TEMP"/bold-pepk-private-* \
+            "$RUNNER_TEMP/bold-pepk-export-artifact" "$RUNNER_TEMP/bold-pepk-verified-inputs" \
+            "$RUNNER_TEMP/bold-pepk-public" "$RUNNER_TEMP/bold-pepk-delivery-proof.json" \
+            "$RUNNER_TEMP/private-delivery-receipt.json"

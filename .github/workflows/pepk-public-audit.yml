@@ -1,0 +1,93 @@
+name: Unprivileged public PEPK candidate audit - no real keys
+run-name: 'PUBLIC PEPK candidate audit at ${{ inputs.commit_sha }}'
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: Exact reviewed current-main SHA; only public builds and fresh disposable fixtures
+        type: string
+        required: true
+permissions: {}
+concurrency:
+  group: bold-keys-public-pepk-audit
+  cancel-in-progress: false
+defaults:
+  run:
+    shell: bash
+env:
+  COMMIT_SHA: ${{ inputs.commit_sha }}
+jobs:
+  public_audit:
+    if: github.repository == 'JayMandava/bold-keys' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Verify manual exact-main identity without protected environment or signing inputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          /usr/bin/python3 - <<'PY'
+          import os, sys
+          sys.path.insert(0, 'tools/release')
+          import pepk_preflight, release
+          commit = os.environ['COMMIT_SHA']
+          pepk_preflight.dispatch_identity(commit)
+          release.require(release.api(f'/repos/{release.REPO}/git/ref/heads/main')['object']['sha'] == commit, 'Main moved')
+          PY
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad
+        id: java
+        with:
+          distribution: temurin
+          java-version: '21.0.13+9'
+          java-package: jdk
+          architecture: x64
+          force-download: true
+          verify-signature: true
+          cache-jdk: false
+          overwrite-settings: false
+          problem-matcher: false
+      - name: Install exact checksum-pinned public Python wheels and verify installed JDK archive
+        id: runtime
+        run: |
+          /usr/bin/python3 tools/release/pepk_runtime.py \
+            --root "$RUNNER_TEMP/public-pepk-runtime" --java-home "$JAVA_HOME"
+      - name: Run adversarial PTY and policy unit tests on pinned public Python stack
+        env:
+          PEPK_CANDIDATE_PYTHON_HOME: ${{ steps.runtime.outputs.python_home }}
+          PYTHONHOME: ${{ steps.runtime.outputs.python_home }}
+          LD_LIBRARY_PATH: ${{ steps.runtime.outputs.python_home }}/lib
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: '"${{ steps.runtime.outputs.python }}" -m unittest discover -s tests -p "test_pepk*.py" -v'
+      - name: Fetch exact public source without redirects and verify size and SHA256
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -m 700 "$RUNNER_TEMP/public-pepk-candidate"
+          curl --fail --show-error --proto '=https' --tlsv1.2 --max-time 120 \
+            'https://www.gstatic.com/play-apps-publisher-rapid/signing-tool/prod/pepk-src.jar' \
+            -o "$RUNNER_TEMP/public-pepk-candidate/pepk-src.jar"
+          /usr/bin/python3 tools/release/pepk_public.py --source "$RUNNER_TEMP/public-pepk-candidate/pepk-src.jar"
+      - name: Build twice capture compiler provenance and independently decrypt fresh disposable exports
+        env:
+          PUBLIC_COMPILER_PROVENANCE: 'actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad; Temurin21.0.13+9; resolved ${{ steps.java.outputs.version }}; vendor signature enforced; not a production approval'
+          PEPK_CANDIDATE_PYTHON_HOME: ${{ steps.runtime.outputs.python_home }}
+          PYTHONHOME: ${{ steps.runtime.outputs.python_home }}
+          LD_LIBRARY_PATH: ${{ steps.runtime.outputs.python_home }}/lib
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          "${{ steps.runtime.outputs.python }}" tools/release/pepk_candidate.py \
+            --source "$RUNNER_TEMP/public-pepk-candidate/pepk-src.jar" \
+            --work "$RUNNER_TEMP/public-pepk-candidate/build" \
+            --java "$JAVA_HOME/bin/java"
+      # Deliberately no artifact upload: source/JAR/private fixtures never become public artifacts.
+      # Only nonsensitive hash/provenance/check summary is emitted to the normal public job log.
+      - name: Delete source builds public tools and any remaining disposable fixture directory
+        if: always()
+        run: |
+          rm -rf -- "$RUNNER_TEMP/public-pepk-candidate" "$RUNNER_TEMP/public-pepk-runtime"
