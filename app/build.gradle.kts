@@ -72,9 +72,9 @@ android {
     defaultConfig {
         applicationId = "ai.boldkeys"
         minSdk = 33
-        targetSdk = 35
-        versionCode = 9
-        versionName = "0.6.1"
+        targetSdk = 36
+        versionCode = 10
+        versionName = "0.6.2"
         ndk { abiFilters += "arm64-v8a" }
         externalNativeBuild {
             cmake {
@@ -112,7 +112,17 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true }
-    testOptions { unitTests { isIncludeAndroidResources = true } }
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            // Keep JDK 17 CI usable. API 36 Robolectric runs require JDK 21 and an explicit opt-in.
+            all {
+                it.systemProperty("robolectric.enabledSdks", providers.gradleProperty("robolectricSdks").orElse("33").get())
+                // Robolectric's API 36 FileDescriptor interceptor uses this JDK-internal bridge.
+                it.jvmArgs("--add-opens=java.base/jdk.internal.access=ALL-UNNAMED")
+            }
+        }
+    }
 }
 
 dependencies {
@@ -121,6 +131,7 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.material:material-icons-core")
     implementation("androidx.activity:activity-compose:1.10.1")
+    implementation("androidx.customview:customview:1.2.0")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.17")
 }

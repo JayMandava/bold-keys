@@ -2,6 +2,8 @@
 
 package ai.boldkeys
 
+import android.content.ActivityNotFoundException
+import android.widget.Toast
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -11,6 +13,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.core.net.toUri
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -34,6 +37,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -121,7 +125,7 @@ private fun writeDictionary(c: Context, edit: (MutableMap<String, Int>) -> Unit)
 }
 
 private enum class Screen(val title: String) {
-    HOME("Bold Keys"), TYPING("Typing"), LOOK("Appearance"), FEEL("Key feel"), SYMBOLS("Symbols & emoji"), DICTIONARY("Personal dictionary"), SHORTCUTS("Speed key"), CONTEXT("Context model"), ABOUT("About"),
+    HOME("Bold Keys"), TYPING("Typing"), LOOK("Appearance"), FEEL("Key feel"), SYMBOLS("Symbols & emoji"), DICTIONARY("Personal dictionary"), SHORTCUTS("Speed key"), CONTEXT("Context model"), ABOUT("About"), LICENSES("Licenses & credits"),
 }
 
 @Composable
@@ -156,7 +160,8 @@ private fun SettingsApp() {
                 Screen.DICTIONARY -> dictionaryItems(context)
                 Screen.SHORTCUTS -> item(key = "shortcuts") { ShortcutsContent(context) }
                 Screen.CONTEXT -> contextItems(context)
-                Screen.ABOUT -> aboutItems(context)
+                Screen.ABOUT -> aboutItems(context) { screen = Screen.LICENSES.name }
+                Screen.LICENSES -> licenseItems(context)
             }
         }
     }
@@ -361,7 +366,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.typingItems(context: 
         }
         }
     }
-    item(key = "typing-note") { Note("Passwords, email addresses and web addresses are never corrected or suggested, whatever you choose here.") }
+    item(key = "typing-note") { Note("Password and email fields suppress correction and suggestions. Web addresses are never automatically rewritten, but suggestions may appear. These protections depend on the editor reporting its input type correctly.") }
 }
 
 // ---------------------------------------------------------------- appearance
@@ -573,17 +578,45 @@ private fun DictionaryContent(context: Context) {
 
 // ---------------------------------------------------------------- about
 
-private fun androidx.compose.foundation.lazy.LazyListScope.aboutItems(context: Context) {
+private fun androidx.compose.foundation.lazy.LazyListScope.aboutItems(context: Context, openLicenses: () -> Unit) {
     item(key = "about") {
         val version = remember { runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "" }
         Section("Version $version") {
-            Note("Everything happens on this phone. Typing, learning and the optional context model never use the network and send nothing anywhere; what the keyboard learns stays in this app's private storage. The only thing that touches the internet is the Download button for a context model, and only when you tap it.")
-            Note("Word frequencies come from the OpenSubtitles-based FrequencyWords lists (CC BY-SA 4.0); French next-word hints are counted from Tatoeba sentences (CC BY 2.0 FR). The key legends use the Nunito typeface (SIL Open Font License).")
+            Note("Typing, learning and context-model inference happen on this phone; typed text is not sent to a server, and learned words stay in this app's private storage. Model downloads contact Hugging Face over HTTPS only when you tap Download. Android's emoji support may request a font from a system provider. Opening the privacy policy or a Speed-key link hands that link to another app, which may use the internet. Importing a model uses a document provider that may be cloud-backed. When an editor requests no personalized learning, the keyboard does not update learned words or emoji history/tone preferences; password, email and web-address fields also do not update these records.")
+            TextButton(onClick = {
+                try {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, "https://jay-mandava-dev.web.app/privacy.html".toUri()))
+                } catch (_: ActivityNotFoundException) {
+                    Toast.makeText(context, "No browser is available to open the privacy policy.", Toast.LENGTH_LONG).show()
+                }
+            }) { Text("Privacy policy (opens in browser)") }
+            TextButton(onClick = openLicenses) { Text("Licenses & credits (available offline)") }
+            Note("English, French and German word frequencies come from FrequencyWords/OpenSubtitles (CC BY-SA 4.0); Next-word hints use only Common Voice text (CC0); spelling dictionaries retain CC BY-SA 4.0 terms. Nunito uses the SIL Open Font License. The offline credits include source details and separate third-party terms.")
             Note("Inspired by the classic BlackBerry Bold 9900 keyboard. BlackBerry is a trademark of its owner; this app is independent and is not affiliated with or endorsed by BlackBerry.")
         }
     }
 }
 
+
+private fun androidx.compose.foundation.lazy.LazyListScope.licenseItems(context: Context) {
+    val files = listOf(
+        "Notices and data sources" to "NOTICES.txt",
+        "Apache License 2.0" to "Apache-2.0.txt",
+        "Nunito — SIL Open Font License" to "Nunito-OFL-1.1.txt",
+        "Unicode License V3" to "Unicode-V3.txt",
+        "llama.cpp / ggml — MIT" to "llama-MIT.txt",
+        "AndroidX graphics path notices" to "graphics-path-NOTICE.txt",
+        "Kotlin runtime third-party notices" to "Kotlin-runtime-NOTICES.txt",
+        "Common Voice data — CC0" to "CommonVoice-CC0.txt",
+        "Word dictionaries — CC BY-SA 4.0" to "CC-BY-SA-4.0.txt",
+    )
+    files.forEach { (title, file) ->
+        item(key = file) {
+            val text = remember(file) { context.assets.open("licenses/$file").bufferedReader().use { it.readText() } }
+            Section(title) { SelectionContainer { Text(text, style = MaterialTheme.typography.bodyMedium) } }
+        }
+    }
+}
 
 // ---------------------------------------------------------------- context model
 
@@ -658,8 +691,13 @@ private fun ContextContent(context: Context) {
             note?.let { Note(it) }
         }
         Section("Downloads") {
+            Note("Optional Gemma models have their own terms and use restrictions; they are not licensed under the app's Apache license.")
+            TextButton(onClick = {
+                try { context.startActivity(Intent(Intent.ACTION_VIEW, "https://ai.google.dev/gemma/terms".toUri())) }
+                catch (_: ActivityNotFoundException) { Toast.makeText(context, "No browser is available to open the model terms.", Toast.LENGTH_LONG).show() }
+            }) { Text("Gemma terms and use restrictions (opens in browser)") }
             SwitchRow("Wi-Fi only", "Models are a few hundred megabytes. Downloads are checked against a fixed checksum, and a file that does not match is thrown away.", wifiOnly) { wifiOnly = it; Prefs.put(context, "modelWifiOnly", it) }
-            Note("Downloading is the only thing in this app that uses the internet, and only when you tap Download. Wi-Fi only asks Android whether the connection is metered, which is why the app also holds the permission to see the network state.")
+            Note("A model download sends an HTTPS request to Hugging Face and potentially its delivery providers; they can see normal request metadata such as IP address and the model requested. No typed text is attached. Wi-Fi only checks whether Android marks the connection as metered. Android emoji font providers, opened links and cloud-backed document providers can also use the network.")
         }
     }
 }

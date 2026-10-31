@@ -1,0 +1,85 @@
+{
+  "schema": 1,
+  "common_voice_commit": "70dde553e48d7d0da452ba4ba070c001f65db88c",
+  "frequency_words_commit": "525f9b560de45753a5ea01069454e72e9aa541c6",
+  "sources": {
+    "predictions_en": {
+      "filename": "cv-en.txt",
+      "url": "https://raw.githubusercontent.com/common-voice/common-voice/70dde553e48d7d0da452ba4ba070c001f65db88c/server/data/en/sentence-collector.txt",
+      "sha256": "31ac8e200449ebd7aee4a8c6bd16d4dafd076cf11f7c3efe1035f0283712d136",
+      "bytes": 2803252,
+      "license": "CC0-1.0",
+      "attribution": "Mozilla Common Voice Sentence Collector contributors"
+    },
+    "words_en": {
+      "filename": "fw-2018-en.txt",
+      "url": "https://raw.githubusercontent.com/hermitdave/FrequencyWords/525f9b560de45753a5ea01069454e72e9aa541c6/content/2018/en/en_50k.txt",
+      "sha256": "5351ff405b1126ef555791dd4d9798a48e3e9a501a9fc481a9da957752cfb458",
+      "bytes": 622749,
+      "license": "CC-BY-SA-4.0",
+      "attribution": "Hermit Dave / FrequencyWords, OpenSubtitles-based content"
+    },
+    "predictions_fr": {
+      "filename": "cv-fr.txt",
+      "url": "https://raw.githubusercontent.com/common-voice/common-voice/70dde553e48d7d0da452ba4ba070c001f65db88c/server/data/fr/sentence-collector.txt",
+      "sha256": "214f3d5b0110e86e3f2018ca6971b918db8ad5cc4c5612ebab58cd0849fb0715",
+      "bytes": 4471382,
+      "license": "CC0-1.0",
+      "attribution": "Mozilla Common Voice Sentence Collector contributors"
+    },
+    "words_fr": {
+      "filename": "fw-2018-fr.txt",
+      "url": "https://raw.githubusercontent.com/hermitdave/FrequencyWords/525f9b560de45753a5ea01069454e72e9aa541c6/content/2018/fr/fr_50k.txt",
+      "sha256": "f81f7c570b6433764da99aa30f4dfb08d81c5926301377b709af23a13b1f9596",
+      "bytes": 653452,
+      "license": "CC-BY-SA-4.0",
+      "attribution": "Hermit Dave / FrequencyWords, OpenSubtitles-based content"
+    },
+    "predictions_de": {
+      "filename": "cv-de.txt",
+      "url": "https://raw.githubusercontent.com/common-voice/common-voice/70dde553e48d7d0da452ba4ba070c001f65db88c/server/data/de/sentence-collector.txt",
+      "sha256": "de6bd33fc5742350690fa4be6197aafd9be2c6c9fe4b70b8c5c8670971acc117",
+      "bytes": 1981197,
+      "license": "CC0-1.0",
+      "attribution": "Mozilla Common Voice Sentence Collector contributors"
+    },
+    "words_de": {
+      "filename": "fw-2018-de.txt",
+      "url": "https://raw.githubusercontent.com/hermitdave/FrequencyWords/525f9b560de45753a5ea01069454e72e9aa541c6/content/2018/de/de_50k.txt",
+      "sha256": "d9e50546fd7e8b6fe6542a2b33c51d1331092b2a3916ec09f80d97856068705b",
+      "bytes": 662497,
+      "license": "CC-BY-SA-4.0",
+      "attribution": "Hermit Dave / FrequencyWords, OpenSubtitles-based content"
+    },
+    "cv_license": {
+      "url": "https://raw.githubusercontent.com/common-voice/common-voice/70dde553e48d7d0da452ba4ba070c001f65db88c/server/data/LICENSE",
+      "sha256": "bf474cdfd02e162603358e4e3615182018cad27593d2bf5e75ca13e4a5a6af0c",
+      "bytes": 6556,
+      "filename": "cv-data-LICENSE"
+    },
+    "cv_collection_guidance": {
+      "url": "https://raw.githubusercontent.com/common-voice/common-voice/70dde553e48d7d0da452ba4ba070c001f65db88c/docs/SENTENCES.md",
+      "sha256": "89847813e12f20920c6f60c5ea4f1742a4cd94f8e1abe986b876be4edcc667f6",
+      "bytes": 7804,
+      "filename": "cv-SENTENCES.md"
+    },
+    "frequency_license_evidence": {
+      "filename": "FrequencyWords-README.md",
+      "url": "https://raw.githubusercontent.com/hermitdave/FrequencyWords/525f9b560de45753a5ea01069454e72e9aa541c6/README.md",
+      "sha256": "a92fcc50e27f7b2d5860ec1c1ce794dc4c892d945bfa4c8c3136cdfd213ee710"
+    },
+    "cv_en_license": {
+      "filename": "cv-en-LICENSE",
+      "url": "https://raw.githubusercontent.com/common-voice/common-voice/70dde553e48d7d0da452ba4ba070c001f65db88c/server/data/en/LICENSE",
+      "sha256": "bf474cdfd02e162603358e4e3615182018cad27593d2bf5e75ca13e4a5a6af0c",
+      "bytes": 6556
+    },
+    "cc_by_sa_legalcode": {
+      "filename": "CC-BY-SA-4.0.txt",
+      "url": "https://raw.githubusercontent.com/creativecommons/cc-legal-tools-data/a0dac18d1a773b4cdb7d8dd5d9bf4efab7901030/docs/licenses/by-sa/4.0/legalcode.txt",
+      "sha256": "28a9529c7d0bb4dc51f4bf5c116a3d16ef247a052f7591466768ddf563fd1cf5",
+      "canonical_url": "https://creativecommons.org/licenses/by-sa/4.0/legalcode.en",
+      "purpose": "Offline copy of unchanged license legal text from Creative Commons official repository"
+    }
+  }
+}

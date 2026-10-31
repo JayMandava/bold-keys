@@ -1,0 +1,182 @@
+name: Protected Play bundle validation
+run-name: 'validate AAB ${{ inputs.version }} at ${{ inputs.commit_sha }}'
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact reviewed source version; this workflow never publishes or uploads to Play
+        type: string
+        required: true
+      commit_sha:
+        description: Full reviewed current-main SHA (40 lowercase hex characters)
+        type: string
+        required: true
+
+permissions: {}
+concurrency:
+  group: bold-keys-production-release
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  VERSION: ${{ inputs.version }}
+  COMMIT_SHA: ${{ inputs.commit_sha }}
+  BUNDLETOOL_JAR: /tmp/bold-keys-bundletool-all-1.18.3.jar
+
+jobs:
+  validate_build:
+    if: github.repository == 'JayMandava/bold-keys' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      version_code: ${{ steps.preflight.outputs.version_code }}
+      manifest_sha: ${{ steps.prepare.outputs.manifest_sha }}
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          submodules: recursive
+      - name: Check exact main, protected environment and source version
+        id: preflight
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tools/release/bundle.py preflight --version "$VERSION" --commit "$COMMIT_SHA"
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Prepare pinned SDK and bundle verifier without signing credentials
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.0.12077973' 'cmake;3.22.1' </dev/null
+          curl --fail --location --proto '=https' --tlsv1.2 'https://github.com/google/bundletool/releases/download/1.18.3/bundletool-all-1.18.3.jar' -o "$BUNDLETOOL_JAR"
+          echo "a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29  $BUNDLETOOL_JAR" | sha256sum --check
+      - name: Test release tooling
+        run: python3 -m unittest discover -s tests -p 'test_*workflow.py' -v
+      - name: Verify pinned prediction and dictionary data
+        run: python3 -m unittest discover -s tests -p 'test_prediction_data.py' -v
+      - name: Test, lint and build unsigned production bundle
+        run: ./gradlew --no-daemon --max-workers=4 -PunsignedRelease=true testReleaseUnitTest lintRelease bundleRelease
+      - name: Verify unsigned bundle and provenance
+        id: prepare
+        env:
+          VERSION_CODE: ${{ steps.preflight.outputs.version_code }}
+        run: |
+          mkdir candidate
+          cp app/build/outputs/bundle/release/app-release.aab candidate/unsigned.aab
+          cp "docs/releases/$VERSION.md" candidate/release-notes.md
+          python3 tools/release/bundle.py prepare --version "$VERSION" --commit "$COMMIT_SHA" --code "$VERSION_CODE"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        id: upload
+        with:
+          name: unsigned-play-bundle-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            candidate/unsigned.aab
+            candidate/bundle-candidate.json
+            candidate/release-notes.md
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
+  sign:
+    needs: validate_build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: production-release
+    permissions:
+      contents: read
+      actions: read
+    env:
+      VERSION_CODE: ${{ needs.validate_build.outputs.version_code }}
+      MANIFEST_SHA: ${{ needs.validate_build.outputs.manifest_sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Recheck exact main and environment after owner approval
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tools/release/bundle.py preflight --version "$VERSION" --commit "$COMMIT_SHA"
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Prepare pinned verifier before signing credentials are available
+        run: |
+          curl --fail --location --proto '=https' --tlsv1.2 'https://github.com/google/bundletool/releases/download/1.18.3/bundletool-all-1.18.3.jar' -o "$BUNDLETOOL_JAR"
+          echo "a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29  $BUNDLETOOL_JAR" | sha256sum --check
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          artifact-ids: ${{ needs.validate_build.outputs.artifact_id }}
+          path: candidate
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Verify exact unsigned artifact before signing credentials are available
+        run: python3 tools/release/bundle.py verify --version "$VERSION" --commit "$COMMIT_SHA" --code "$VERSION_CODE" --manifest-sha "$MANIFEST_SHA"
+      - name: Sign with existing production key (no build code, no fallback)
+        env:
+          BOLD_RELEASE_KEYSTORE_BASE64: ${{ secrets.BOLD_RELEASE_KEYSTORE_BASE64 }}
+          BOLD_RELEASE_STORE_PASSWORD: ${{ secrets.BOLD_RELEASE_STORE_PASSWORD }}
+          BOLD_RELEASE_KEY_ALIAS: ${{ secrets.BOLD_RELEASE_KEY_ALIAS }}
+          BOLD_RELEASE_KEY_PASSWORD: ${{ secrets.BOLD_RELEASE_KEY_PASSWORD }}
+        run: |
+          set +x
+          set -euo pipefail
+          umask 077
+          key_dir="$RUNNER_TEMP/bold-release-key"
+          mkdir -m 700 "$key_dir"
+          trap 'rm -rf -- "$key_dir"' EXIT
+          for name in BOLD_RELEASE_KEYSTORE_BASE64 BOLD_RELEASE_STORE_PASSWORD BOLD_RELEASE_KEY_ALIAS BOLD_RELEASE_KEY_PASSWORD; do
+            if [[ -z "${!name}" ]]; then
+              echo 'A required environment signing secret is missing; refusing to sign.' >&2
+              exit 1
+            fi
+          done
+          if [[ "${BOLD_RELEASE_KEY_ALIAS,,}" == androiddebugkey ]]; then
+            echo 'Debug key alias forbidden.' >&2
+            exit 1
+          fi
+          if ! printf '%s' "$BOLD_RELEASE_KEYSTORE_BASE64" | base64 --decode > "$key_dir/release.keystore" 2>/dev/null; then
+            echo 'Invalid encoded signing secret.' >&2
+            exit 1
+          fi
+          test -s "$key_dir/release.keystore"
+          mkdir signed
+          cp candidate/release-notes.md signed/release-notes.md
+          # Passwords stay in step-local environment variables; no repository/build code runs with secrets.
+          if ! jarsigner -keystore "$key_dir/release.keystore" \
+            -storepass:env BOLD_RELEASE_STORE_PASSWORD -keypass:env BOLD_RELEASE_KEY_PASSWORD \
+            -digestalg SHA-256 -sigalg SHA256withRSA \
+            -signedjar "signed/bold-keys-$VERSION.aab" candidate/unsigned.aab "$BOLD_RELEASE_KEY_ALIAS" \
+            > "$key_dir/signing.log" 2>&1; then
+            echo 'Production bundle signing failed; confidential diagnostics discarded. No artifact will be uploaded.' >&2
+            exit 1
+          fi
+      - name: Verify every signed payload, pinned certificate and bundle metadata
+        id: prepare
+        run: python3 tools/release/bundle.py prepare --signed --directory signed --version "$VERSION" --commit "$COMMIT_SHA" --code "$VERSION_CODE"
+      - name: Remove temporary signing material
+        if: always()
+        run: rm -rf -- "$RUNNER_TEMP/bold-release-key"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: verified-production-aab-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            signed/bold-keys-${{ inputs.version }}.aab
+            signed/SHA256SUMS-AAB-${{ inputs.version }}.txt
+            signed/bundle-candidate.json
+            signed/release-notes.md
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+      - name: Record nonpublishing validation result
+        run: echo 'Production AAB verification passed. No Git tag, release, or Play upload was performed.' >> "$GITHUB_STEP_SUMMARY"

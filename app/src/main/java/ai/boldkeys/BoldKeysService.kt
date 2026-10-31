@@ -34,8 +34,9 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
     private var nextWordOn = true
     private var lastSpaceAt = 0L
     private var learnedStamp = 0L
+    @Volatile private var learningAllowed = false // no editor means no personalized updates
     private var urlLike = false // a web-address field: suggestions only, nothing is changed for the user
-    private var smart = false // suggestions and autocorrect are off in password, email, web-address and "no suggestions" fields
+    private var smart = false // dictionary features allowed by the editor; URI fields use suggestions only
     private var shown: List<String> = emptyList()
 
     // The context model (optional): judges the word just typed by the sentence around it, a moment after the space is typed.
@@ -152,7 +153,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
     override fun onCreateInputView(): View {
         watchOutsideTouches()
         feedback = Feedback(this)
-        kb = KeyboardView(this, feedback, this)
+        kb = KeyboardView(this, feedback, this).apply { personalizedLearningAllowed = learningAllowed }
         bar = SuggestionBar(this, feedback, this) { kb.isShiftHeld() }
         return LinearLayout(this).apply {
             root = this
@@ -185,8 +186,29 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
 
     override fun onEvaluateFullscreenMode() = false
 
+    override fun onStartInput(info: EditorInfo, restarting: Boolean) {
+        // Flush the previous ordinary editor before changing policy. Incognito text is never added.
+        saveLearned()
+        undo = null; lastSpaceAt = 0
+        smart = false; shown = emptyList() // no prior-editor candidates while new input policy is being applied
+        ++lmJob // discard pending context corrections from the previous editor
+        super.onStartInput(info, restarting)
+        applyLearningPolicy(info)
+        if (::kb.isInitialized) kb.resetAccessibilityInput()
+        if (::bar.isInitialized) bar.setSuggestions(emptyList()) // remove prior-editor candidate nodes immediately
+    }
+
+    private fun applyLearningPolicy(info: EditorInfo) {
+        val variation = info.inputType and InputType.TYPE_MASK_VARIATION
+        learningAllowed = info.imeOptions and EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING == 0 &&
+            info.inputType and InputType.TYPE_MASK_CLASS == InputType.TYPE_CLASS_TEXT &&
+            variation !in SECRET_VARIATIONS && variation != InputType.TYPE_TEXT_VARIATION_URI
+        if (::kb.isInitialized) { kb.personalizedLearningAllowed = learningAllowed; kb.setEnterAction(info.imeOptions) }
+    }
+
     override fun onStartInputView(info: EditorInfo, restarting: Boolean) {
         super.onStartInputView(info, restarting)
+        applyLearningPolicy(info)
         ui.removeCallbacks(hideRunnable)
         // what the user chose in Settings, read afresh each time the keyboard opens
         autocorrectOn = Prefs.autocorrect(this); suggestOn = Prefs.suggestions(this); emoticonsOn = Prefs.emoticons(this); autoCapsOn = Prefs.autoCapitals(this)
@@ -213,7 +235,13 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         refreshInsets()
     }
 
-    override fun onFinishInput() { super.onFinishInput(); saveLearned() }
+    override fun onFinishInput() {
+        super.onFinishInput()
+        saveLearned()
+        learningAllowed = false; smart = false; shown = emptyList()
+        if (::bar.isInitialized) bar.setSuggestions(emptyList())
+        if (::kb.isInitialized) { kb.personalizedLearningAllowed = false; kb.resetAccessibilityInput() }
+    }
 
     /** Where the text field being typed in is on the screen (kept up to date by the system), so a tap in it is not mistaken for a tap away. */
     private var editorOnScreen: android.graphics.RectF? = null
@@ -267,7 +295,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
             val word = currentWord()
             if (word.isNotEmpty()) {
                 val ctx = ic.getTextBeforeCursor(160, 0)?.toString()?.dropLast(word.length) ?: ""
-                val fix = if (lang == "en" && word == "i" && !ctx.lastOrNull().let { it != null && (it.isLetterOrDigit() || it in "@#/._-") }) "I" else if (autocorrectOn && !urlLike) Autofix.fix(e, word, ctx)?.let { matchCase(word, it) } else null
+                val fix = if (!urlLike && lang == "en" && word == "i" && !ctx.lastOrNull().let { it != null && (it.isLetterOrDigit() || it in "@#/._-") }) "I" else if (autocorrectOn && !urlLike) Autofix.fix(e, word, ctx)?.let { matchCase(word, it) } else null
                 if (fix != null && fix != word) {
                     ic.deleteSurroundingText(word.length, 0)
                     ic.commitText(fix + text, 1)
@@ -276,7 +304,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
                     if (contextOn && lm != null) judgeInContext(word, fix, text, ctx)
                     return
                 }
-                e.noteTyped(word)
+                if (learningAllowed) e.noteTyped(word)
                 if (contextOn && lm != null && !urlLike) { ic.commitText(text, 1); undo = null; refreshAutoCaps(); refreshStrip(); judgeInContext(word, null, text, ctx); return }
             }
         }
@@ -337,7 +365,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
                 // take the correction back: what was typed returns, and the word is learned so it is not "fixed" again
                 ic.deleteSurroundingText(tail.length, 0)
                 ic.commitText(u.typed + u.sep, 1)
-                if (u.typed.all { it.isLetter() || it == '\'' }) engine?.teach(u.typed)
+                if (learningAllowed && u.typed.all { it.isLetter() || it == '\'' }) engine?.teach(u.typed)
                 undo = null
                 refreshAutoCaps(); refreshStrip()
                 return
@@ -365,7 +393,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         val action = info?.imeOptions?.and(EditorInfo.IME_MASK_ACTION) ?: EditorInfo.IME_ACTION_NONE
         val noAction = info != null && info.imeOptions and EditorInfo.IME_FLAG_NO_ENTER_ACTION != 0
         val word = currentWord()
-        if (smart && word.isNotEmpty()) engine?.noteTyped(word)
+        if (smart && learningAllowed && word.isNotEmpty()) engine?.noteTyped(word)
         undo = null
         if (!noAction && action != EditorInfo.IME_ACTION_NONE && action != EditorInfo.IME_ACTION_UNSPECIFIED) {
             currentInputConnection?.performEditorAction(action)
@@ -494,6 +522,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
     }
 
     @Synchronized private fun saveLearned() {
+        if (!learningAllowed) return
         val e = engine ?: return
         reloadLearnedIfChanged() // never overwrite words that were added or removed in Settings
         runCatching { learnedFile().writeText(e.learnedSnapshot().entries.joinToString("") { "${it.key}\t${it.value}\n" }); learnedStamp = learnedFile().lastModified() }

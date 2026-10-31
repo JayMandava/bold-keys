@@ -1,0 +1,104 @@
+BOLD KEYS — LICENSES AND CREDITS
+Copyright 2026 Jeyanth Mandava
+Application code: Apache License 2.0. Third-party material keeps its own terms.
+
+WORD FREQUENCIES
+English, French and German word-frequency tables are derived from Hermit Dave's
+FrequencyWords project and OpenSubtitles corpora. Upstream content is licensed
+under Creative Commons Attribution-ShareAlike 4.0 International; its code is MIT.
+These are separate grants. The app's Apache license does not replace data terms.
+Source: https://github.com/hermitdave/FrequencyWords
+Pinned snapshot: 525f9b560de45753a5ea01069454e72e9aa541c6
+Inputs: content/2018/en/en_50k.txt, content/2018/fr/fr_50k.txt,
+content/2018/de/de_50k.txt. Upstream identifies OpenSubtitles2018 as its source.
+OPUS source: https://opus.nlpl.eu/ (OpenSubtitles release v2018).
+Original subtitle provider: https://www.opensubtitles.org/
+Requested source citation:
+Pierre Lison and Jörg Tiedemann (2016).
+OpenSubtitles2016: Extracting Large Parallel Corpora from Movie and TV Subtitles.
+LREC'16, pp. 923–929. ELRA. https://aclanthology.org/L16-1147/
+These source credits do not establish or resolve the underlying subtitle/data
+redistribution rights; the applicable third-party license terms are unchanged.
+Content/adapted dictionary license: CC BY-SA 4.0 International,
+https://creativecommons.org/licenses/by-sa/4.0/ (full legal code included offline).
+Bold Keys' modifications: filtered word forms; converted space-separated counts
+to TSV; filtered French/German accent/umlaut twins; bounded each to 46,000 words;
+English short-word allowlist, incomplete-contraction removal, contractions and
+supplemental words. Pinned inputs plus tools/data/english_word_adjustments.json
+reproduce the public production spelling dictionaries byte-for-byte.
+Adapted dictionaries (words*.tsv), including applicable database rights and
+project adaptation contributions, retain CC BY-SA 4.0. No endorsement is implied.
+The upstream README supplies no additional copyright or separate disclaimer
+notice; its license disclaims warranties, reproduced in CC-BY-SA-4.0.txt.
+License grants permit reuse under their terms; the application's own terms do
+not impose an additional restriction on the third-party licensed material.
+The bundled plaintext dictionaries are ordinary ZIP assets, not encrypted.
+
+NEXT-WORD DATA
+English, French and German hints now use only Mozilla Common Voice Sentence
+Collector contributors' text under CC0 1.0 Universal. No spelling dictionaries,
+FrequencyWords weights, historical project seeds, held-out evaluation files, or
+Norvig/Tatoeba-derived next-word tables enter generation. Previous CC BY-SA
+project seeds/tables keep their original terms; they are not relicensed here.
+Source project: https://github.com/common-voice/common-voice
+Snapshot: 70dde553e48d7d0da452ba4ba070c001f65db88c
+Selected files: server/data/en/sentence-collector.txt,
+server/data/fr/sentence-collector.txt, server/data/de/sentence-collector.txt.
+The data subtree LICENSE and English local LICENSE contain CC0 1.0, reproduced
+in CommonVoice-CC0.txt. The repository code license is not a grant for data.
+Bold Keys normalizes accents/apostrophes/case, deduplicates prompts, counts
+adjacent pairs once per prompt, requires followers in two distinct prompts,
+then ranks by corpus pair/unigram counts and caps at four hints/24,000 contexts.
+Generated prediction data retain the source CC0 basis; any project rights in
+these newly generated corpus-only tables are dedicated under CC0 1.0. This
+statement does not change rights in dictionaries, previous tables or seeds.
+CC0 does not warrant the rights or accuracy of every individual contribution.
+Common Voice credit is voluntary; CC0 imposes no attribution/share-alike duty.
+Exact input URLs, hashes, recipe and asset hashes: data-provenance.json.
+No raw prompts or held-out test sentences are bundled.
+
+FONT
+Nunito ExtraLight, version 3.602.
+Copyright 2014 The Nunito Project Authors (https://github.com/googlefonts/nunito).
+SIL Open Font License 1.1; the full notice and license are included below.
+
+EMOJI DATA
+The emoji table is generated from Unicode emoji-test.txt by filtering fully
+qualified entries, grouping them, and associating available skin-tone variants.
+Copyright © 1991-2026 Unicode, Inc. Unicode License V3 (included below).
+Source and license: https://www.unicode.org/license.txt
+The table is data; emoji rendering/fonts are supplied separately by Android.
+
+NATIVE INFERENCE
+llama.cpp and ggml, pinned source commit 748d4225b9016b17ce4bcfa69fdc2c39f473a965.
+Copyright (c) 2023-2026 The ggml authors. MIT License (included below).
+Source: https://github.com/ggml-org/llama.cpp
+
+ANDROID LIBRARIES
+AndroidX libraries are Apache-2.0 software; distributed AndroidX license notices
+are also retained in the application's META-INF entries. AndroidX graphics path
+includes third-party notices reproduced in graphics-path-NOTICE.txt.
+
+KOTLIN RUNTIME
+Kotlin standard library 2.0.21 and kotlinx.coroutines 1.8.1 are by JetBrains and
+contributors; JetBrains-owned code is Apache License 2.0. JVM stdlib also
+contains GWT/Guava-derived Apache portions and Boost-licensed math portions;
+their exact upstream notices are included in Kotlin-runtime-NOTICES.txt.
+Sources: https://github.com/JetBrains/kotlin/tree/v2.0.21
+https://github.com/Kotlin/kotlinx.coroutines/tree/1.8.1
+The Kotlin project's license documentation distinguishes third-party components;
+this notice describes the Android runtime dependencies, not a compiler bundle.
+
+OPTIONAL MODELS
+Models are not bundled. The catalogue offers Gemma 3 270M GGUF conversions from
+https://huggingface.co/unsloth/gemma-3-270m-it-GGUF . Gemma is provided under and
+subject to the Gemma Terms of Use found at https://ai.google.dev/gemma/terms .
+Use restrictions: https://ai.google.dev/gemma/prohibited_use_policy .
+Imported models keep their own terms. The app's Apache license does not license
+model weights or grant permission to use an imported model.
+
+TRADEMARKS
+Inspired by BlackBerry Bold 9900. BlackBerry is a trademark of its owner;
+this project is independent and is not affiliated with or endorsed by BlackBerry.
+
+AndroidX CustomView 1.2.0: ExploreByTouchHelper, Copyright The Android Open Source Project, Apache License 2.0. Source: https://android.googlesource.com/platform/frameworks/support/ ; published sources: https://dl.google.com/dl/android/maven2/androidx/customview/customview/1.2.0/customview-1.2.0-sources.jar . The full Apache-2.0 text is included offline.

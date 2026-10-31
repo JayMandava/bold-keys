@@ -1,0 +1,753 @@
+{
+  "plan_sha256": "c9202cfb0c65c774aa57fe4cd9c03a25d53e525e7375d640baf1e2d30ea6ab45",
+  "seal": {
+    "selection": "Development only: follower minimum 2, alpha 0, maximum contexts 24000; no new training source, no seeds. Final held-out outcomes unopened at seal creation.",
+    "frozen_before_test": true,
+    "sha256": {
+      "tools/prediction_coverage.py": "214f8dbaaea637b0a97439267dcb8722428b2fab703f44b3f8b4562fea1ad154",
+      "tools/data/coverage_evaluation_plan.json": "c9202cfb0c65c774aa57fe4cd9c03a25d53e525e7375d640baf1e2d30ea6ab45",
+      "app/src/main/assets/pairs.tsv": "855d7dbd898704cd40bc48140262e13dbcb8b3a3a756960b85ff4ea6af57eeab",
+      "app/src/main/assets/pairs_fr.tsv": "dc3975419c5374c29674a7e3dae9ba912a4eb047ce68feb3593b77d58847666b",
+      "app/src/main/assets/pairs_de.tsv": "1cf0a8aa1d78e2f78b72aaecc6512199b3784e73f8671c526097d671d514efab"
+    }
+  },
+  "interpretation": "Raw TSV lookup, not phone/user accuracy. No spelling-dictionary eligibility filter in denominator. English runtime dialect filtering may remove/map hints. One previous word only; no learned/LLM hints. Legacy training overlap cannot be ruled out.",
+  "languages": {
+    "en": {
+      "files": [
+        {
+          "language": "en",
+          "path": "server/data/en/jf99.txt",
+          "url": "https://raw.githubusercontent.com/common-voice/common-voice/70dde553e48d7d0da452ba4ba070c001f65db88c/server/data/en/jf99.txt",
+          "filename": "en-jf99.txt",
+          "sha256": "0c2bcb8ad553d1f956b36a276a1f76749f4da808175fb375b8ce91af7e23933c",
+          "bytes": 61368,
+          "license": "CC0-1.0 (pinned server/data/LICENSE; English local LICENSE identical)"
+        }
+      ],
+      "contamination": {
+        "input_unique": 1102,
+        "excluded_shared_five_token_window": 20,
+        "excluded_no_eligible_transition": 1,
+        "excluded_token_exact": 1,
+        "clean_before_cap": 1080,
+        "selected": 1080
+      },
+      "test_selection_sha256": "cfbbf986acca754828f1e5237ef55dfa6afb2157e36d68eeab4af515666452c9",
+      "metrics": {
+        "candidate": {
+          "transitions": 9125,
+          "context_coverage": 0.9296438356164384,
+          "top1": 0.11013698630136987,
+          "top2": 0.15758904109589042,
+          "top4": 0.20394520547945205,
+          "distinct_contexts": 3255,
+          "unique_context_coverage": 0.8067588325652841,
+          "macro_context_top2": 0.14179527555059915,
+          "by_training_context_support": {
+            "unseen": {
+              "transitions": 629,
+              "context_coverage": 0.0,
+              "top1": 0.0,
+              "top2": 0.0,
+              "top4": 0.0
+            },
+            "rare_1_4": {
+              "transitions": 964,
+              "context_coverage": 0.9865145228215768,
+              "top1": 0.07676348547717843,
+              "top2": 0.0954356846473029,
+              "top4": 0.10269709543568464
+            },
+            "medium_5_19": {
+              "transitions": 974,
+              "context_coverage": 1.0,
+              "top1": 0.14168377823408623,
+              "top2": 0.18788501026694046,
+              "top4": 0.23100616016427106
+            },
+            "common_20_plus": {
+              "transitions": 6558,
+              "context_coverage": 1.0,
+              "top1": 0.12092101250381214,
+              "top2": 0.1773406526379994,
+              "top4": 0.23437023482769137
+            }
+          }
+        },
+        "prior": {
+          "transitions": 9125,
+          "context_coverage": 0.8661917808219178,
+          "top1": 0.1052054794520548,
+          "top2": 0.1521095890410959,
+          "top4": 0.19835616438356166,
+          "distinct_contexts": 3255,
+          "unique_context_coverage": 0.6365591397849463,
+          "macro_context_top2": 0.12732821632547542,
+          "by_training_context_support": {
+            "unseen": {
+              "transitions": 629,
+              "context_coverage": 0.0,
+              "top1": 0.0,
+              "top2": 0.0,
+              "top4": 0.0
+            },
+            "rare_1_4": {
+              "transitions": 964,
+              "context_coverage": 0.3962655601659751,
+              "top1": 0.03630705394190872,
+              "top2": 0.04771784232365145,
+              "top4": 0.05705394190871369
+            },
+            "medium_5_19": {
+              "transitions": 974,
+              "context_coverage": 0.9958932238193019,
+              "top1": 0.14271047227926079,
+              "top2": 0.18480492813141683,
+              "top4": 0.23305954825462014
+            },
+            "common_20_plus": {
+              "transitions": 6558,
+              "context_coverage": 0.9990850869167429,
+              "top1": 0.11985361390667887,
+              "top2": 0.17718816712412322,
+              "top4": 0.23299786520280574
+            }
+          }
+        },
+        "legacy": {
+          "transitions": 9125,
+          "context_coverage": 0.8919452054794521,
+          "top1": 0.11846575342465754,
+          "top2": 0.16876712328767124,
+          "top4": 0.22465753424657534,
+          "distinct_contexts": 3255,
+          "unique_context_coverage": 0.7105990783410139,
+          "macro_context_top2": 0.16266444006651773,
+          "by_training_context_support": {
+            "unseen": {
+              "transitions": 629,
+              "context_coverage": 0.246422893481717,
+              "top1": 0.028616852146263912,
+              "top2": 0.04292527821939587,
+              "top4": 0.05246422893481717
+            },
+            "rare_1_4": {
+              "transitions": 964,
+              "context_coverage": 0.5985477178423236,
+              "top1": 0.09336099585062241,
+              "top2": 0.13070539419087138,
+              "top4": 0.16804979253112035
+            },
+            "medium_5_19": {
+              "transitions": 974,
+              "context_coverage": 0.9291581108829569,
+              "top1": 0.15195071868583163,
+              "top2": 0.21457905544147843,
+              "top4": 0.2946611909650924
+            },
+            "common_20_plus": {
+              "transitions": 6558,
+              "context_coverage": 0.9914608112229338,
+              "top1": 0.12580054894784995,
+              "top2": 0.1796279353461421,
+              "top4": 0.239097285757853
+            }
+          }
+        }
+      },
+      "paired_candidate_minus": {
+        "prior": {
+          "method": "400 paired prompt-cluster bootstrap resamples; descriptive 95% percentile interval, source-specific",
+          "top2_difference": 0.005479452054794521,
+          "lower": 0.003791982665222102,
+          "upper": 0.007363446532585999
+        },
+        "legacy": {
+          "method": "400 paired prompt-cluster bootstrap resamples; descriptive 95% percentile interval, source-specific",
+          "top2_difference": -0.011178082191780823,
+          "lower": -0.016711229946524065,
+          "upper": -0.006042627993847506
+        }
+      },
+      "tables": {
+        "candidate": {
+          "contexts": 24000,
+          "followers": 52590,
+          "single_follower_contexts": 11096,
+          "bytes": 456550,
+          "sha256": "855d7dbd898704cd40bc48140262e13dbcb8b3a3a756960b85ff4ea6af57eeab"
+        },
+        "prior": {
+          "contexts": 9415,
+          "followers": 33474,
+          "single_follower_contexts": 426,
+          "bytes": 225882,
+          "sha256": "c67f212c7080dad8ce37cb3089207a9b643bd45fafba013815af5e5e9ad81af3"
+        },
+        "legacy": {
+          "contexts": 10777,
+          "followers": 32144,
+          "single_follower_contexts": 2461,
+          "bytes": 224643,
+          "sha256": "3baa20f1cb349fa23efe64b745ab9e0a60a91d459f8d2ec2553e4fd6e89f5784"
+        }
+      },
+      "candidate_generation_seconds": 0.7680396309988282,
+      "legacy_contexts_retained": 9081,
+      "synthetic_diagnostic_biased_not_heldout": {
+        "candidate": {
+          "chat": {
+            "cases": 12,
+            "top2_hits": 4
+          },
+          "general": {
+            "cases": 8,
+            "top2_hits": 6
+          },
+          "tail": {
+            "cases": 5,
+            "top2_hits": 0
+          }
+        },
+        "prior": {
+          "chat": {
+            "cases": 12,
+            "top2_hits": 9
+          },
+          "general": {
+            "cases": 8,
+            "top2_hits": 6
+          },
+          "tail": {
+            "cases": 5,
+            "top2_hits": 0
+          }
+        },
+        "legacy": {
+          "chat": {
+            "cases": 12,
+            "top2_hits": 3
+          },
+          "general": {
+            "cases": 8,
+            "top2_hits": 6
+          },
+          "tail": {
+            "cases": 5,
+            "top2_hits": 1
+          }
+        }
+      }
+    },
+    "fr": {
+      "files": [
+        {
+          "language": "fr",
+          "path": "server/data/fr/global-sprint-fr.txt",
+          "url": "https://raw.githubusercontent.com/common-voice/common-voice/70dde553e48d7d0da452ba4ba070c001f65db88c/server/data/fr/global-sprint-fr.txt",
+          "filename": "fr-global-sprint-fr.txt",
+          "sha256": "f6ac598f5e0c9f208488d32edc25b1081e8cbe73bd8381f596e7a8c1794a93ee",
+          "bytes": 9708,
+          "license": "CC0-1.0 (pinned server/data/LICENSE; English local LICENSE identical)"
+        },
+        {
+          "language": "fr",
+          "path": "server/data/fr/vfvv1.1.txt",
+          "url": "https://raw.githubusercontent.com/common-voice/common-voice/70dde553e48d7d0da452ba4ba070c001f65db88c/server/data/fr/vfvv1.1.txt",
+          "filename": "fr-vfvv1.1.txt",
+          "sha256": "41d3ccc0b7c614dd5a8873d0dbb13dd6ab68ec9f020d496d51df62d391637120",
+          "bytes": 3198,
+          "license": "CC0-1.0 (pinned server/data/LICENSE; English local LICENSE identical)"
+        },
+        {
+          "language": "fr",
+          "path": "server/data/fr/vfvv2.txt",
+          "url": "https://raw.githubusercontent.com/common-voice/common-voice/70dde553e48d7d0da452ba4ba070c001f65db88c/server/data/fr/vfvv2.txt",
+          "filename": "fr-vfvv2.txt",
+          "sha256": "cc0277f9689508930893ef4a911ca11da9dbe34b80e0bcb3685e18aee967c27f",
+          "bytes": 3786,
+          "license": "CC0-1.0 (pinned server/data/LICENSE; English local LICENSE identical)"
+        },
+        {
+          "language": "fr",
+          "path": "server/data/fr/vfvv3.txt",
+          "url": "https://raw.githubusercontent.com/common-voice/common-voice/70dde553e48d7d0da452ba4ba070c001f65db88c/server/data/fr/vfvv3.txt",
+          "filename": "fr-vfvv3.txt",
+          "sha256": "197faa3efba2a6c1a95f08bfbd1d4421663b24d279c9be10432480562070b271",
+          "bytes": 3172,
+          "license": "CC0-1.0 (pinned server/data/LICENSE; English local LICENSE identical)"
+        },
+        {
+          "language": "fr",
+          "path": "server/data/fr/vfvv4.txt",
+          "url": "https://raw.githubusercontent.com/common-voice/common-voice/70dde553e48d7d0da452ba4ba070c001f65db88c/server/data/fr/vfvv4.txt",
+          "filename": "fr-vfvv4.txt",
+          "sha256": "0b61d8fd1c5bd104f1ccddc6d5c7dcffc947ca84bfd14c6036b22542987783ff",
+          "bytes": 6254,
+          "license": "CC0-1.0 (pinned server/data/LICENSE; English local LICENSE identical)"
+        },
+        {
+          "language": "fr",
+          "path": "server/data/fr/vfvv5.txt",
+          "url": "https://raw.githubusercontent.com/common-voice/common-voice/70dde553e48d7d0da452ba4ba070c001f65db88c/server/data/fr/vfvv5.txt",
+          "filename": "fr-vfvv5.txt",
+          "sha256": "c74b20b9d19b7086f8009ef2a10606597291731d601c887d6e1cf20d1a466e2b",
+          "bytes": 6228,
+          "license": "CC0-1.0 (pinned server/data/LICENSE; English local LICENSE identical)"
+        },
+        {
+          "language": "fr",
+          "path": "server/data/fr/vfvv6.txt",
+          "url": "https://raw.githubusercontent.com/common-voice/common-voice/70dde553e48d7d0da452ba4ba070c001f65db88c/server/data/fr/vfvv6.txt",
+          "filename": "fr-vfvv6.txt",
+          "sha256": "10fb631ae95b6f445de40ba1d378835619de81d6883df4d951bad5c6c9f3da92",
+          "bytes": 13923,
+          "license": "CC0-1.0 (pinned server/data/LICENSE; English local LICENSE identical)"
+        }
+      ],
+      "contamination": {
+        "input_unique": 764,
+        "excluded_token_exact": 48,
+        "excluded_exact": 55,
+        "excluded_shared_five_token_window": 111,
+        "clean_before_cap": 550,
+        "selected": 550
+      },
+      "test_selection_sha256": "0f4a2a9a837dd8f716cd0f74ff167a774520533727158d06e316ef537f457c40",
+      "metrics": {
+        "candidate": {
+          "transitions": 4718,
+          "context_coverage": 0.9425604069520983,
+          "top1": 0.08626536668079694,
+          "top2": 0.1331072488342518,
+          "top4": 0.18800339126748622,
+          "distinct_contexts": 1547,
+          "unique_context_coverage": 0.832579185520362,
+          "macro_context_top2": 0.14517592828022857,
+          "by_training_context_support": {
+            "unseen": {
+              "transitions": 227,
+              "context_coverage": 0.0,
+              "top1": 0.0,
+              "top2": 0.0,
+              "top4": 0.0
+            },
+            "rare_1_4": {
+              "transitions": 341,
+              "context_coverage": 0.8709677419354839,
+              "top1": 0.07624633431085044,
+              "top2": 0.11143695014662756,
+              "top4": 0.12609970674486803
+            },
+            "medium_5_19": {
+              "transitions": 381,
+              "context_coverage": 1.0,
+              "top1": 0.12598425196850394,
+              "top2": 0.1837270341207349,
+              "top4": 0.22572178477690288
+            },
+            "common_20_plus": {
+              "transitions": 3769,
+              "context_coverage": 1.0,
+              "top1": 0.08835234810294508,
+              "top2": 0.13796763067126558,
+              "top4": 0.20111435394003715
+            }
+          }
+        },
+        "prior": {
+          "transitions": 4718,
+          "context_coverage": 0.8910555320050869,
+          "top1": 0.07905892327257312,
+          "top2": 0.12356930902924969,
+          "top4": 0.17486222975837218,
+          "distinct_contexts": 1547,
+          "unique_context_coverage": 0.7239819004524887,
+          "macro_context_top2": 0.13370112857013475,
+          "by_training_context_support": {
+            "unseen": {
+              "transitions": 227,
+              "context_coverage": 0.0,
+              "top1": 0.0,
+              "top2": 0.0,
+              "top4": 0.0
+            },
+            "rare_1_4": {
+              "transitions": 341,
+              "context_coverage": 0.35777126099706746,
+              "top1": 0.03519061583577713,
+              "top2": 0.06451612903225806,
+              "top4": 0.07331378299120235
+            },
+            "medium_5_19": {
+              "transitions": 381,
+              "context_coverage": 0.937007874015748,
+              "top1": 0.12073490813648294,
+              "top2": 0.1784776902887139,
+              "top4": 0.2125984251968504
+            },
+            "common_20_plus": {
+              "transitions": 3769,
+              "context_coverage": 0.9883258158662775,
+              "top1": 0.08357654550278588,
+              "top2": 0.13080392677102679,
+              "top4": 0.1907667816396922
+            }
+          }
+        },
+        "legacy": {
+          "transitions": 4718,
+          "context_coverage": 0.8789741415854175,
+          "top1": 0.07990674014412887,
+          "top2": 0.1284442560406952,
+          "top4": 0.1814328105129292,
+          "distinct_contexts": 1547,
+          "unique_context_coverage": 0.6994182288299935,
+          "macro_context_top2": 0.14199560375005535,
+          "by_training_context_support": {
+            "unseen": {
+              "transitions": 227,
+              "context_coverage": 0.07488986784140969,
+              "top1": 0.022026431718061675,
+              "top2": 0.02643171806167401,
+              "top4": 0.02643171806167401
+            },
+            "rare_1_4": {
+              "transitions": 341,
+              "context_coverage": 0.4398826979472141,
+              "top1": 0.05571847507331378,
+              "top2": 0.0967741935483871,
+              "top4": 0.1348973607038123
+            },
+            "medium_5_19": {
+              "transitions": 381,
+              "context_coverage": 0.7585301837270341,
+              "top1": 0.08923884514435695,
+              "top2": 0.13910761154855644,
+              "top4": 0.2073490813648294
+            },
+            "common_20_plus": {
+              "transitions": 3769,
+              "context_coverage": 0.9793048553993101,
+              "top1": 0.08463783496948793,
+              "top2": 0.13637569647121253,
+              "top4": 0.1923587158397453
+            }
+          }
+        }
+      },
+      "paired_candidate_minus": {
+        "prior": {
+          "method": "400 paired prompt-cluster bootstrap resamples; descriptive 95% percentile interval, source-specific",
+          "top2_difference": 0.00953793980500212,
+          "lower": 0.005630865484880084,
+          "upper": 0.012937433722163308
+        },
+        "legacy": {
+          "method": "400 paired prompt-cluster bootstrap resamples; descriptive 95% percentile interval, source-specific",
+          "top2_difference": 0.0046629927935565915,
+          "lower": -0.003182686187141948,
+          "upper": 0.012259564574085818
+        }
+      },
+      "tables": {
+        "candidate": {
+          "contexts": 24000,
+          "followers": 59178,
+          "single_follower_contexts": 7980,
+          "bytes": 484658,
+          "sha256": "dc3975419c5374c29674a7e3dae9ba912a4eb047ce68feb3593b77d58847666b"
+        },
+        "prior": {
+          "contexts": 10297,
+          "followers": 36746,
+          "single_follower_contexts": 461,
+          "bytes": 244061,
+          "sha256": "5e1c0c1e06113f1425ea59d8758c18c874610285138f9779cd10540a23ce1149"
+        },
+        "legacy": {
+          "contexts": 8705,
+          "followers": 28846,
+          "single_follower_contexts": 0,
+          "bytes": 195388,
+          "sha256": "e3f3d8cc8756533796dce6e5f4f2623ccda178a293cdafb305f00ec405bbc2ff"
+        }
+      },
+      "candidate_generation_seconds": 1.05502393200004,
+      "legacy_contexts_retained": 7313,
+      "synthetic_diagnostic_biased_not_heldout": {
+        "candidate": {
+          "chat": {
+            "cases": 12,
+            "top2_hits": 4
+          },
+          "general": {
+            "cases": 8,
+            "top2_hits": 6
+          },
+          "tail": {
+            "cases": 5,
+            "top2_hits": 0
+          }
+        },
+        "prior": {
+          "chat": {
+            "cases": 12,
+            "top2_hits": 8
+          },
+          "general": {
+            "cases": 8,
+            "top2_hits": 6
+          },
+          "tail": {
+            "cases": 5,
+            "top2_hits": 0
+          }
+        },
+        "legacy": {
+          "chat": {
+            "cases": 12,
+            "top2_hits": 4
+          },
+          "general": {
+            "cases": 8,
+            "top2_hits": 4
+          },
+          "tail": {
+            "cases": 5,
+            "top2_hits": 2
+          }
+        }
+      }
+    },
+    "de": {
+      "files": [
+        {
+          "language": "de",
+          "path": "server/data/de/jf99.txt",
+          "url": "https://raw.githubusercontent.com/common-voice/common-voice/70dde553e48d7d0da452ba4ba070c001f65db88c/server/data/de/jf99.txt",
+          "filename": "de-jf99.txt",
+          "sha256": "d92c56ae7f42931bb57a3ce35f7b201b831a3ea9129cb29eeb8d92a486de176b",
+          "bytes": 248189,
+          "license": "CC0-1.0 (pinned server/data/LICENSE; English local LICENSE identical)"
+        }
+      ],
+      "contamination": {
+        "input_unique": 4620,
+        "excluded_shared_five_token_window": 88,
+        "excluded_token_exact": 15,
+        "excluded_no_eligible_transition": 5,
+        "excluded_exact": 2,
+        "clean_before_cap": 4510,
+        "selected": 2000
+      },
+      "test_selection_sha256": "6785ba11e4f6b2bf8be64b55113280b416b9bb4cd7b7a8dbc63390c5fa0935ff",
+      "metrics": {
+        "candidate": {
+          "transitions": 14095,
+          "context_coverage": 0.8964171692089393,
+          "top1": 0.07683575736076623,
+          "top2": 0.11486342674707344,
+          "top4": 0.15963107484923733,
+          "distinct_contexts": 4559,
+          "unique_context_coverage": 0.6891862250493529,
+          "macro_context_top2": 0.08604400465960371,
+          "by_training_context_support": {
+            "unseen": {
+              "transitions": 1254,
+              "context_coverage": 0.0,
+              "top1": 0.0,
+              "top2": 0.0,
+              "top4": 0.0
+            },
+            "rare_1_4": {
+              "transitions": 1655,
+              "context_coverage": 0.8755287009063444,
+              "top1": 0.05558912386706949,
+              "top2": 0.07250755287009064,
+              "top4": 0.0809667673716012
+            },
+            "medium_5_19": {
+              "transitions": 1210,
+              "context_coverage": 1.0,
+              "top1": 0.09504132231404959,
+              "top2": 0.13140495867768595,
+              "top4": 0.17768595041322313
+            },
+            "common_20_plus": {
+              "transitions": 9976,
+              "context_coverage": 1.0,
+              "top1": 0.08781074578989576,
+              "top2": 0.1343223736968725,
+              "top4": 0.19055733761026464
+            }
+          }
+        },
+        "prior": {
+          "transitions": 14095,
+          "context_coverage": 0.8264632848527846,
+          "top1": 0.07272082298687478,
+          "top2": 0.10918765519687833,
+          "top4": 0.15381340901028734,
+          "distinct_contexts": 4559,
+          "unique_context_coverage": 0.4900197411713095,
+          "macro_context_top2": 0.07169150672737339,
+          "by_training_context_support": {
+            "unseen": {
+              "transitions": 1254,
+              "context_coverage": 0.0,
+              "top1": 0.0,
+              "top2": 0.0,
+              "top4": 0.0
+            },
+            "rare_1_4": {
+              "transitions": 1655,
+              "context_coverage": 0.29123867069486403,
+              "top1": 0.02416918429003021,
+              "top2": 0.03262839879154079,
+              "top4": 0.0404833836858006
+            },
+            "medium_5_19": {
+              "transitions": 1210,
+              "context_coverage": 0.9867768595041322,
+              "top1": 0.09504132231404959,
+              "top2": 0.128099173553719,
+              "top4": 0.17272727272727273
+            },
+            "common_20_plus": {
+              "transitions": 9976,
+              "context_coverage": 0.9996992782678428,
+              "top1": 0.0872093023255814,
+              "top2": 0.13331996792301523,
+              "top4": 0.1896551724137931
+            }
+          }
+        },
+        "legacy": {
+          "transitions": 14095,
+          "context_coverage": 0.8350478893224548,
+          "top1": 0.07087619723306136,
+          "top2": 0.10904576090812344,
+          "top4": 0.1574317133735367,
+          "distinct_contexts": 4559,
+          "unique_context_coverage": 0.5167799956130731,
+          "macro_context_top2": 0.08927547202450745,
+          "by_training_context_support": {
+            "unseen": {
+              "transitions": 1254,
+              "context_coverage": 0.08771929824561403,
+              "top1": 0.014354066985645933,
+              "top2": 0.018341307814992026,
+              "top4": 0.023125996810207338
+            },
+            "rare_1_4": {
+              "transitions": 1655,
+              "context_coverage": 0.36435045317220544,
+              "top1": 0.038066465256797584,
+              "top2": 0.06525679758308157,
+              "top4": 0.08942598187311178
+            },
+            "medium_5_19": {
+              "transitions": 1210,
+              "context_coverage": 0.8983471074380165,
+              "top1": 0.08099173553719008,
+              "top2": 0.13884297520661157,
+              "top4": 0.1975206611570248
+            },
+            "common_20_plus": {
+              "transitions": 9976,
+              "context_coverage": 0.9993985565356857,
+              "top1": 0.08219727345629511,
+              "top2": 0.12409783480352847,
+              "top4": 0.18073376102646352
+            }
+          }
+        }
+      },
+      "paired_candidate_minus": {
+        "prior": {
+          "method": "400 paired prompt-cluster bootstrap resamples; descriptive 95% percentile interval, source-specific",
+          "top2_difference": 0.005675771550195104,
+          "lower": 0.0044300682089867096,
+          "upper": 0.007269099201824401
+        },
+        "legacy": {
+          "method": "400 paired prompt-cluster bootstrap resamples; descriptive 95% percentile interval, source-specific",
+          "top2_difference": 0.005817665838949982,
+          "lower": 0.0012194247184563517,
+          "upper": 0.010067352002835874
+        }
+      },
+      "tables": {
+        "candidate": {
+          "contexts": 24000,
+          "followers": 45458,
+          "single_follower_contexts": 13254,
+          "bytes": 511048,
+          "sha256": "1cf0a8aa1d78e2f78b72aaecc6512199b3784e73f8671c526097d671d514efab"
+        },
+        "prior": {
+          "contexts": 6663,
+          "followers": 23135,
+          "single_follower_contexts": 402,
+          "bytes": 180843,
+          "sha256": "a1d12c32e96bda5a5794737d9620d71ec651e530c193f2e9cf6593d797a77f8f"
+        },
+        "legacy": {
+          "contexts": 8992,
+          "followers": 30294,
+          "single_follower_contexts": 0,
+          "bytes": 233113,
+          "sha256": "5948aa7deb3d2e8178ed3727aa5e63b7175f5073a5426749bed9370ddbbc2e76"
+        }
+      },
+      "candidate_generation_seconds": 0.4853669509993779,
+      "legacy_contexts_retained": 6843,
+      "synthetic_diagnostic_biased_not_heldout": {
+        "candidate": {
+          "chat": {
+            "cases": 12,
+            "top2_hits": 7
+          },
+          "general": {
+            "cases": 8,
+            "top2_hits": 3
+          },
+          "tail": {
+            "cases": 5,
+            "top2_hits": 0
+          }
+        },
+        "prior": {
+          "chat": {
+            "cases": 12,
+            "top2_hits": 12
+          },
+          "general": {
+            "cases": 8,
+            "top2_hits": 2
+          },
+          "tail": {
+            "cases": 5,
+            "top2_hits": 0
+          }
+        },
+        "legacy": {
+          "chat": {
+            "cases": 12,
+            "top2_hits": 8
+          },
+          "general": {
+            "cases": 8,
+            "top2_hits": 4
+          },
+          "tail": {
+            "cases": 5,
+            "top2_hits": 0
+          }
+        }
+      }
+    }
+  }
+}

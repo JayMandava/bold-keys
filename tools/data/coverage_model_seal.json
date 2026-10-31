@@ -1,0 +1,11 @@
+{
+  "selection": "Development only: follower minimum 2, alpha 0, maximum contexts 24000; no new training source, no seeds. Final held-out outcomes unopened at seal creation.",
+  "frozen_before_test": true,
+  "sha256": {
+    "tools/prediction_coverage.py": "214f8dbaaea637b0a97439267dcb8722428b2fab703f44b3f8b4562fea1ad154",
+    "tools/data/coverage_evaluation_plan.json": "c9202cfb0c65c774aa57fe4cd9c03a25d53e525e7375d640baf1e2d30ea6ab45",
+    "app/src/main/assets/pairs.tsv": "855d7dbd898704cd40bc48140262e13dbcb8b3a3a756960b85ff4ea6af57eeab",
+    "app/src/main/assets/pairs_fr.tsv": "dc3975419c5374c29674a7e3dae9ba912a4eb047ce68feb3593b77d58847666b",
+    "app/src/main/assets/pairs_de.tsv": "1cf0a8aa1d78e2f78b72aaecc6512199b3784e73f8671c526097d671d514efab"
+  }
+}

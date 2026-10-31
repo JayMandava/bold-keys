@@ -13,6 +13,9 @@ import urllib.parse
 import urllib.request
 import zipfile
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import data_pipeline
+
 REPO = 'JayMandava/bold-keys'
 ENVIRONMENT = 'production-release'
 CERT = 'b237e1aec0bfdae579caebe1a0d97517af1b7c066adc4b3d197b641adfa46c34'
@@ -131,13 +134,14 @@ def verify_apk(path, version, code, signed):
     build_tools = sdk / 'build-tools/36.0.0'
     badging = run(str(build_tools / 'aapt'), 'dump', 'badging', str(path))
     require(re.search(r"^package: name='ai.boldkeys' versionCode='" + re.escape(str(code)) + r"' versionName='" + re.escape(version) + "'", badging, re.M), 'Wrong application ID/version')
-    require(re.search(r"^sdkVersion:'33'$", badging, re.M) and re.search(r"^targetSdkVersion:'35'$", badging, re.M), 'Unexpected SDK compatibility')
+    require(re.search(r"^sdkVersion:'33'$", badging, re.M) and re.search(r"^targetSdkVersion:'36'$", badging, re.M), 'Unexpected SDK compatibility')
     require(re.findall(r"^native-code: (.+)$", badging, re.M) == ["'arm64-v8a'"], 'APK must contain arm64-v8a only')
     analyzer = sdk / 'cmdline-tools/latest/bin/apkanalyzer'
     require(run(str(analyzer), 'manifest', 'debuggable', str(path)) == 'false', 'Debuggable APK forbidden')
     run(str(build_tools / 'zipalign'), '-c', '-P', '16', '4', str(path))
     with zipfile.ZipFile(path) as archive:
         require(archive.testzip() is None, 'Corrupt APK')
+        data_pipeline.verify_archive(archive, 'assets/')
         require({name.split('/')[1] for name in archive.namelist() if name.startswith('lib/') and name.endswith('.so')} == {'arm64-v8a'}, 'Unexpected native library ABI')
         if not signed:
             require(not any(re.match(r'META-INF/.*\.(RSA|DSA|EC|SF)$', name, re.I) for name in archive.namelist()), 'Unsigned candidate contains a JAR signature')

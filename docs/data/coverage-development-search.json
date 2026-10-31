@@ -1,0 +1,167 @@
+{
+  "en": {
+    "train_prompts": 49318,
+    "development_prompts": 12183,
+    "eligible_transitions": 87219,
+    "candidates": [
+      {
+        "follower_min": 2,
+        "alpha": 0.0,
+        "contexts": 21678,
+        "top2": 0.17973148052603216,
+        "context_coverage": 0.9695937811715337,
+        "seconds": 0.5858640899987222
+      },
+      {
+        "follower_min": 2,
+        "alpha": 0.2,
+        "contexts": 21678,
+        "top2": 0.16409268622662493,
+        "context_coverage": 0.9695937811715337,
+        "seconds": 0.5804869700004929
+      },
+      {
+        "follower_min": 3,
+        "alpha": 0.0,
+        "contexts": 21395,
+        "top2": 0.1796282920005962,
+        "context_coverage": 0.969192492461505,
+        "seconds": 0.549140711000291
+      },
+      {
+        "follower_min": 3,
+        "alpha": 0.2,
+        "contexts": 21395,
+        "top2": 0.1647462135543861,
+        "context_coverage": 0.969192492461505,
+        "seconds": 0.5774380120001297
+      },
+      {
+        "follower_min": 5,
+        "alpha": 0.0,
+        "contexts": 20986,
+        "top2": 0.17951363808344512,
+        "context_coverage": 0.9684013804331625,
+        "seconds": 0.563058550000278
+      },
+      {
+        "follower_min": 5,
+        "alpha": 0.2,
+        "contexts": 20986,
+        "top2": 0.1657551680253156,
+        "context_coverage": 0.9684013804331625,
+        "seconds": 0.5562421009999525
+      }
+    ]
+  },
+  "fr": {
+    "train_prompts": 76009,
+    "development_prompts": 18882,
+    "eligible_transitions": 119639,
+    "candidates": [
+      {
+        "follower_min": 2,
+        "alpha": 0.0,
+        "contexts": 24000,
+        "top2": 0.1572814884778375,
+        "context_coverage": 0.9638077884301942,
+        "seconds": 0.8317494620005164
+      },
+      {
+        "follower_min": 2,
+        "alpha": 0.2,
+        "contexts": 24000,
+        "top2": 0.14042243749947758,
+        "context_coverage": 0.9638077884301942,
+        "seconds": 0.8283587499990972
+      },
+      {
+        "follower_min": 3,
+        "alpha": 0.0,
+        "contexts": 24000,
+        "top2": 0.1571393943446535,
+        "context_coverage": 0.9634734492932906,
+        "seconds": 0.8163003269983165
+      },
+      {
+        "follower_min": 3,
+        "alpha": 0.2,
+        "contexts": 24000,
+        "top2": 0.14130007773384934,
+        "context_coverage": 0.9634734492932906,
+        "seconds": 0.82135524899968
+      },
+      {
+        "follower_min": 5,
+        "alpha": 0.0,
+        "contexts": 24000,
+        "top2": 0.15698058325462433,
+        "context_coverage": 0.9632143364621905,
+        "seconds": 0.8116628070001752
+      },
+      {
+        "follower_min": 5,
+        "alpha": 0.2,
+        "contexts": 24000,
+        "top2": 0.142219510360334,
+        "context_coverage": 0.9632143364621905,
+        "seconds": 0.8254173520017503
+      }
+    ]
+  },
+  "de": {
+    "train_prompts": 31466,
+    "development_prompts": 7937,
+    "eligible_transitions": 51961,
+    "candidates": [
+      {
+        "follower_min": 2,
+        "alpha": 0.0,
+        "contexts": 24000,
+        "top2": 0.12830776928850485,
+        "context_coverage": 0.9157829910894709,
+        "seconds": 0.39193316400087497
+      },
+      {
+        "follower_min": 2,
+        "alpha": 0.2,
+        "contexts": 24000,
+        "top2": 0.11699158984623083,
+        "context_coverage": 0.9157829910894709,
+        "seconds": 0.384860314999969
+      },
+      {
+        "follower_min": 3,
+        "alpha": 0.0,
+        "contexts": 24000,
+        "top2": 0.12794211042897558,
+        "context_coverage": 0.9150709185735455,
+        "seconds": 0.38692303900097613
+      },
+      {
+        "follower_min": 3,
+        "alpha": 0.2,
+        "contexts": 24000,
+        "top2": 0.11753045553395816,
+        "context_coverage": 0.9150709185735455,
+        "seconds": 0.38927121500091744
+      },
+      {
+        "follower_min": 5,
+        "alpha": 0.0,
+        "contexts": 22995,
+        "top2": 0.127364754334982,
+        "context_coverage": 0.9119724408691133,
+        "seconds": 0.38264459899983194
+      },
+      {
+        "follower_min": 5,
+        "alpha": 0.2,
+        "contexts": 22995,
+        "top2": 0.11789611439348742,
+        "context_coverage": 0.9119724408691133,
+        "seconds": 0.3757096530007402
+      }
+    ]
+  }
+}

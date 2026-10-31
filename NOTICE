@@ -5,11 +5,20 @@ Licensed under the Apache License, Version 2.0.
 
 Third-party material:
 - app/src/main/assets/words.tsv is derived from the FrequencyWords list (CC BY-SA 4.0).
-- app/src/main/assets/pairs.tsv is derived from Peter Norvig's n-gram counts.
+- app/src/main/assets/pairs.tsv, pairs_fr.tsv and pairs_de.tsv use pinned Mozilla
+  Common Voice Sentence Collector text (CC0 1.0), FrequencyWords-informed
+  selection/ranking and project-authored chat choices. Generated data and new
+  seed contributions retain CC BY-SA 4.0; underlying CC0 grants are unchanged. See app/src/main/assets/data-provenance.json
+  and tools/data for exact source snapshots, grants, hashes and transformations.
 - app/src/main/assets/words_fr.tsv is derived from the FrequencyWords French list (CC BY-SA 4.0).
-- app/src/main/assets/pairs_fr.tsv is counted from Tatoeba French sentences (CC BY 2.0 FR, https://tatoeba.org), by tools/build_fr.py.
 - app/src/main/assets/words_de.tsv is derived from the FrequencyWords German list (CC BY-SA 4.0).
-- app/src/main/assets/pairs_de.tsv is counted from Tatoeba German sentences (CC BY 2.0 FR, https://tatoeba.org), by tools/build_de.py.
 - app/src/main/assets/emoji.tsv is built from Unicode's emoji-test.txt (Unicode License v3, https://www.unicode.org/license.txt) by tools/build_emoji.py.
 - app/src/main/assets/Nunito.ttf is licensed under the SIL Open Font License 1.1.
 - third_party/llama.cpp is a submodule under the MIT licence.
+
+Offline copies of applicable license texts and source/modification notices are
+packaged under app/src/main/assets/licenses and available in Settings > About >
+Licenses & credits. Application code licensing does not replace data/font/model
+terms. Verified dictionary reconstruction, replacement-data grants and remaining
+quality/distribution reviews are documented in docs/THIRD_PARTY_REVIEW.md and
+docs/PREDICTION_DATA_REVIEW.md. These notices do not replace third-party terms.

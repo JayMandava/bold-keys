@@ -1,7 +1,7 @@
 # Bold Keys
 
 A private, on-device keyboard for Android with a physical-keyboard feel: lit, shaded keys, secondary symbols on every key, a trackpad
-for the cursor, and autocorrect that runs entirely on the phone. Nothing you type leaves it.
+for the cursor, and autocorrect that runs entirely on the phone. The keyboard does not upload typed text for processing or remote inference.
 
 ## Install
 
@@ -20,7 +20,7 @@ follow the two steps on screen to turn the keyboard on. Needs Android 13 or newe
   back and teaches it. Words you type twice are learned; you can add, remove and clear them in Settings.
 - **Emoji:** tap the right-hand key (the grid of dots, as on the original's Speed key) for every emoji your phone can show, in Unicode's groups, with skin tones (hold an emoji with a dot and slide to a tone; set a default in Settings). "more" jumps to the next group. The picker stays open after each emoji (so a run of them is one visit) and has a delete arrow of its own; its first row, "Recent", holds the seven you use most and most lately.
 - **Speed key:** hold the right-hand key and tap a letter to open an app, a link or type a snippet you set in Settings. Nothing is
-  shown on the keys; a plain tap on that key is still Shift.
+  shown on the keys; a plain tap opens the emoji picker (or acts as Shift if that picker is disabled).
 - **QWERTY, QWERTZ or AZERTY:** choose the layout in Settings > Typing. AZERTY swaps A and Z with Q and W and moves M beside N; QWERTZ swaps Z and Y. The spelling model follows the layout, so
   a slip to a neighbouring key still counts as a slip. Choose the dictionary separately under Language (Automatic gives French with AZERTY, German with QWERTZ, English with QWERTY).
 - **Key size:** Small, Normal, Large or XL in Settings > Appearance, for bigger buttons (or a shorter keyboard). The keys get taller; the width is always the screen's.
@@ -31,10 +31,23 @@ follow the two steps on screen to turn the keyboard on. Needs Android 13 or newe
 - **Context model (optional):** a small language model checks each word against the sentence around it. It picks the right fix for a
   misspelling and catches real words used for another (their/there, then/than, to/too). It only scores words the dictionary proposes and
   never writes text. Off by default. See [docs/how-it-works.md](docs/how-it-works.md).
-- **Private by design:** the only network use is the Download button for a context model, and only when you tap it. Passwords, email and
-  web-address fields are never corrected or suggested.
+- **Private by design:** typing and inference run locally. Password and email fields disable corrections/suggestions; web-address fields may show suggestions but are not rewritten. Editors requesting `IME_FLAG_NO_PERSONALIZED_LEARNING`, and password/email/web-address fields, do not update learned words or emoji history/tone preferences. Optional downloads and external providers are described below.
 - **Currency key:** the key beside M shows and types your region's sign (£, €, ₹ ...) or any of fourteen you choose in Settings. Its small speaker is real: hold the key and scroll the trackpad up or down to change the media volume (a quick tap still types the sign; switch it off in Settings). No special permission is needed.
 - **Material 3 Expressive settings,** and text emoticons that turn into emoji (optional).
+
+## Privacy and external providers
+
+Model downloads contact Hugging Face over HTTPS only after you tap Download, and may follow delivery redirects. No typed text is attached; servers can see normal request metadata such as IP address, request time, headers and model path. Downloads are checked against a fixed SHA-256 and size. “Wi-Fi only” uses Android's metered-network status.
+
+AndroidX EmojiCompat may ask a system provider for an emoji font. That provider may use cached data or networking depending on the device; the keyboard does not supply typed text in that request. Opening a Speed-key link or the privacy policy hands the link to another app. Model import uses Android's document picker; the selected provider may be cloud-backed. Those providers have their own network behavior and policies.
+
+Learned words, preferences, shortcuts and emoji history are kept in app-private storage, without app-level file encryption. Password/email/web-address and no-personalized-learning protection depends on the editor reporting its input type/flags correctly. Settings > About contains the privacy-policy link and offline Licenses & credits. No analytics, ads, billing or crash-upload SDK is included in the resolved production dependencies.
+
+## Prediction data review
+
+The review candidate uses pinned CC0 Common Voice Sentence Collector text alone for offline English/French/German next-word tables, with a 24,000-context cap per language. Generation uses corpus counts without FrequencyWords weights or historical chat seeds. The spelling/frequency dictionaries remain byte-for-byte unchanged and retain CC BY-SA 4.0 terms.
+
+A sealed, separate contributor-file test improves context coverage and raw top-two hit rates over the previous licensed candidate in all three languages. English still trails the legacy baseline, rare phrases remain weak, chat diagnostics regress when seeds are removed, and larger tables often offer one hint. This is not measured typing accuracy. Review [the held-out comparison and size/quality trade-offs](docs/PREDICTION_COVERAGE_REVIEW.md) and [distribution/license questions](docs/DATA_DISTRIBUTION_REVIEW.md) before shipping. No next-word hint is automatically inserted as an autocorrection.
 
 ## Context models
 
@@ -75,14 +88,13 @@ Run the focused keyboard regression tests (Robolectric, no connected phone requi
 ./gradlew testDebugUnitTest lintDebug
 ```
 
-For production releases, see [Protected cloud releases](docs/CLOUD_RELEASE.md). Release builds never fall back to a debug signing key; `-PunsignedRelease=true` explicitly creates an unsigned candidate for separate production signing.
+For production releases and nonpublishing AAB validation, see [Protected cloud releases](docs/CLOUD_RELEASE.md). Review [third-party terms and data provenance](docs/THIRD_PARTY_REVIEW.md) before approving any signing/distribution run. Release builds never fall back to a debug signing key; `-PunsignedRelease=true` explicitly creates an unsigned candidate for separate production signing.
 
 The debug build also contains two measurement screens, `EvalActivity` (dictionary) and `ContextEvalActivity` (context model).
 
 ## Credits
 
-- Word frequencies: the OpenSubtitles-based [FrequencyWords](https://github.com/hermitdave/FrequencyWords) list (CC BY-SA 4.0); word-pair
-  counts from Peter Norvig's n-gram data.
+- Word frequencies: the OpenSubtitles-based [FrequencyWords](https://github.com/hermitdave/FrequencyWords) list (CC BY-SA 4.0); new corpus-only next-word data from Common Voice Sentence Collector (CC0), independently generated without the spelling dictionaries or previous share-alike seed data.
 - Typeface: Nunito (SIL Open Font License).
 - Inference: [llama.cpp](https://github.com/ggml-org/llama.cpp) (MIT). Models are downloaded, not bundled, and keep their own licences
   (Gemma is under the Gemma terms).
@@ -91,4 +103,6 @@ The debug build also contains two measurement screens, `EvalActivity` (dictionar
 
 ## Licence
 
-Apache License 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
+Application code: Apache License 2.0. Third-party data, fonts, libraries and optional models keep their own terms. See [LICENSE](LICENSE), [NOTICE](NOTICE), the offline Licenses & credits screen, and [distribution review](docs/THIRD_PARTY_REVIEW.md).
+
+Accessibility: individual painted keys and visible suggestions expose focusable button actions; modifiers expose their state. Trackpad cursor/selection and existing hold gestures have named accessibility actions. Candidate changes are not live announcements, and the keyboard adds no editor-text announcements. Enabled accessibility tools can read visible candidate labels when navigating them; password/email fields expose no candidates. Incognito prevents new learning, rather than hiding every visible suggestion. Android/the host editor may provide their usual editing feedback.

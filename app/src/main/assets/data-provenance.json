@@ -1,0 +1,162 @@
+{
+  "schema": 2,
+  "pipeline_sha256": "bbf83969d105bd940c54c7bdf0a5e44075d8279c2afe7a011fbbb6533408dcc0",
+  "source_registry_sha256": "c720501360d208ee4474d654d88c05008918707c5f561c52ab2271eeef29bfd3",
+  "prediction_generator_sha256": "214f8dbaaea637b0a97439267dcb8722428b2fab703f44b3f8b4562fea1ad154",
+  "english_adjustments_sha256": "dc8dd7d5b88789179cc66a712bf70d1fe877877b41e0e490f501d23009661ea5",
+  "source_snapshots": {
+    "schema": 1,
+    "common_voice_commit": "70dde553e48d7d0da452ba4ba070c001f65db88c",
+    "frequency_words_commit": "525f9b560de45753a5ea01069454e72e9aa541c6",
+    "sources": {
+      "predictions_en": {
+        "filename": "cv-en.txt",
+        "url": "https://raw.githubusercontent.com/common-voice/common-voice/70dde553e48d7d0da452ba4ba070c001f65db88c/server/data/en/sentence-collector.txt",
+        "sha256": "31ac8e200449ebd7aee4a8c6bd16d4dafd076cf11f7c3efe1035f0283712d136",
+        "bytes": 2803252,
+        "license": "CC0-1.0",
+        "attribution": "Mozilla Common Voice Sentence Collector contributors"
+      },
+      "words_en": {
+        "filename": "fw-2018-en.txt",
+        "url": "https://raw.githubusercontent.com/hermitdave/FrequencyWords/525f9b560de45753a5ea01069454e72e9aa541c6/content/2018/en/en_50k.txt",
+        "sha256": "5351ff405b1126ef555791dd4d9798a48e3e9a501a9fc481a9da957752cfb458",
+        "bytes": 622749,
+        "license": "CC-BY-SA-4.0",
+        "attribution": "Hermit Dave / FrequencyWords, OpenSubtitles-based content"
+      },
+      "predictions_fr": {
+        "filename": "cv-fr.txt",
+        "url": "https://raw.githubusercontent.com/common-voice/common-voice/70dde553e48d7d0da452ba4ba070c001f65db88c/server/data/fr/sentence-collector.txt",
+        "sha256": "214f3d5b0110e86e3f2018ca6971b918db8ad5cc4c5612ebab58cd0849fb0715",
+        "bytes": 4471382,
+        "license": "CC0-1.0",
+        "attribution": "Mozilla Common Voice Sentence Collector contributors"
+      },
+      "words_fr": {
+        "filename": "fw-2018-fr.txt",
+        "url": "https://raw.githubusercontent.com/hermitdave/FrequencyWords/525f9b560de45753a5ea01069454e72e9aa541c6/content/2018/fr/fr_50k.txt",
+        "sha256": "f81f7c570b6433764da99aa30f4dfb08d81c5926301377b709af23a13b1f9596",
+        "bytes": 653452,
+        "license": "CC-BY-SA-4.0",
+        "attribution": "Hermit Dave / FrequencyWords, OpenSubtitles-based content"
+      },
+      "predictions_de": {
+        "filename": "cv-de.txt",
+        "url": "https://raw.githubusercontent.com/common-voice/common-voice/70dde553e48d7d0da452ba4ba070c001f65db88c/server/data/de/sentence-collector.txt",
+        "sha256": "de6bd33fc5742350690fa4be6197aafd9be2c6c9fe4b70b8c5c8670971acc117",
+        "bytes": 1981197,
+        "license": "CC0-1.0",
+        "attribution": "Mozilla Common Voice Sentence Collector contributors"
+      },
+      "words_de": {
+        "filename": "fw-2018-de.txt",
+        "url": "https://raw.githubusercontent.com/hermitdave/FrequencyWords/525f9b560de45753a5ea01069454e72e9aa541c6/content/2018/de/de_50k.txt",
+        "sha256": "d9e50546fd7e8b6fe6542a2b33c51d1331092b2a3916ec09f80d97856068705b",
+        "bytes": 662497,
+        "license": "CC-BY-SA-4.0",
+        "attribution": "Hermit Dave / FrequencyWords, OpenSubtitles-based content"
+      },
+      "cv_license": {
+        "url": "https://raw.githubusercontent.com/common-voice/common-voice/70dde553e48d7d0da452ba4ba070c001f65db88c/server/data/LICENSE",
+        "sha256": "bf474cdfd02e162603358e4e3615182018cad27593d2bf5e75ca13e4a5a6af0c",
+        "bytes": 6556,
+        "filename": "cv-data-LICENSE"
+      },
+      "cv_collection_guidance": {
+        "url": "https://raw.githubusercontent.com/common-voice/common-voice/70dde553e48d7d0da452ba4ba070c001f65db88c/docs/SENTENCES.md",
+        "sha256": "89847813e12f20920c6f60c5ea4f1742a4cd94f8e1abe986b876be4edcc667f6",
+        "bytes": 7804,
+        "filename": "cv-SENTENCES.md"
+      },
+      "frequency_license_evidence": {
+        "filename": "FrequencyWords-README.md",
+        "url": "https://raw.githubusercontent.com/hermitdave/FrequencyWords/525f9b560de45753a5ea01069454e72e9aa541c6/README.md",
+        "sha256": "a92fcc50e27f7b2d5860ec1c1ce794dc4c892d945bfa4c8c3136cdfd213ee710"
+      },
+      "cv_en_license": {
+        "filename": "cv-en-LICENSE",
+        "url": "https://raw.githubusercontent.com/common-voice/common-voice/70dde553e48d7d0da452ba4ba070c001f65db88c/server/data/en/LICENSE",
+        "sha256": "bf474cdfd02e162603358e4e3615182018cad27593d2bf5e75ca13e4a5a6af0c",
+        "bytes": 6556
+      },
+      "cc_by_sa_legalcode": {
+        "filename": "CC-BY-SA-4.0.txt",
+        "url": "https://raw.githubusercontent.com/creativecommons/cc-legal-tools-data/a0dac18d1a773b4cdb7d8dd5d9bf4efab7901030/docs/licenses/by-sa/4.0/legalcode.txt",
+        "sha256": "28a9529c7d0bb4dc51f4bf5c116a3d16ef247a052f7591466768ddf563fd1cf5",
+        "canonical_url": "https://creativecommons.org/licenses/by-sa/4.0/legalcode.en",
+        "purpose": "Offline copy of unchanged license legal text from Creative Commons official repository"
+      }
+    }
+  },
+  "policy": {
+    "prediction_inputs": "Only pinned CC0 Sentence Collector text; no spelling dictionaries, FrequencyWords weights, historical seeds or held-out files",
+    "minimum_follower_distinct_prompts": 2,
+    "training_observations": "Each pair/context/unigram counts at most once per normalized prompt",
+    "ranking": "Descending pair count, then corpus unigram prompt count, then lexical order",
+    "maximum_followers": 4,
+    "maximum_contexts": 24000,
+    "rare_contexts": "One-prompt contexts allowed if follower occurs in at least two distinct prompts; no invented counts"
+  },
+  "statistics": {
+    "en": {
+      "words": 46394,
+      "unique_prompts": 61501,
+      "contexts": 24000,
+      "follower_slots": 52590,
+      "single_follower_contexts": 11096,
+      "curated_contexts": 0,
+      "preferred_chat_contexts": 0
+    },
+    "fr": {
+      "words": 46000,
+      "unique_prompts": 94891,
+      "contexts": 24000,
+      "follower_slots": 59178,
+      "single_follower_contexts": 7980,
+      "curated_contexts": 0,
+      "preferred_chat_contexts": 0
+    },
+    "de": {
+      "words": 46000,
+      "unique_prompts": 39403,
+      "contexts": 24000,
+      "follower_slots": 45458,
+      "single_follower_contexts": 13254,
+      "curated_contexts": 0,
+      "preferred_chat_contexts": 0
+    }
+  },
+  "assets": {
+    "words.tsv": {
+      "sha256": "e404215106bd16a1f3fa4b3e48da540c6c5e2c5b8fba83a99a8fd9c0f84d9b27",
+      "bytes": 579424,
+      "license": "CC-BY-SA-4.0 (FrequencyWords-derived dictionary)"
+    },
+    "pairs.tsv": {
+      "sha256": "855d7dbd898704cd40bc48140262e13dbcb8b3a3a756960b85ff4ea6af57eeab",
+      "bytes": 456550,
+      "license": "CC0-1.0 (Common Voice source)"
+    },
+    "words_fr.tsv": {
+      "sha256": "aa9478d5633ee69866bc3ad6bcff40abd363b70e564c367d1133093f25c27ff3",
+      "bytes": 597123,
+      "license": "CC-BY-SA-4.0 (FrequencyWords-derived dictionary)"
+    },
+    "pairs_fr.tsv": {
+      "sha256": "dc3975419c5374c29674a7e3dae9ba912a4eb047ce68feb3593b77d58847666b",
+      "bytes": 484658,
+      "license": "CC0-1.0 (Common Voice source)"
+    },
+    "words_de.tsv": {
+      "sha256": "e643893c3bb8233bc93f18a895c9503a85b217609938fb19f9fafb3b6b374798",
+      "bytes": 611430,
+      "license": "CC-BY-SA-4.0 (FrequencyWords-derived dictionary)"
+    },
+    "pairs_de.tsv": {
+      "sha256": "1cf0a8aa1d78e2f78b72aaecc6512199b3784e73f8671c526097d671d514efab",
+      "bytes": 511048,
+      "license": "CC0-1.0 (Common Voice source)"
+    }
+  }
+}

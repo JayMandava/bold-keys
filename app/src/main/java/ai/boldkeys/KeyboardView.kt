@@ -8,12 +8,16 @@ import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RadialGradient
+import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.Typeface
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.view.inputmethod.EditorInfo
+import android.view.KeyEvent
+import android.view.accessibility.AccessibilityNodeInfo
 import android.view.MotionEvent
 import android.view.View
 import kotlin.math.abs
@@ -34,6 +38,9 @@ private const val SHIFT_HOLD_MS = 450L
  * Keys act the moment a finger lands and several fingers can type at once, so quick typing never drops a letter.
  */
 class KeyboardView(context: Context, private val feedback: Feedback, private val listener: Listener) : View(context) {
+    /** Controlled by the active editor: incognito and sensitive fields never update emoji history. */
+    var personalizedLearningAllowed = true
+
     interface Listener {
         fun onText(text: String)
         fun onDelete()
@@ -209,6 +216,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
 
     private fun rebuild() {
         if (width == 0) return
+        accessibilityEpoch++
         val unit = (width - padX * 2) / 10f
         cells = rows().mapIndexed { r, row ->
             var x = padX
@@ -229,7 +237,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         canvas.drawColor(0xFF000000.toInt()) // below the curve: the same black as the navigation bar
         fill.shader = null; fill.color = th.bg
         canvas.drawPath(body, fill)
-        if (picker != Picker.NONE) { drawPicker(canvas); return } // the picker covers the keys: they are not drawn at all, so scrolling it costs only the picker
+        if (picker != Picker.NONE) { drawPicker(canvas); accessibility.drawFocus(canvas); return } // the picker covers the keys: they are not drawn at all, so scrolling it costs only the picker
         // the silver ridges above, between and below the rows, following the same smile as the keys
         canvas.save(); canvas.clipPath(body)
         for (r in 0..cells.size) if (r < cells.size || th.dark) drawRidge(canvas, padTop + r * (keyH + rowGap) - rowGap / 2)
@@ -239,10 +247,11 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         if (picker != Picker.NONE) drawPicker(canvas)
         drawAccents(canvas)
         drawVolume(canvas)
+        accessibility.drawFocus(canvas)
     }
 
     /** A modifier that is on stays pressed in, like a held key; nothing else about the keyboard changes. */
-    private fun latched(k: Key) = (k.kind == Kind.LAYER && altMode != Shift.OFF) || ((k.kind == Kind.SHIFT || (k.kind == Kind.SPEED && !emojiKey)) && shift != Shift.OFF)
+    private fun latched(k: Key) = (k.kind == Kind.SPEED && accessibilityShortcut) || (k.kind == Kind.LAYER && altMode != Shift.OFF) || ((k.kind == Kind.SHIFT || (k.kind == Kind.SPEED && !emojiKey)) && shift != Shift.OFF)
 
     private fun drawRidge(canvas: Canvas, y: Float) {
         val p = Path().apply {
@@ -526,6 +535,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
     }
 
     override fun onTouchEvent(e: MotionEvent): Boolean {
+        if (e.actionMasked == MotionEvent.ACTION_DOWN) resetAccessibilityInput()
         if (picker != Picker.NONE) return pickerTouch(e)
         when (e.actionMasked) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
@@ -703,6 +713,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         val cell = accentFor ?: return@Runnable
         val base = cell.key.label.firstOrNull()?.lowercaseChar() ?: return@Runnable
         val list = accentMap[base] ?: return@Runnable
+        accessibilityEpoch++
         accentChoices = list.map { if (accentUpper) it.toString().uppercase() else it.toString() }
         accentIndex = -1
         val w = dp(40f); val h = dp(46f); val pad = dp(4f)
@@ -717,6 +728,8 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
     }
 
     private fun stopAccents() {
+        if (accentChoices.isNotEmpty()) accessibilityEpoch++
+        accessibilityAccent = false
         ui.removeCallbacks(showAccents)
         accentFor = null; accentPointer = -1; accentChoices = emptyList(); accentIndex = -1; accentRects.clear()
     }
@@ -809,6 +822,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
 
     private fun openPicker(mode: Picker) {
         cancelShiftHold()
+        accessibilityEpoch++; accessibilityShortcut = false
         picker = mode; pickScroll = 0f; stopTones(); stopMotion()
         pickItems = ArrayList(); pickBases = ArrayList()
         val sections = ArrayList<Pair<String, Int>>()
@@ -839,7 +853,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         invalidate()
     }
 
-    private fun closePicker() { picker = Picker.NONE; stopTones(); stopMotion(); stopPickerDelete(); invalidate() }
+    private fun closePicker() { accessibilityEpoch++; picker = Picker.NONE; stopTones(); stopMotion(); stopPickerDelete(); invalidate() }
 
     /** A new text field starts on the letter keys, whatever the last one left open. */
     fun resetPicker() { cancelShiftHold(); if (picker != Picker.NONE) closePicker() }
@@ -1114,7 +1128,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                 val i = cellAt(g, x, y)
                 if (i >= 0) {
                     listener.onText(pickItems[i])
-                    if (picker == Picker.EMOJI) Emoji.bump(context, pickItems[i]) // both pickers stay open until "close", so one visit can type many; the emoji one remembers what was used
+                    if (picker == Picker.EMOJI && personalizedLearningAllowed) Emoji.bump(context, pickItems[i]) // both pickers stay open until "close", so one visit can type many; the emoji one remembers what was used
                 }
             }
         }
@@ -1131,6 +1145,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         val item = pBases(pCell) ?: return@Runnable
         if (item.tones.isEmpty()) return@Runnable
         val g = pickGeo()
+        accessibilityEpoch++
         toneChoices = listOf(item.plain) + item.tones
         toneIndex = -1
         val w = dp(40f); val h = dp(46f); val pad = dp(4f)
@@ -1144,7 +1159,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         invalidate()
     }
 
-    private fun stopTones() { ui.removeCallbacks(showTones); toneRects = emptyList(); toneChoices = emptyList(); toneIndex = -1 }
+    private fun stopTones() { if (toneChoices.isNotEmpty()) accessibilityEpoch++; ui.removeCallbacks(showTones); toneRects = emptyList(); toneChoices = emptyList(); toneIndex = -1 }
 
     private fun chooseTone() {
         val item = pBases(pCell)
@@ -1152,11 +1167,11 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         stopTones()
         if (item != null && tone in 0..5) {
             feedback.key()
-            Emoji.remember(context, item, tone)
+            if (personalizedLearningAllowed) Emoji.remember(context, item, tone)
             tones = Emoji.toneState(context)
             pickItems[pCell] = Emoji.shown(item, tone)
             listener.onText(Emoji.shown(item, tone))
-            Emoji.bump(context, Emoji.shown(item, tone))
+            if (personalizedLearningAllowed) Emoji.bump(context, Emoji.shown(item, tone))
         }
         invalidate()
     }
@@ -1186,4 +1201,129 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         val want = if (on) Shift.ONCE else Shift.OFF
         if (shift != want) { shift = want; invalidate() }
     }
+
+    fun resetAccessibilityInput() {
+        val changed = accessibilityShortcut || accessibilityAccent
+        if (accessibilityShortcut) accessibilityEpoch++
+        accessibilityShortcut = false
+        if (accessibilityAccent) stopAccents()
+        if (changed) invalidate()
+    }
+
+    private var enterActionLabel = "Enter"
+    fun setEnterAction(options: Int) {
+        val previous = enterActionLabel
+        enterActionLabel = if (options and EditorInfo.IME_FLAG_NO_ENTER_ACTION != 0) "Enter" else when (options and EditorInfo.IME_MASK_ACTION) {
+            EditorInfo.IME_ACTION_GO -> "Go"; EditorInfo.IME_ACTION_SEARCH -> "Search"; EditorInfo.IME_ACTION_SEND -> "Send"; EditorInfo.IME_ACTION_NEXT -> "Next"; EditorInfo.IME_ACTION_DONE -> "Done"; EditorInfo.IME_ACTION_PREVIOUS -> "Previous"; else -> "Enter"
+        }
+        if (enterActionLabel != previous) accessibilityEpoch++
+        if (accessibilityReady) accessibility.refresh()
+    }
+
+    private var accessibilityEpoch = 1
+    private var accessibilityShortcut = false
+    private var accessibilityAccent = false
+    private var accessibilityReady = false
+    private val accessibility by lazy { AccessibleControls(this, ::accessibleKeys) }
+    init { val helper = accessibility; helper.install(); accessibilityReady = true }
+
+    override fun invalidate() { super.invalidate(); if (accessibilityReady) accessibility.refresh() }
+    override fun dispatchHoverEvent(event: MotionEvent) = accessibility.hover(event) || super.dispatchHoverEvent(event)
+    override fun dispatchKeyEvent(event: KeyEvent) = accessibility.key(event) || super.dispatchKeyEvent(event)
+    override fun onFocusChanged(gain: Boolean, direction: Int, previous: Rect?) { super.onFocusChanged(gain, direction, previous); if (accessibilityReady) accessibility.focus(gain, direction, previous) }
+    override fun getAccessibilityClassName(): CharSequence = KeyboardView::class.java.name
+
+    private fun accessibleKeys(): List<AccessibleControl> {
+        if (width <= 0 || height <= 0) return emptyList()
+        val out = ArrayList<AccessibleControl>()
+        val click = AccessibilityNodeInfo.ACTION_CLICK
+        val hold = AccessibilityNodeInfo.ACTION_LONG_CLICK
+        val dismiss = AccessibilityNodeInfo.ACTION_DISMISS
+        fun add(local: Int, rect: RectF, label: String, state: String? = null, checked: Boolean? = null,
+                sensitive: Boolean = false, actions: Map<Int, String> = mapOf(click to "Activate"), action: (Int) -> Boolean) {
+            val bounds = Rect(); rect.roundOut(bounds)
+            if (bounds.intersect(0, 0, width, height)) out.add(AccessibleControl(accessibilityEpoch * 10000 + local, bounds, label, state, checked, sensitive, actions, action))
+        }
+        if (accentRects.isNotEmpty()) {
+            accentRects.forEachIndexed { i, rect -> add(3000 + i, rect, spokenKey(accentChoices[i]), actions = mapOf(click to "Type accented character", dismiss to "Close accents")) { a ->
+                if (a == dismiss) stopAccents() else {
+                    val value = accentChoices[i]; val insert = accessibilityAccent
+                    stopAccents(); if (insert) { listener.onText(value); if (shift == Shift.ONCE) shift = Shift.OFF } else listener.onAccent(value)
+                }; invalidate(); true
+            } }; return out
+        }
+        if (toneRects.isNotEmpty()) {
+            toneRects.forEachIndexed { i, rect -> add(4000 + i, rect, "Emoji ${toneChoices[i]}", sensitive = true, actions = mapOf(click to "Choose skin tone", dismiss to "Close skin tones")) { a ->
+                if (a == dismiss) { stopTones(); invalidate() } else { toneIndex = i; chooseTone() }; true
+            } }; return out
+        }
+        if (picker != Picker.NONE) {
+            val g = pickGeo()
+            pickItems.forEachIndexed { i, value ->
+                if (value.isEmpty()) return@forEachIndexed
+                val left = g.grid.left + i % pickCols * (g.cw + g.gx)
+                val top = g.grid.top + i / pickCols * g.stride - pickScroll
+                val rect = RectF(left, top, left + g.cw, top + g.ch)
+                if (!rect.intersect(g.grid)) return@forEachIndexed
+                val actions = mutableMapOf(click to "Type character")
+                if (pBases(i)?.tones?.isNotEmpty() == true) actions[hold] = "Choose skin tone"
+                add(1000 + i, rect, if (picker == Picker.EMOJI) "Emoji $value" else spokenKey(value), sensitive = picker == Picker.EMOJI, actions = actions) { a ->
+                    if (a == hold) { stopMotion(); pCell = i; showTones.run() }
+                    else { feedback.key(); listener.onText(pickItems[i]); if (picker == Picker.EMOJI && personalizedLearningAllowed) Emoji.bump(context, pickItems[i]) }; true
+                }
+            }
+            add(9001, g.close, "Close picker") { closePicker(); true }
+            g.del?.let { rect -> add(9002, rect, "Delete") { feedback.key(); listener.onDelete(); true } }
+            add(9003, g.more, "More ${if (picker == Picker.EMOJI) "emoji" else "symbols"}", state = sectionName(g),
+                actions = mapOf(click to "Next group", hold to "Previous group", AccessibilityNodeInfo.ACTION_SCROLL_FORWARD to "Scroll forward", AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD to "Scroll backward")) { a ->
+                if (a == click || a == hold) jump(if (a == click) 1 else -1)
+                else { stopMotion(); pickScroll = (pickScroll + (if (a == AccessibilityNodeInfo.ACTION_SCROLL_FORWARD) 1 else -1) * g.grid.height()).coerceIn(0f, maxScroll(g)); invalidate() }; true
+            }
+            return out
+        }
+        cells.flatten().forEachIndexed { i, cell ->
+            val k = cell.key
+            val isShift = k.kind == Kind.SHIFT || k.kind == Kind.SPEED && !emojiKey
+            val checked = when { k.kind == Kind.LAYER -> altMode != Shift.OFF; isShift -> shift != Shift.OFF; k.kind == Kind.SPEED -> accessibilityShortcut; else -> null }
+            val state = when {
+                k.kind == Kind.LAYER -> when (altMode) { Shift.OFF -> "Off"; Shift.ONCE -> "Symbols for next key"; Shift.CAPS -> "Locked" }
+                isShift -> when (shift) { Shift.OFF -> "Off"; Shift.ONCE -> "Next character uppercase"; Shift.CAPS -> "Caps lock" }
+                k.kind == Kind.SPEED && accessibilityShortcut -> "Choose a shortcut letter"
+                else -> null
+            }
+            val label = when (k.kind) {
+                Kind.CHAR -> if (accessibilityShortcut && k.label.firstOrNull()?.isLetter() == true) "Speed shortcut ${k.label}" else spokenKey(when {
+                    isCurrencyKey(k) && altMode != Shift.OFF -> if (volumeSlide) "Media volume" else "Currency unavailable with Alt"
+                    isCurrencyKey(k) -> currency
+                    altMode != Shift.OFF && secondaryFor(cell.row, cell.col) != null -> secondaryFor(cell.row, cell.col)!!
+                    shift != Shift.OFF -> k.text.uppercase()
+                    else -> k.text
+                })
+                Kind.SHIFT -> "Shift"; Kind.LAYER -> "Alt"; Kind.SPACE -> "Space"; Kind.DELETE -> "Delete"; Kind.ENTER -> enterActionLabel
+                Kind.SYM -> "Symbols"; Kind.SPEED -> if (emojiKey) "Emoji and Speed shortcuts" else "Right Shift"
+            }
+            val actions = mutableMapOf(click to "Activate")
+            if (isCurrencyKey(k) && altMode != Shift.OFF) actions.remove(click)
+            if (isShift) actions[hold] = "Toggle Caps lock"
+            if (k.kind == Kind.LAYER) actions[hold] = "Toggle Alt lock"
+            if (k.kind == Kind.SPEED) actions[R.id.a11y_shortcut] = "Choose Speed shortcut"
+            if (k.kind == Kind.CHAR && altMode == Shift.OFF && accentMap.containsKey(k.label.firstOrNull()?.lowercaseChar())) actions[hold] = "Choose accented character"
+            if (isCurrencyKey(k) && volumeSlide) { actions[R.id.a11y_volume_up] = "Increase media volume"; actions[R.id.a11y_volume_down] = "Decrease media volume" }
+            add(i + 1, cell.rect, label, state, checked, actions = actions) { a ->
+                feedback.key(); pressedRow = cell.row; pressedCol = cell.col
+                when {
+                    a == R.id.a11y_shortcut -> { accessibilityShortcut = !accessibilityShortcut; accessibilityEpoch++ }
+                    a == R.id.a11y_volume_up || a == R.id.a11y_volume_down -> { volAnchor = cell.rect; try { trackpadVolume(if (a == R.id.a11y_volume_up) -1 else 1) } catch (_: SecurityException) { return@add false } }
+                    a == hold && isShift -> { shift = if (shift == Shift.CAPS) Shift.OFF else Shift.CAPS; lastShiftTap = 0 }
+                    a == hold && k.kind == Kind.LAYER -> { altMode = if (altMode == Shift.CAPS) Shift.OFF else Shift.CAPS; lastAltTap = 0 }
+                    a == hold -> { accentFor = cell; accentUpper = shift != Shift.OFF; showAccents.run(); accessibilityAccent = true }
+                    (accessibilityShortcut || speedHeld) && k.kind == Kind.CHAR && k.label.firstOrNull()?.isLetter() == true -> { accessibilityShortcut = false; accessibilityEpoch++; listener.onShortcut(k.label[0]) }
+                    k.kind == Kind.SPEED -> if (emojiKey) openPicker(Picker.EMOJI) else fire(Key("shift", "", kind = Kind.SHIFT))
+                    else -> fire(k)
+                }; invalidate(); true
+            }
+        }
+        return out
+    }
+
 }

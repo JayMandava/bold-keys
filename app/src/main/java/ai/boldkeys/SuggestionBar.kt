@@ -5,9 +5,12 @@ import android.graphics.Canvas
 import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.RadialGradient
+import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.Typeface
+import android.view.KeyEvent
+import android.view.accessibility.AccessibilityNodeInfo
 import android.view.MotionEvent
 import android.view.View
 import kotlin.math.abs
@@ -29,7 +32,7 @@ class SuggestionBar(context: Context, private val feedback: Feedback, private va
     fun applyTheme(dark: Boolean) { th = KeyTheme(dark); invalidate() }
 
     private var words: List<String> = emptyList()
-    fun setSuggestions(w: List<String>) { if (w != words) { words = w; invalidate() } }
+    fun setSuggestions(w: List<String>) { if (w.take(2) != words) { words = w.take(2).toList(); accessibilityGeneration++; invalidate() } }
 
     private val face: Typeface = runCatching {
         Typeface.Builder(context.assets, "Nunito.ttf").setFontVariationSettings("'wght' 700").build()
@@ -121,5 +124,45 @@ class SuggestionBar(context: Context, private val feedback: Feedback, private va
         line.strokeWidth = dp(1f); line.color = th.divider
         canvas.drawLine(p.left - dp(6f), dp(12f), p.left - dp(6f), height - dp(12f), line)
         canvas.drawLine(p.right + dp(6f), dp(12f), p.right + dp(6f), height - dp(12f), line)
+        accessibility.drawFocus(canvas)
     }
+
+    private var accessibilityGeneration = 1
+    private var accessibilityReady = false
+    private val accessibility by lazy { AccessibleControls(this, ::accessibleSuggestions) }
+    init { val helper = accessibility; helper.install(); accessibilityReady = true }
+    override fun invalidate() { super.invalidate(); if (accessibilityReady) accessibility.refresh() }
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) { accessibility.refresh() }
+    override fun dispatchHoverEvent(event: MotionEvent) = accessibility.hover(event) || super.dispatchHoverEvent(event)
+    override fun dispatchKeyEvent(event: KeyEvent) = accessibility.key(event) || super.dispatchKeyEvent(event)
+    override fun onFocusChanged(gain: Boolean, direction: Int, previous: Rect?) { super.onFocusChanged(gain, direction, previous); if (accessibilityReady) accessibility.focus(gain, direction, previous) }
+    override fun getAccessibilityClassName(): CharSequence = SuggestionBar::class.java.name
+
+    private fun accessibleSuggestions(): List<AccessibleControl> {
+        if (width <= 0 || height <= 0) return emptyList()
+        val p = padRect(); val out = ArrayList<AccessibleControl>()
+        words.forEachIndexed { i, word ->
+            val r = if (i == 0) Rect(0, 0, p.left.toInt(), height) else Rect(p.right.toInt(), 0, width, height)
+            out.add(AccessibleControl(1000 + accessibilityGeneration * 2 + i, r, "Suggestion ${i + 1}: $word", sensitive = true,
+                actions = mapOf(AccessibilityNodeInfo.ACTION_CLICK to "Use suggestion")) { feedback.key(); listener.onPick(i); true })
+        }
+        val moves = mapOf(
+            R.id.a11y_move_left to Triple(-1, 0, false), R.id.a11y_move_right to Triple(1, 0, false),
+            R.id.a11y_move_up to Triple(0, -1, false), R.id.a11y_move_down to Triple(0, 1, false),
+            R.id.a11y_select_left to Triple(-1, 0, true), R.id.a11y_select_right to Triple(1, 0, true),
+            R.id.a11y_select_up to Triple(0, -1, true), R.id.a11y_select_down to Triple(0, 1, true),
+        )
+        val actions = mutableMapOf(
+            R.id.a11y_move_left to "Previous character", R.id.a11y_move_right to "Next character", R.id.a11y_move_up to "Previous line", R.id.a11y_move_down to "Next line",
+            R.id.a11y_select_left to "Select previous character", R.id.a11y_select_right to "Select next character", R.id.a11y_select_up to "Select previous line", R.id.a11y_select_down to "Select next line",
+        )
+        if (words.isNotEmpty()) actions[AccessibilityNodeInfo.ACTION_CLICK] = "Use first suggestion"
+        val bounds = Rect(); p.roundOut(bounds)
+        out.add(AccessibleControl(1, bounds, "Trackpad", actions = actions) { action ->
+            if (action == AccessibilityNodeInfo.ACTION_CLICK) { if (words.isEmpty()) false else { feedback.key(); listener.onPick(0); true } }
+            else moves[action]?.let { (dx, dy, select) -> feedback.key(); listener.onMove(dx, dy, select); true } ?: false
+        })
+        return out
+    }
+
 }

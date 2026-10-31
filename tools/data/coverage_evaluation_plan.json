@@ -1,0 +1,100 @@
+{
+  "schema": 1,
+  "created_before_model_search": true,
+  "prior_candidate": "73430654a9e6667d446ccb432f6ece91a22dbc81",
+  "legacy_baseline": "5f46a180d8cbd6b9ddca18bc104827cc94612dd1",
+  "files": [
+    {
+      "language": "en",
+      "path": "server/data/en/jf99.txt",
+      "url": "https://raw.githubusercontent.com/common-voice/common-voice/70dde553e48d7d0da452ba4ba070c001f65db88c/server/data/en/jf99.txt",
+      "filename": "en-jf99.txt",
+      "sha256": "0c2bcb8ad553d1f956b36a276a1f76749f4da808175fb375b8ce91af7e23933c",
+      "bytes": 61368,
+      "license": "CC0-1.0 (pinned server/data/LICENSE; English local LICENSE identical)"
+    },
+    {
+      "language": "fr",
+      "path": "server/data/fr/global-sprint-fr.txt",
+      "url": "https://raw.githubusercontent.com/common-voice/common-voice/70dde553e48d7d0da452ba4ba070c001f65db88c/server/data/fr/global-sprint-fr.txt",
+      "filename": "fr-global-sprint-fr.txt",
+      "sha256": "f6ac598f5e0c9f208488d32edc25b1081e8cbe73bd8381f596e7a8c1794a93ee",
+      "bytes": 9708,
+      "license": "CC0-1.0 (pinned server/data/LICENSE; English local LICENSE identical)"
+    },
+    {
+      "language": "fr",
+      "path": "server/data/fr/vfvv1.1.txt",
+      "url": "https://raw.githubusercontent.com/common-voice/common-voice/70dde553e48d7d0da452ba4ba070c001f65db88c/server/data/fr/vfvv1.1.txt",
+      "filename": "fr-vfvv1.1.txt",
+      "sha256": "41d3ccc0b7c614dd5a8873d0dbb13dd6ab68ec9f020d496d51df62d391637120",
+      "bytes": 3198,
+      "license": "CC0-1.0 (pinned server/data/LICENSE; English local LICENSE identical)"
+    },
+    {
+      "language": "fr",
+      "path": "server/data/fr/vfvv2.txt",
+      "url": "https://raw.githubusercontent.com/common-voice/common-voice/70dde553e48d7d0da452ba4ba070c001f65db88c/server/data/fr/vfvv2.txt",
+      "filename": "fr-vfvv2.txt",
+      "sha256": "cc0277f9689508930893ef4a911ca11da9dbe34b80e0bcb3685e18aee967c27f",
+      "bytes": 3786,
+      "license": "CC0-1.0 (pinned server/data/LICENSE; English local LICENSE identical)"
+    },
+    {
+      "language": "fr",
+      "path": "server/data/fr/vfvv3.txt",
+      "url": "https://raw.githubusercontent.com/common-voice/common-voice/70dde553e48d7d0da452ba4ba070c001f65db88c/server/data/fr/vfvv3.txt",
+      "filename": "fr-vfvv3.txt",
+      "sha256": "197faa3efba2a6c1a95f08bfbd1d4421663b24d279c9be10432480562070b271",
+      "bytes": 3172,
+      "license": "CC0-1.0 (pinned server/data/LICENSE; English local LICENSE identical)"
+    },
+    {
+      "language": "fr",
+      "path": "server/data/fr/vfvv4.txt",
+      "url": "https://raw.githubusercontent.com/common-voice/common-voice/70dde553e48d7d0da452ba4ba070c001f65db88c/server/data/fr/vfvv4.txt",
+      "filename": "fr-vfvv4.txt",
+      "sha256": "0b61d8fd1c5bd104f1ccddc6d5c7dcffc947ca84bfd14c6036b22542987783ff",
+      "bytes": 6254,
+      "license": "CC0-1.0 (pinned server/data/LICENSE; English local LICENSE identical)"
+    },
+    {
+      "language": "fr",
+      "path": "server/data/fr/vfvv5.txt",
+      "url": "https://raw.githubusercontent.com/common-voice/common-voice/70dde553e48d7d0da452ba4ba070c001f65db88c/server/data/fr/vfvv5.txt",
+      "filename": "fr-vfvv5.txt",
+      "sha256": "c74b20b9d19b7086f8009ef2a10606597291731d601c887d6e1cf20d1a466e2b",
+      "bytes": 6228,
+      "license": "CC0-1.0 (pinned server/data/LICENSE; English local LICENSE identical)"
+    },
+    {
+      "language": "fr",
+      "path": "server/data/fr/vfvv6.txt",
+      "url": "https://raw.githubusercontent.com/common-voice/common-voice/70dde553e48d7d0da452ba4ba070c001f65db88c/server/data/fr/vfvv6.txt",
+      "filename": "fr-vfvv6.txt",
+      "sha256": "10fb631ae95b6f445de40ba1d378835619de81d6883df4d951bad5c6c9f3da92",
+      "bytes": 13923,
+      "license": "CC0-1.0 (pinned server/data/LICENSE; English local LICENSE identical)"
+    },
+    {
+      "language": "de",
+      "path": "server/data/de/jf99.txt",
+      "url": "https://raw.githubusercontent.com/common-voice/common-voice/70dde553e48d7d0da452ba4ba070c001f65db88c/server/data/de/jf99.txt",
+      "filename": "de-jf99.txt",
+      "sha256": "d92c56ae7f42931bb57a3ce35f7b201b831a3ea9129cb29eeb8d92a486de176b",
+      "bytes": 248189,
+      "license": "CC0-1.0 (pinned server/data/LICENSE; English local LICENSE identical)"
+    }
+  ],
+  "test_selection": "All eligible unique heldout-file prompts after exact/token/5-token-window contamination removal against known prior and candidate training prompts and prior synthetic diagnostic sentences. Deterministic SHA256 order, maximum 2000 prompts per language. No outcomes read until candidate/configuration frozen.",
+  "development": "Existing Sentence Collector text only: sha256(normalized prompt) mod 5 == 0 for development, remaining 80% for model search. Final assets use all training prompts, never heldout files.",
+  "seed_policy": "No new hand-authored seeds based on holdout; prior seeds remain unchanged for the prior baseline only. Corpus-only candidate exploration excludes FrequencyWords/prior seeds from generation.",
+  "scope_limitations": [
+    "Common Voice contributor-text evaluation is not universal messaging accuracy.",
+    "Legacy raw corpora unavailable, so historical sentence contamination cannot be ruled out.",
+    "Known near-overlap removal may favor unusual residual prompts; denominators and exclusions must be reported."
+  ],
+  "license_source": "https://raw.githubusercontent.com/common-voice/common-voice/70dde553e48d7d0da452ba4ba070c001f65db88c/server/data/LICENSE",
+  "license_sha256": "bf474cdfd02e162603358e4e3615182018cad27593d2bf5e75ca13e4a5a6af0c",
+  "seal": "A model-file/configuration hash must be recorded before test outputs are produced. No tuning after unseal in this review."
+}
