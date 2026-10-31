@@ -50,7 +50,7 @@ class TerminalTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.script = Path(self.temp.name) / 'child.py'
         self.script.write_text(textwrap.dedent(CHILD))
-        self.executable = str(Path(sys.executable).resolve())
+        self.executable = str(Path('/usr/bin/python3').resolve())
         self.pins = {self.executable: self.sha(self.executable), str(self.script): self.sha(self.script)}
 
     def tearDown(self):

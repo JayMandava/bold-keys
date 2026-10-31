@@ -119,7 +119,7 @@ class OpaqueOutputChecks(unittest.TestCase):
         start_time=time.monotonic()
         with patch.object(e.subprocess,'Popen',side_effect=start):
             with self.assertRaisesRegex(ValueError,'timed out'):
-                e.run_identity_quiet([str(Path(sys.executable).resolve()),'-c','import time;time.sleep(30)'],e.ENV,timeout=.1)
+                e.run_identity_quiet([str(Path('/usr/bin/python3').resolve()),'-c','import time;time.sleep(30)'],e.ENV,timeout=.1)
         self.assertLess(time.monotonic()-start_time,2.5)
         self.assertIsNotNone(children[0].poll())
 

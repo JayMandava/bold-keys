@@ -31,9 +31,8 @@ def preflight(commit):
     release.require(release.api(f'/repos/{release.REPO}/git/ref/heads/main')['object']['sha'] == commit,
                     'Main moved; review and dispatch the new exact SHA')
     release.gate()  # Existing sole-owner approval/main-only/no-admin-bypass policy, unchanged.
-    # Repository artifacts inherit read access; public-repository artifacts are not owner-private.
-    release.require(release.api(f'/repos/{release.REPO}').get('private') is True,
-                    'Private artifact delivery unavailable in this public repository; do not export/upload')
+    # Source stays public. Dedicated protected token checks the fixed private destination
+    # after owner approval and BEFORE the separate step injects signing credentials.
     validate_review_record(json.loads(RECORD.read_text()))
 
 

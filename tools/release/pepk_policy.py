@@ -29,7 +29,7 @@ def validate_ready(record):
     require(record.get('password_input_source_verified') is True, 'Password source review missing')
     require(record.get('encryption_and_output_source_verified') is True, 'Encryption/output source review missing')
     require(record.get('export_implementation_reviewed') is True, 'Independent production implementation review missing')
-    require(record.get('require_repository_private') is True, 'Private artifact delivery is mandatory')
+    require(record.get('private_delivery_repository') == 'JayMandava/bold-keys-signing-delivery', 'Fixed private destination is mandatory')
     require(record.get('status') == 'approved_for_one_time_export', 'One-time export remains disabled')
 
 

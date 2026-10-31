@@ -1,0 +1,58 @@
+{
+  "schema": 1,
+  "scope": "unprivileged candidate installation inputs; no production promotion",
+  "java": {
+    "version": "21.0.13+9",
+    "distribution": "temurin",
+    "architecture": "x64",
+    "setup_action": "actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad",
+    "verify_signature": true,
+    "publisher": "Eclipse Adoptium/temurin21-binaries",
+    "release_id": 420500038,
+    "asset_id": 665757550,
+    "archive_url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.13%2B9/OpenJDK21U-jdk_x64_linux_hotspot_21.0.13_9.tar.gz",
+    "archive_sha256": "d7f5d5cf865a2902b70ff549b97586a7d3f234e016f041ab447ea740c7d66d1c",
+    "archive_bytes": 207858352,
+    "archive_root": "jdk-21.0.13+9"
+  },
+  "python": {
+    "version": "3.12.14",
+    "publisher": "GitHub actions/python-versions; prebuilt CPython, not a PSF-signed binary claim",
+    "release_tag": "3.12.14-31661455385",
+    "release_id": 369639533,
+    "asset_id": 512394035,
+    "archive_url": "https://github.com/actions/python-versions/releases/download/3.12.14-31661455385/python-3.12.14-linux-24.04-x64.tar.gz",
+    "archive_sha256": "5a03168292516f6dd6dcf630f4bf5369b108abd7c699a7e1db37f1e622257fff",
+    "archive_bytes": 95088884,
+    "installation": "Extract hash-verified archive into private prefix; never execute setup.sh/unpinned pip upgrade; offline wheel install only"
+  },
+  "wheels": [
+    {
+      "package": "cryptography",
+      "version": "50.0.0",
+      "file": "cryptography-50.0.0-cp39-abi3-manylinux_2_34_x86_64.whl",
+      "url": "https://files.pythonhosted.org/packages/9c/f8/d97f9603efda3888187bfdb893f26c41be4735c10631d05d284ee6b047c4/cryptography-50.0.0-cp39-abi3-manylinux_2_34_x86_64.whl",
+      "sha256": "37fdb0d0111f1e2ff07139dfb79f1b49531f8e213c46f1163dd7642979b58c47",
+      "bytes": 4762400,
+      "publisher_record": "https://pypi.org/pypi/cryptography/50.0.0/json"
+    },
+    {
+      "package": "cffi",
+      "version": "2.0.0",
+      "file": "cffi-2.0.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+      "url": "https://files.pythonhosted.org/packages/78/2d/7fa73dfa841b5ac06c7b8855cfc18622132e365f5b81d02230333ff26e9e/cffi-2.0.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+      "sha256": "3e17ed538242334bf70832644a32a7aae3d83b57567f9fd60a26257e992b79ba",
+      "bytes": 219572,
+      "publisher_record": "https://pypi.org/pypi/cffi/2.0.0/json"
+    },
+    {
+      "package": "pycparser",
+      "version": "2.23",
+      "file": "pycparser-2.23-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/a0/e3/59cd50310fc9b59512193629e1984c1f95e5c8ae6e5d8c69532ccc65a7fe/pycparser-2.23-py3-none-any.whl",
+      "sha256": "e5c6e8d3fbad53479cab09ac03729e0a9faf2bee3db8208a550daf5af81a5934",
+      "bytes": 118140,
+      "publisher_record": "https://pypi.org/pypi/pycparser/2.23/json"
+    }
+  ]
+}
