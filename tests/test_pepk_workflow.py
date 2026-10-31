@@ -88,7 +88,7 @@ class PepkWorkflowChecks(unittest.TestCase):
             self.assertNotIn(forbidden,text)
         public_job=text.split('  prepare_public:')[1].split('  export:')[0]
         self.assertNotIn('environment:',public_job);self.assertNotIn('${{ secrets.',public_job)
-        self.assertIn('pepk_build.py --verify-toolchain',public_job)
+        self.assertIn('pepk_provision.py --verify-runtime',public_job)
         self.assertIn('environment: production-release',text)
         self.assertEqual(text.count('pepk_preflight.py --commit'),3)
         secret=text.split('- name: Export only encrypted existing key')[1].split('- name: Reverify exact encrypted-only')[0]
@@ -108,9 +108,28 @@ class PepkWorkflowChecks(unittest.TestCase):
                      'private_delivery_review_id','independent_production_review_id'):
             record[name]='synthetic-review-only'
         record['status']='approved_for_one_time_export';record['export_implementation_reviewed']=True
+        record['toolchain'].pop('python_library_sha256',None)  # Explicitly incomplete fixture after staging real pins.
         class NoSecretReads:
             def get(self,name):raise AssertionError('No secret/environment lookup permitted')
         with tempfile.TemporaryDirectory() as temp,patch.object(exporter,'verify_payload') as payload:
             with self.assertRaisesRegex(ValueError,'runtime identity pins'):
                 exporter.export_reviewed(Path(temp)/'public',Path(temp)/'out',record,SHA,Path(temp),NoSecretReads())
             payload.assert_not_called();self.assertEqual(list(Path(temp).iterdir()),[])
+
+    def test_protected_workflow_installs_pinned_runtime_before_any_transfer_inputs(self):
+        text=(ROOT/'.github/workflows/pepk-export.yml').read_text()
+        self.assertEqual(text.count("java-version: '21.0.13+9'"),2)
+        self.assertEqual(text.count('verify-signature: true'),2)
+        self.assertEqual(text.count('force-download: true'),2)
+        self.assertEqual(text.count('id: runtime'),2)
+        self.assertIn('delivery_cutoff_at',text);self.assertNotIn('delivery_token_expires_at',text)
+        self.assertIn('--cutoff',text);self.assertNotIn('--expiry',text)
+        for job in [text.split('  prepare_public:')[1].split('  export:')[0],text.split('  export:')[1]]:
+            self.assertLess(job.index('pepk_provision.py --check-host'),job.index('actions/setup-java@'))
+            self.assertLess(job.index('pepk_runtime.py'),job.index('pepk_provision.py --verify-runtime'))
+            self.assertIn('bold-pepk-runtime',job.split('if: always()')[-1])
+        secret=text.split('- name: Export only encrypted existing key')[1].split('- name: Reverify exact encrypted-only')[0]
+        self.assertLess(secret.index('pepk_provision.py --verify-runtime'),secret.index('pepk_export.py --commit'))
+        self.assertIn('steps.runtime.outputs.python',secret)
+        delivery=text.split('- name: Verify fixed private destination')[1].split('- name: Recheck current main')[0]
+        self.assertLess(delivery.index('pepk_provision.py --verify-runtime'),delivery.index('pepk_delivery.py --commit'))

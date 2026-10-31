@@ -51,10 +51,10 @@ protected workflow is intentionally unexecutable on an unmatched runner.
 The public source repository must remain public. The owner approved the fixed
 private destination `JayMandava/bold-keys-signing-delivery`; parent has verified
 it exists and is private. Parent handles repository/token setup in supported UI.
-`BOLD_PEPK_DELIVERY_TOKEN` must be a fine-grained token limited to that repository's
-Contents read/write, expiring within24hours, stored only in `production-release`.
-No token exists as of the parent's last checkpoint; GitHub Mobile sudo confirmation
-is pending. No production signing secret is copied to the delivery repository.
+`BOLD_PEPK_DELIVERY_TOKEN` is now configured in `production-release` (name-only
+verification). The owner confirmed the single-private-repository Contents read/write
+plus Metadata read scope and one-day expiration setting. No new token or handoff is
+needed. The date-only Nov1 label does not establish its precise UTC expiry. No production signing secret is copied to the delivery repository.
 
 The export workflow retains the existing production-release sole-owner approval,
 main-only/no-admin-bypass controls, exact source/workflow/current-main SHA checks,
@@ -63,17 +63,25 @@ Public and protected jobs rebuild locally rather than transfer third-party tools
 through public Actions artifacts. After owner approval and before the four signing
 secrets enter their separate export step, `pepk_delivery.py` checks the fixed
 private repository's owner/ID/visibility/main branch and write permission, plus
-bounded token expiry. It saves only a run-bound, nonsensitive local proof.
+a bounded operational cutoff/known credential expiry. It saves a run-bound, nonsensitive local proof.
 
-The dispatch input `delivery_token_expires_at` is a nonsensitive explicit UTC upper
-bound within one day. Where GitHub returns its token-expiry header, the helper
-checks it against that bound. Without that header, this remains an owner/UI expiry
-assertion, not independent API proof. Fine-grained target restriction and actual
-expiry must be verified in secure token setup; a token prefix cannot prove scopes.
-The helper does not create credentials or claim it can inspect all token grants.
+The dispatch input `delivery_cutoff_at` is an owner-chosen UTC operational cutoff,
+strictly future and within the next24hours. It is not a declaration of credential
+expiry. Accepted syntax includes YYYY-MM-DDTHH:MM:SSZ; choose enough time for the
+reviewed operation and protected approval. The cutoff is checked after destination metadata and immediately before every write
+invocation; readback of an already initiated write can finish afterward. Where GitHub returns an authoritative expiry header,
+expired credentials or expiry beyond24hours are rejected, and the effective deadline
+is min(operational cutoff, credential expiry). An earlier operational cutoff is valid.
+Without that header, proof records credential_expiry_status=UNKNOWN and
+credential_expires_at=null; the cutoff never substitutes for a credential timestamp.
+The previously confirmed one-day setting/narrow scope and prompt token revocation
+remain required. Code confirms the fixed private destination/write access, not every
+token grant or exact expiry without a header. Proof and receipt keep the operational
+cutoff, separately observed credential expiry, and effective deadline distinct.
+An earlier observed credential deadline is retained if a later header disappears.
 
 After local final verification, a separate step with only the delivery token
-rechecks destination identity/privacy/expiry immediately before each write. It
+rechecks destination identity/privacy/deadlines immediately before each write. It
 sends exactly `encrypted-export.zip` and `public-certificate.pem` under
 `transfers/<reviewed-sha>/<run-id>-<attempt>/`. Both paths must be absent. PUT is
 attempted once, never automatically retried. Readback checks blob SHA, size and
@@ -149,11 +157,12 @@ and actual Console acceptance of this exact build remain unproven.
 2. Explicitly promote reviewed runtime/tool/helper/recipe pins and provision that
    runtime in the protected workflow. Review this new delivery implementation.
    Keep readiness disabled until those reviews are complete.
-3. Parent completes secure dedicated token setup after the owner's Mobile sudo
-   confirmation; no token/password should be pasted in chat. Confirm Contents-only,
-   single-private-repo scope and expiry≤24h, then record UTC upper bound.
+3. Secure token setup is complete; do not recreate it or paste any value in chat.
+   Preserve its confirmed narrow scope/one-day setting and choose a UTC operational
+   cutoff within the next24hours. Exact credential UTC expiry remains unknown unless
+   independently reported by GitHub.
 4. On separately authorized reviewed main, dispatch export with commit_sha and
-   delivery_token_expires_at, then owner approves production-release. No action
+   delivery_cutoff_at, then owner approves production-release. No action
    here does that. Verify two private files and revoke/remove the transfer token.
 5. Parent/owner performs the already authorized authenticated Play import/save and
    verifies the final B237 certificate identity. No replacement key is generated.
@@ -229,3 +238,77 @@ required an explicit derived-recipe fixture pin, enforced the build child, and r
 changed libpython/stdlib/package/host-libz identities. These in-memory fixture pins were
 never written to the production record. New full-source PEPK/driver execution remains
 for independent review; no original Google source request was retried in this worker.
+
+## Staged protected provisioning/pinning candidate (execution still disabled)
+
+Independent public audit run41179835311/job124474806090 at2b2dd4c passed71 tests,
+two matching complete source builds,11 actual disposable PEPK checks and20 actual
+exporter/verifier checks. Its canonical sorted/indented/newline report was retrieved
+through the public GitHub connector and independently rehashed here to
+379d4e1132d5cd3cbd21078299c826186f5e8a09c84718f4f9b49485ddd0f052.
+The review-branch record now stages that report's exact GitHub runtime pins and
+41-entry final native allowlist. No production approval flag/review ID is filled,
+and status remains disabled pending exact production/private-delivery review and
+owner authorization for enabling/merge. These staged values are not a dispatch.
+
+The reviewed host is Ubuntu24.04 x64 image20261025.353.1. Its host libz is
+/usr/lib/x86_64-linux-gnu/libz.so.1.3, hash
+f61677c7bdb7c2aa2a243ea781bfd16afcb361cede7b4ef76127a9d8eb9a5242.
+Local Debian/libz1.3.1 evidence is deliberately not substituted. The original
+certificate, recipient, Google source/JAR, Java helper and immutable base recipe
+remain unchanged. The derived recipe pin is
+6a1e635d5926ac0a7a0406eed88da3f7f9b13f2d816cbe86d9bf426f4eca61ab;
+it recomputes from the supplied base recipe and exact hosted Java path.
+
+Both public preparation and the protected owner-approved job provision exact
+Temurin21.0.13+9 using the pinned setup-java action with forced download and vendor
+signature verification, then install the unchanged checksum-pinned Python/wheels
+in an isolated prefix. No tool/source artifact crosses the public Actions boundary.
+`pepk_provision.py` rejects missing/different ImageVersion, runner architecture,
+Ubuntu release, installer-manifest SHA, complete JDK tree, compiler/modules/Python
+identities, native/tree pins or derived recipe. The live build child is checked too.
+The standard ImageVersion variable is documented by the runner-image implementation:
+https://github.com/actions/runner-images/blob/4da2307112a0fad2fd2ecaca8ba7d08683b8c581/images/ubuntu/scripts/build/configure-environment.sh .
+An image update must stop the operation and receive a new public audit and explicit
+reviewed pin update. No workflow repins from observed values.
+
+Host/manifest checks precede the explicit GH_TOKEN preflight step; checkout uses its
+normal scoped repository-read token. Complete runtime checks
+precede transfer-token and signing steps and repeat before their CLI entry points.
+The delivery CLI reads only an allowlist of public context fields, then verifies live
+runtime pins before looking up its dedicated token; it never copies the full environment. The signing driver continues to verify payload/runtime before reading the
+four signing inputs. Runtime selectors are step-local; children use only the verified
+prefix, not arbitrary loader paths/preload or inherited credentials. Production-release
+owner approval/main restriction and current-main rechecks are preserved. Only the
+existing4 signing inputs enter the export step; only the dedicated delivery token
+enters the two fixed-private-destination steps. Always cleanup removes the runtime,
+public build/tool copies, private temporary material and local encrypted copies.
+No ciphertext/tool/source upload-artifact step exists.
+
+Remaining steps: independently review this exact provisioning/private-delivery patch;
+retain the completed secure token handoff (private repository Contents read/write,
+one-day setting, production-release environment only); obtain owner authorization for
+any reviewed enabling/merge. Only a later explicitly approved record may fill the
+independent production/private-delivery review IDs, implementation flag and approved
+status. Dispatch remains manual on main with commit_sha equal to the final enabled
+main SHA, plus delivery_cutoff_at as an owner-chosen UTC operational cutoff within24hours. The owner
+then approves the production-release job. This task neither dispatches nor approves it.
+A drift failure requires review, never bypass. After verified private delivery,
+revoke/remove the token; private Git history is not erased by deleting files. Parent
+handles the already-authorized authenticated Play import/save separately. No raw keys
+are requested in chat, and no private repository/API/secret values were read here.
+
+Preparation validation:98 repository tests and81 controlled pinned-runtime PEPK tests
+pass; actionlint/diff checks pass.31 Python-native files and the JDK executable/modules/
+complete tree match the staged GitHub bytes locally. The local non-GitHub host is
+correctly rejected without mutating pins. Hosted provisioning/owner approval and all
+private-destination API/write checks remain unexecuted or mocked here; no claim of a
+real private transfer is made. The exact new workflow/private-delivery patch still
+requires independent review before any owner-authorized enabling/merge or execution.
+
+Operational-cutoff follow-up:17 focused delivery and11 workflow tests pass, including
+header-before/after-cutoff, absent-header UNKNOWN, expired/over-one-day rejection,
+cutoff exhaustion during a GET/between writes, and retention of an earlier known
+expiry. Full suites pass103 repository tests and86 controlled pinned-runtime PEPK
+tests. Runtime/crypto pins and approval fields are unchanged; no credential/API use
+or production execution occurred in this correction.
