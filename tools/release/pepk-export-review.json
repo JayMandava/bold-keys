@@ -1,11 +1,28 @@
 {
-  "schema": 1,
-  "status": "blocked_unverified_official_tool",
+  "schema": 2,
+  "status": "blocked_pending_build_and_recipient_review",
   "expected_certificate_sha256": "b237e1aec0bfdae579caebe1a0d97517af1b7c066adc4b3d197b641adfa46c34",
   "official_source_url": "https://www.gstatic.com/play-apps-publisher-rapid/signing-tool/prod/pepk-src.jar",
-  "official_source_sha256": null,
-  "console_tool_sha256": null,
+  "official_source_sha256": "dc29a1d192eef9371eec0d2c134879fefc0a9dcf0c7046d6c8f3d302d0009b09",
   "console_encryption_pem_sha256": null,
   "password_input_source_verified": false,
-  "encryption_and_output_source_verified": false
+  "encryption_and_output_source_verified": false,
+  "official_source_size_bytes": 5268938,
+  "tool_origin": "official_source_build",
+  "source_built_tool_sha256": "7923237dd6ea1c0198b0ee91a1bfc0dafbd858aa88936f2ce847652e93d1e18a",
+  "audit_thread": "01a18fd0-933b-76c1-a435-89f248eee029",
+  "audit_evidence_origin": "parent-reported independent public audit; not reproduced in this task",
+  "build_recipe_review_id": null,
+  "source_licence_review_id": null,
+  "controlled_pty_protocol_review_id": null,
+  "export_implementation_reviewed": false,
+  "reported_source_behavior": {
+    "password_flags": "literal values; env: syntax unsupported; parse failures may print argv",
+    "omitted_passwords": "System.console().readPassword; no stdin fallback",
+    "rsa_aes": "RSA-OAEP SHA-1/MGF1; fresh AES-256; RFC5649 wrapping",
+    "certificate_zip_entries": [
+      "encryptedPrivateKey",
+      "certificate.pem"
+    ]
+  }
 }
