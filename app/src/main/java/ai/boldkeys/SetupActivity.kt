@@ -549,7 +549,7 @@ private fun DictionaryContent(context: Context) {
                     Icon(Icons.Default.Add, contentDescription = null); Spacer(Modifier.width(4.dp)); Text("Add")
                 }
             }
-            Note("Words you add are never corrected, and they show up as suggestions. Anything goes: what you add is up to you. Words you type twice are added on their own.")
+            Note("Words you add are kept as typed. A local filter limits explicit sexual terms, strong profanity and slurs in suggestions and automatic corrections, including personal words. It cannot catch every form or meaning. Words you type twice are added on their own.")
         }
         Section(if (words.isEmpty()) "Your words" else "Your words (${words.size})") {
             if (words.isEmpty()) Note("Nothing yet. The keyboard learns words you type twice that it did not know.")
