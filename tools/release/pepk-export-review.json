@@ -24,5 +24,20 @@
       "encryptedPrivateKey",
       "certificate.pem"
     ]
-  }
+  },
+  "reported_build_environment": "OpenJDK 21.0.12.1; 3613 bundled sources; jdk.compiler/com.sun.tools.javac.Main; UTF-8; -d/-sourcepath; sorted source arguments; no external Java dependencies; exact build/ZIP script transfer pending",
+  "reported_licence_findings": {
+    "application": "Apache-2.0 header in ExportEncryptedPrivateKeyTool.java lines1\u201315",
+    "dependencies": "Bouncy Castle permissive; Checker qualifiers MIT; concurrency annotations CC Attribution; some annotation notices incomplete",
+    "distribution_limit": "Do not label or redistribute the full archive as wholly Apache-2.0; exact inventory/notices review pending"
+  },
+  "reported_pty_protocol": {
+    "prompts": [
+      "Enter password for store '<filename>':",
+      "Enter password for key '<alias>':"
+    ],
+    "guards": "After each exact prompt, wait until both ECHO and ECHONL clear; nonblocking deadline-bound writes; recheck echo before every partial write; reject unexpected prompts; bound input/output; kill and reap on failure; never retain raw transcript",
+    "limit": "Terminal inspection and write are not atomic against a malicious child; trusted pinned source is essential; exact audited wrapper transfer pending"
+  },
+  "reported_validation_limits": "25 disposable audit tests and reproducible builds do not establish formal Google support for this exact local build or actual Play acceptance"
 }
