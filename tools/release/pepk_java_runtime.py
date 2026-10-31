@@ -11,13 +11,16 @@ from pepk_runtime import digest, loaded_native_libraries
 ROOT=Path(__file__).resolve().parent
 
 
-def java_native_dependencies(binary,home):
+def java_native_dependencies(binary,home,diagnostic_state=None):
     # Standalone libjava/libnet need the selected JVM directory that the Java
     # launcher normally loads itself. This is diagnostic resolution, not a map.
     env=ENV|{'LD_LIBRARY_PATH':str(home/'lib/server')+':'+str(home/'lib')}
     result=subprocess.run(['/usr/bin/ldd',str(binary)],env=env,capture_output=True,timeout=10)
     output=result.stdout+result.stderr
     if result.returncode or len(output)>65536 or b'not found' in output:
+        if diagnostic_state is not None and len(output)<=65536:
+            diagnostic_state['unresolved_library_names']=[name.decode('ascii') for name in
+                re.findall(rb'(?m)^\s*([A-Za-z0-9_.+\-]{1,100})\s+=>\s+not found\s*$',result.stdout)]
         raise ValueError('Java native dependency inventory failed or unresolved')
     paths=set(re.findall(rb'(?:=> )?(/[A-Za-z0-9_./+\-]+)',result.stdout))
     if not paths:raise ValueError('No Java diagnostic native dependencies resolved')
@@ -25,7 +28,7 @@ def java_native_dependencies(binary,home):
              'sha256':digest(Path(path.decode()).resolve(strict=True))} for path in sorted(paths)]
 
 
-def java_runtime_evidence(java,work,tool=None):
+def java_runtime_evidence(java,work,tool=None,diagnostic_state=None):
     java=java.resolve(strict=True)
     if work.exists():raise ValueError('Java probe root must be new')
     work.mkdir(mode=0o700)
@@ -40,12 +43,19 @@ def java_runtime_evidence(java,work,tool=None):
     if result.returncode or len(result.stdout)>4*1024*1024 or len(result.stderr)>65536:
         raise ValueError('Public Java mapping probe failed')
     mapped=loaded_native_libraries(result.stdout.decode('utf-8',errors='strict'))
+    if diagnostic_state is not None:diagnostic_state['loaded_native_libraries']=mapped
     home=java.parent.parent
     if not any(Path(row['path'])==home/'lib/server/libjvm.so' for row in mapped):
         raise ValueError('Selected JVM mapping missing')
     binaries={java,home/'lib/server/libjvm.so',home/'lib/libjava.so'}
     binaries.update(Path(row['path']) for row in mapped if Path(row['path']).is_relative_to(home))
-    resolved={str(path):java_native_dependencies(path,home) for path in sorted(binaries)}
+    resolved={}
+    if diagnostic_state is not None:diagnostic_state['resolved_native_dependencies']=resolved
+    for path in sorted(binaries):
+        if diagnostic_state is None:resolved[str(path)]=java_native_dependencies(path,home)
+        else:
+            diagnostic_state['active_dependency_binary']=str(path)
+            resolved[str(path)]=java_native_dependencies(path,home,diagnostic_state=diagnostic_state)
     return {'scope':'public synthetic JCA/compiler/provider probe, not mapping of the later key-bearing export; file bytes, not memory attestation',
             'environment':'fixed PATH/LANG only; no inherited loader or signing environment',
             'probe_source_sha256':digest(source),'probe_class_sha256':digest(work/'PepkRuntimeProbe.class'),

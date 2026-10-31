@@ -81,7 +81,7 @@ jobs:
           PYTHONHOME: ${{ steps.runtime.outputs.python_home }}
           LD_LIBRARY_PATH: ${{ steps.runtime.outputs.python_home }}/lib
           PYTHONDONTWRITEBYTECODE: '1'
-        run: '"${{ steps.runtime.outputs.python }}" tools/release/pepk_provision.py --verify-runtime'
+        run: '"${{ steps.runtime.outputs.python }}" tools/release/pepk_provision.py --verify-runtime --public-runtime-diagnostics'
       - name: Fetch hash-pinned official source without redirects
         run: |
           set -euo pipefail
