@@ -21,6 +21,7 @@ from pepk_disposable_audit import BASELINE_SOURCE, independent_unwrap
 from pepk_policy import require, SOURCE_SHA
 from pepk_terminal import ENV, GuardFailure
 from pepk_runtime import runtime_identity, candidate_runtime_pins
+from pepk_java_runtime import java_runtime_evidence, java_contract_from_evidence
 
 
 def audit_driver(jar, java, classes, tool_hash, original):
@@ -52,6 +53,7 @@ def audit_driver(jar, java, classes, tool_hash, original):
             third_party_notices_sha256=digest(payload/'THIRD_PARTY_NOTICES.txt'),
             toolchain={'java_realpath':str(java),'java_sha256':digest(java),'modules_sha256':digest(java.parent.parent/'lib/modules'),
                        **candidate_runtime_pins(runtime_identity())})
+        record['java_runtime_contract']=java_contract_from_evidence(java_runtime_evidence(java,root/'java-probe',jar))
         (payload/'public-provenance.json').write_text(json.dumps({'commit':commit,'source_sha256':SOURCE_SHA,'tool_sha256':tool_hash,
             'pem_sha256':record['console_encryption_pem_sha256'],'identity_class_sha256':record['identity_class_sha256'],
             'notices_sha256':record['third_party_notices_sha256'],'console_charset':'UTF-8',

@@ -46,7 +46,7 @@ class ProvisionChecks(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'SHA256 mismatch'):provision.check_host(record,self.env(),self.release())
 
     def test_image_architecture_os_drift_or_missing_metadata_rejected(self):
-        for changed in [{'ImageVersion':'20261026.1'},{'RUNNER_ARCH':'ARM64'},{'RUNNER_OS':'Windows'},{'ImageVersion':''}]:
+        for changed in [{'RUNNER_ARCH':'ARM64'},{'RUNNER_OS':'Windows'},{'RUNNER_OS':None},{'RUNNER_ARCH':None}]:
             with self.subTest(changed=changed),self.assertRaisesRegex(ValueError,'image/architecture'):
                 provision.check_host(self.record(),self.env()|changed,self.release())
         for release in [{'ID':'debian','VERSION_ID':'13'},{'ID':'ubuntu','VERSION_ID':'22.04'},{}]:
@@ -65,9 +65,10 @@ class ProvisionChecks(unittest.TestCase):
 
     def test_runtime_recipe_and_live_child_are_all_enforced(self):
         record=self.record();child={'scope':'mocked public child'};java=Path('/public/jdk/bin/java')
-        with patch.object(provision,'check_host'),patch.object(provision,'verify_toolchain',return_value=java),patch.object(provision,'tree_identity',return_value={'sha256':record['github_hosted_runtime']['java_tree_sha256']}),patch.object(provision,'reviewed_build_recipe') as recipe,patch.object(provision,'probe_python_child',return_value=child),patch.object(provision,'enforce_runtime_identity') as enforce:
+        with patch.object(provision,'check_host'),patch.object(provision,'verify_toolchain',return_value=java),patch.object(provision,'tree_identity',return_value={'sha256':record['github_hosted_runtime']['java_tree_sha256']}),patch.object(provision,'reviewed_build_recipe') as recipe,patch.object(provision,'probe_python_child',return_value=child),patch.object(provision,'enforce_runtime_identity') as enforce,patch.object(provision,'verify_reviewed_java_runtime') as java_runtime:
             provision.verify_protected_runtime(record)
             recipe.assert_called_once_with(java,record);enforce.assert_called_once_with(record['toolchain'],child)
+            java_runtime.assert_called_once_with(record,java)
             recipe.side_effect=ValueError('recipe drift');enforce.reset_mock()
             with self.assertRaisesRegex(ValueError,'recipe drift'):provision.verify_protected_runtime(record)
             enforce.assert_not_called()
@@ -88,7 +89,7 @@ class ProvisionChecks(unittest.TestCase):
 
     def test_diagnostics_identify_each_public_comparison_without_repinning(self):
         record=self.record();before=copy.deepcopy(record)
-        for key in ('RUNNER_OS','RUNNER_ARCH','ImageVersion'):
+        for key in ('RUNNER_OS','RUNNER_ARCH'):
             facts=provision.public_host_diagnostics(record,ValueError(),self.env()|{key:None},self.release())
             self.assertEqual(facts['first_nonmatching_public_field'],key)
         for key in ('ID','VERSION_ID'):
@@ -136,6 +137,20 @@ class ProvisionChecks(unittest.TestCase):
         record=self.record();before=copy.deepcopy(record)
         env=self.env()|{'ImageVersion':'20261026.354.1'}
         facts=provision.public_host_facts(record,env,self.release())
-        self.assertEqual(facts['checks']['ImageVersion'],{'observed':'20261026.354.1','expected':'20261025.353.1','matches':False})
-        with self.assertRaisesRegex(ValueError,'image/architecture'):provision.check_host(record,env,self.release())
+        self.assertEqual(facts['checks']['ImageVersion'],{'observed':'20261026.354.1','expected':'20261025.353.1','matches':False,'enforced':False})
+        provision.check_host(record,env,self.release())
+        self.assertIsNone(provision.public_host_diagnostics(record,ValueError(),env,self.release())['first_nonmatching_public_field'])
         self.assertEqual(record,before)
+
+    def test_coarse_image_label_is_informational_but_contract_is_required(self):
+        for label in ['20261026.354.1','future-image','',None]:
+            provision.check_host(self.record(),self.env()|{'ImageVersion':label},self.release())
+        record=self.record();record['github_hosted_runtime'].pop('host_contract')
+        with self.assertRaisesRegex(ValueError,'component host contract'):
+            provision.check_host(record,self.env(),self.release())
+
+    def test_java_failure_propagates_after_all_existing_runtime_checks(self):
+        record=self.record();java=Path('/public/jdk/bin/java')
+        with patch.object(provision,'check_host'),patch.object(provision,'verify_toolchain',return_value=java),patch.object(provision,'tree_identity',return_value={'sha256':record['github_hosted_runtime']['java_tree_sha256']}),patch.object(provision,'reviewed_build_recipe'),patch.object(provision,'probe_python_child'),patch.object(provision,'enforce_runtime_identity'),patch.object(provision,'verify_reviewed_java_runtime',side_effect=ValueError('Java host changed')):
+            with self.assertRaisesRegex(ValueError,'Java host changed'):
+                provision.verify_protected_runtime(record)

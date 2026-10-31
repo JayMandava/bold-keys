@@ -2,8 +2,10 @@
 from pathlib import Path
 import subprocess
 import re
+import tempfile
 
-from pepk_build import ENV
+from pepk_terminal import ENV
+from pepk_public import verify_public_file
 from pepk_runtime import digest, loaded_native_libraries
 
 ROOT=Path(__file__).resolve().parent
@@ -52,3 +54,79 @@ def java_runtime_evidence(java,work,tool=None):
             'mapped_host_libraries':[row for row in mapped if not Path(row['path']).is_relative_to(home)],
             'diagnostic_loader_path':'selected JDK lib/server and lib only; actual probe has no LD_LIBRARY_PATH',
             'resolved_native_dependencies':resolved}
+
+
+def java_pin_key(path,home):
+    path=Path(path)
+    return 'java:'+path.relative_to(home).as_posix() if path.is_relative_to(home) else 'host:'+str(path)
+
+
+def java_contract_from_evidence(evidence):
+    """Fixture/candidate data only; caller must never persist this as approved pins."""
+    home=Path(evidence['java_home'])
+    return {'probe_source_sha256':evidence['probe_source_sha256'],
+            'probe_class_sha256':evidence['probe_class_sha256'],
+            'native_library_pins':{java_pin_key(row['path'],home):row['sha256']
+                                   for row in evidence['loaded_native_libraries']}}
+
+
+def verify_java_native_files(record,java):
+    """Static approved bytes, before any Java probe or signing-environment read."""
+    contract=record.get('java_runtime_contract',{})
+    pins=contract.get('native_library_pins')
+    if not isinstance(pins,dict) or not pins:raise ValueError('Missing reviewed Java native contract')
+    home=java.parent.parent
+    for key,sha in pins.items():
+        if not isinstance(key,str) or not isinstance(sha,str) or not re.fullmatch('[0-9a-f]{64}',sha):
+            raise ValueError('Invalid reviewed Java native pin')
+        if key.startswith('java:'):
+            rel=Path(key[5:])
+            if rel.is_absolute() or '..' in rel.parts:raise ValueError('Invalid reviewed Java native path')
+            path=home/rel
+        elif key.startswith('host:/'):path=Path(key[5:])
+        else:raise ValueError('Invalid reviewed Java native path')
+        verify_public_file(path,sha)
+    for required in ('java:bin/java','java:lib/server/libjvm.so',
+                     'host:/usr/lib/x86_64-linux-gnu/libdl.so.2','host:/usr/lib/x86_64-linux-gnu/librt.so.1'):
+        if required not in pins:raise ValueError('Incomplete reviewed Java native contract')
+    verify_public_file(ROOT/'PepkRuntimeProbe.java',contract.get('probe_source_sha256'))
+    return contract
+
+
+def enforce_java_runtime_evidence(record,java,evidence):
+    contract=record['java_runtime_contract'];pins=contract['native_library_pins'];home=java.parent.parent
+    if evidence['java_home']!=str(home):raise ValueError('Java probe selected a different JDK')
+    if (evidence['probe_source_sha256']!=contract['probe_source_sha256'] or
+            evidence['probe_class_sha256']!=contract['probe_class_sha256']):
+        raise ValueError('Java probe source/class differs from reviewed evidence')
+    def checked(rows):
+        observed={}
+        for row in rows:
+            key=java_pin_key(row['path'],home)
+            if key in observed or pins.get(key)!=row['sha256']:
+                raise ValueError('Java native mapping/dependency unreviewed or changed')
+            observed[key]=row['sha256']
+        return observed
+    mapped=checked(evidence['loaded_native_libraries'])
+    wanted_host={key:sha for key,sha in pins.items() if key.startswith('host:')}
+    if {key:sha for key,sha in mapped.items() if key.startswith('host:')}!=wanted_host:
+        raise ValueError('Reviewed Java host mapping missing or changed')
+    if 'java:lib/server/libjvm.so' not in mapped:raise ValueError('Selected JVM mapping missing')
+    resolved={}
+    for binary,rows in evidence['resolved_native_dependencies'].items():
+        if java_pin_key(binary,home) not in mapped:raise ValueError('Unmapped Java diagnostic binary')
+        resolved.update(checked(rows))
+    wanted_binaries={row['path'] for row in evidence['loaded_native_libraries']
+                     if Path(row['path']).is_relative_to(home)}
+    if set(evidence['resolved_native_dependencies'])!=wanted_binaries:
+        raise ValueError('Java mapped binary missing diagnostic dependency closure')
+    if {key:sha for key,sha in resolved.items() if key.startswith('host:')}!=wanted_host:
+        raise ValueError('Reviewed Java resolved host dependency missing or changed')
+
+
+def verify_reviewed_java_runtime(record,java):
+    verify_java_native_files(record,java)
+    with tempfile.TemporaryDirectory(prefix='public-pepk-java-runtime-') as temp:
+        evidence=java_runtime_evidence(java,Path(temp)/'probe')
+    enforce_java_runtime_evidence(record,java,evidence)
+    return evidence

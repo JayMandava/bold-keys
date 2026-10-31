@@ -147,7 +147,9 @@ class PublicCandidateChecks(unittest.TestCase):
             def verify(output,*args):
                 if (output/'public-certificate.pem').read_bytes().endswith(b'bad'):
                     raise ValueError('tampered synthetic cert')
-            with patch.object(driver.exporter,'run_identity_quiet',side_effect=identity), \
+            with patch.object(driver,'java_runtime_evidence',return_value={}), \
+                 patch.object(driver,'java_contract_from_evidence',return_value={'scope':'mocked harness only'}), \
+                 patch.object(driver.exporter,'run_identity_quiet',side_effect=identity), \
                  patch.object(driver.exporter,'export_reviewed',side_effect=export), \
                  patch.object(driver.exporter,'verify_export_output',side_effect=verify), \
                  patch('cryptography.hazmat.primitives.serialization.load_der_private_key',return_value=baseline), \
