@@ -73,3 +73,57 @@ class ProvisionChecks(unittest.TestCase):
             recipe.side_effect=ValueError('recipe drift');enforce.reset_mock()
             with self.assertRaisesRegex(ValueError,'recipe drift'):provision.verify_protected_runtime(record)
             enforce.assert_not_called()
+
+    def test_diagnostics_allowlist_excludes_credentials_and_exception_payload(self):
+        class PublicOnly(dict):
+            def get(self,key,*args):
+                if key not in ('RUNNER_OS','RUNNER_ARCH','ImageVersion'):raise AssertionError('Credential lookup forbidden')
+                return super().get(key,*args)
+        facts=provision.public_host_diagnostics(self.record(),ValueError('PRIVATE-DUMMY-PAYLOAD'),PublicOnly(self.env()),self.release())
+        self.assertEqual(set(facts['checks']),{'RUNNER_OS','RUNNER_ARCH','ImageVersion','os_release.ID','os_release.VERSION_ID','installer_manifest_sha256'})
+        self.assertIsNone(facts['first_nonmatching_public_field']);self.assertEqual(facts['failure_category'],'ValueError')
+        self.assertNotIn('PRIVATE-DUMMY-PAYLOAD',json.dumps(facts))
+        facts=provision.public_host_diagnostics(self.record(),RuntimeError('PRIVATE-DUMMY-PAYLOAD'),self.env()|{'ImageVersion':'unsafe:PRIVATE-DUMMY-PAYLOAD\n'},self.release())
+        self.assertEqual(facts['failure_category'],'OtherError')
+        self.assertEqual(facts['checks']['ImageVersion']['observed'],'<invalid>')
+        self.assertNotIn('PRIVATE-DUMMY-PAYLOAD',json.dumps(facts))
+
+    def test_diagnostics_identify_each_public_comparison_without_repinning(self):
+        record=self.record();before=copy.deepcopy(record)
+        for key in ('RUNNER_OS','RUNNER_ARCH','ImageVersion'):
+            facts=provision.public_host_diagnostics(record,ValueError(),self.env()|{key:None},self.release())
+            self.assertEqual(facts['first_nonmatching_public_field'],key)
+        for key in ('ID','VERSION_ID'):
+            facts=provision.public_host_diagnostics(record,ValueError(),self.env(),self.release()|{key:'different'})
+            self.assertEqual(facts['first_nonmatching_public_field'],'os_release.'+key)
+        wrong=copy.deepcopy(record);wrong['github_hosted_runtime']['installer_manifest_sha256']='0'*64
+        facts=provision.public_host_diagnostics(wrong,ValueError(),self.env(),self.release())
+        self.assertEqual(facts['first_nonmatching_public_field'],'installer_manifest_sha256')
+        self.assertEqual(record,before)
+
+    def test_diagnostics_report_safe_read_categories_and_python_version(self):
+        record=self.record()
+        with patch.object(Path,'read_text',side_effect=PermissionError('PRIVATE-DUMMY-PAYLOAD')):
+            facts=provision.public_host_diagnostics(record,ValueError(),self.env())
+        self.assertEqual(facts['os_release_read_error'],'PermissionError')
+        self.assertNotIn('PRIVATE-DUMMY-PAYLOAD',json.dumps(facts))
+        for error in [FileNotFoundError('PRIVATE-DUMMY-PAYLOAD'),AttributeError('PRIVATE-DUMMY-PAYLOAD')]:
+            with patch.object(provision,'digest',side_effect=error):
+                facts=provision.public_host_diagnostics(record,error,self.env(),self.release())
+            self.assertEqual(facts['manifest_read_error'],type(error).__name__)
+            self.assertIsNone(facts['checks']['installer_manifest_sha256']['observed'])
+            self.assertEqual(facts['system_python_version'],'.'.join(map(str,sys.version_info[:3])))
+            self.assertNotIn('PRIVATE-DUMMY-PAYLOAD',json.dumps(facts))
+
+    def test_only_presecret_check_host_cli_emits_public_diagnostics(self):
+        import subprocess
+        from pepk_runtime import python_child_env
+        env=python_child_env()|self.env()|{'RUNNER_OS':'WrongOS','BOLD_RELEASE_STORE_PASSWORD':'PRIVATE-DUMMY-PAYLOAD','BOLD_PEPK_DELIVERY_TOKEN':'PRIVATE-DUMMY-PAYLOAD'}
+        for flag,diagnostic in [('--check-host',True),('--verify-runtime',False)]:
+            result=subprocess.run([sys.executable,str(ROOT/'tools/release/pepk_provision.py'),flag],env=env,capture_output=True,text=True,timeout=30)
+            self.assertEqual(result.returncode,1)
+            self.assertEqual('Public host-check diagnostics:' in result.stderr,diagnostic)
+            self.assertNotIn('PRIVATE-DUMMY-PAYLOAD',result.stdout+result.stderr)
+            if diagnostic:
+                line=next(line for line in result.stderr.splitlines() if line.startswith('Public host-check diagnostics:'))
+                facts=json.loads(line.split(': ',1)[1]);self.assertEqual(facts['first_nonmatching_public_field'],'RUNNER_OS')
