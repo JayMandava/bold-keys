@@ -1,11 +1,11 @@
-name: BLOCKED - one-time existing-key PEPK export review
-run-name: 'BLOCKED PEPK export review at ${{ inputs.commit_sha }}'
+name: BLOCKED pending private delivery and review - one-time PEPK export
+run-name: 'PEPK export review at ${{ inputs.commit_sha }}'
 
 on:
   workflow_dispatch:
     inputs:
       commit_sha:
-        description: Full reviewed current-main SHA; export remains intentionally unimplemented
+        description: Full reviewed current-main SHA; missing notices/review/private delivery blocks all signing inputs
         type: string
         required: true
 
@@ -34,7 +34,7 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - name: Check exact main and existing owner gate without signing credentials
+      - name: Check exact main, existing owner gate, private delivery and reviewed pins
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 tools/release/pepk_preflight.py --commit "$COMMIT_SHA"
@@ -43,17 +43,19 @@ jobs:
     needs: preflight
     if: github.repository == 'JayMandava/bold-keys' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     permissions:
       contents: read
+    outputs:
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      # This public-only stage is unreachable while review pins/protocol are missing.
-      # It is not executed by local preparation and does not change the old task policy.
-      - name: Fetch and pin official source before any protected job
+      - name: Refuse a runner compiler or Python zlib stack differing from audited byte pins
+        run: python3 tools/release/pepk_build.py --verify-toolchain
+      - name: Fetch hash-pinned official source without redirects
         run: |
           set -euo pipefail
           umask 077
@@ -62,11 +64,27 @@ jobs:
             'https://www.gstatic.com/play-apps-publisher-rapid/signing-tool/prod/pepk-src.jar' \
             -o "$RUNNER_TEMP/bold-pepk-public/pepk-src.jar"
           python3 tools/release/pepk_public.py --source "$RUNNER_TEMP/bold-pepk-public/pepk-src.jar"
-      - name: Refuse missing audited source-build and public-input handoff
+      - name: Rebuild twice verify all pins and prepare public recipient notices and UTF-8 console proof
         run: |
-          echo 'Source build recipe/licence, controlled PTY protocol and Console PEM review are pending.' >&2
-          exit 1
-      - name: Remove public preparation directory
+          python3 tools/release/pepk_stage.py --commit "$COMMIT_SHA" \
+            --source "$RUNNER_TEMP/bold-pepk-public/pepk-src.jar" \
+            --build-root "$RUNNER_TEMP/bold-pepk-public/build" \
+            --payload "$RUNNER_TEMP/bold-pepk-public/payload"
+      # These are PUBLIC inputs, not keys; do not distribute without reviewed notices/private delivery.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        id: upload
+        with:
+          name: reviewed-public-pepk-inputs-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/bold-pepk-public/payload/pepk.jar
+            ${{ runner.temp }}/bold-pepk-public/payload/PepkIdentity.class
+            ${{ runner.temp }}/bold-pepk-public/payload/encryption-public-key.pem
+            ${{ runner.temp }}/bold-pepk-public/payload/THIRD_PARTY_NOTICES.txt
+            ${{ runner.temp }}/bold-pepk-public/payload/public-provenance.json
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+      - name: Remove public build and input copies
         if: always()
         run: rm -rf -- "$RUNNER_TEMP/bold-pepk-public"
 
@@ -74,17 +92,63 @@ jobs:
     needs: prepare_public
     if: github.repository == 'JayMandava/bold-keys' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 10
     environment: production-release
-    permissions: {}
+    permissions:
+      contents: read
+      actions: read
     steps:
-      # No secret references, key decoding, tool invocation or artifact upload exists.
-      # Tool-dependent implementation is forbidden until official source review.
-      - name: Refuse unimplemented encrypted-key export
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Recheck exact main owner policy private delivery and pins after approval
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tools/release/pepk_preflight.py --commit "$COMMIT_SHA"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          artifact-ids: ${{ needs.prepare_public.outputs.artifact_id }}
+          path: ${{ runner.temp }}/bold-pepk-verified-inputs
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Reverify exact public tool runtime recipient notices and console before secret injection
+        run: |
+          python3 tools/release/pepk_stage.py --verify-only --commit "$COMMIT_SHA" \
+            --payload "$RUNNER_TEMP/bold-pepk-verified-inputs"
+      - name: Export only encrypted existing key with reviewed bounded PTY controller
+        env:
+          PRIVATE_DELIVERY_CHECKED: 'true'
+          BOLD_RELEASE_KEYSTORE_BASE64: ${{ secrets.BOLD_RELEASE_KEYSTORE_BASE64 }}
+          BOLD_RELEASE_STORE_PASSWORD: ${{ secrets.BOLD_RELEASE_STORE_PASSWORD }}
+          BOLD_RELEASE_KEY_ALIAS: ${{ secrets.BOLD_RELEASE_KEY_ALIAS }}
+          BOLD_RELEASE_KEY_PASSWORD: ${{ secrets.BOLD_RELEASE_KEY_PASSWORD }}
         run: |
           set +x
-          echo 'PEPK export unavailable: audited build recipe, PTY protocol, Console PEM and protected implementation are incomplete.' >&2
-          exit 1
-      - name: Remove this workflow's temporary directory if present
+          set -euo pipefail
+          umask 077
+          trap 'rm -rf -- "$RUNNER_TEMP"/bold-pepk-private-*' EXIT HUP INT TERM
+          python3 tools/release/pepk_export.py --commit "$COMMIT_SHA" \
+            --payload "$RUNNER_TEMP/bold-pepk-verified-inputs" \
+            --output "$RUNNER_TEMP/bold-pepk-export-artifact"
+      - name: Reverify exact encrypted-only final allowlist without signing credentials
+        run: |
+          python3 tools/release/pepk_export.py --verify-output --commit "$COMMIT_SHA" \
+            --payload "$RUNNER_TEMP/bold-pepk-verified-inputs" \
+            --output "$RUNNER_TEMP/bold-pepk-export-artifact"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: encrypted-existing-key-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/bold-pepk-export-artifact/encrypted-export.zip
+            ${{ runner.temp }}/bold-pepk-export-artifact/public-certificate.pem
+            ${{ runner.temp }}/bold-pepk-export-artifact/SHA256SUMS
+            ${{ runner.temp }}/bold-pepk-export-artifact/export-provenance.json
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+      - name: Remove private temporary material verified inputs and local encrypted copies
         if: always()
-        run: rm -rf -- "$RUNNER_TEMP/bold-pepk-export"
+        run: |
+          rm -rf -- "$RUNNER_TEMP"/bold-pepk-private-* \
+            "$RUNNER_TEMP/bold-pepk-export-artifact" "$RUNNER_TEMP/bold-pepk-verified-inputs"

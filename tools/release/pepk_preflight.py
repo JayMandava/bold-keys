@@ -22,22 +22,8 @@ def dispatch_identity(commit):
 
 
 def validate_review_record(record):
-    release.require(record.get('schema') == 2, 'Unsupported PEPK review record')
-    release.require(record.get('status') == 'blocked_pending_build_and_recipient_review', 'Unreviewed export activation forbidden')
-    release.require(record.get('expected_certificate_sha256') == release.CERT, 'Production certificate pin mismatch')
-    release.require(record.get('official_source_url') == SOURCE, 'Official source identity mismatch')
-    release.require(record.get('tool_origin') == 'official_source_build', 'Reviewed source-built tool required')
-    release.require(record.get('official_source_size_bytes') == 5268938, 'Official source size differs from audit')
-    for field in ('official_source_sha256', 'source_built_tool_sha256', 'console_encryption_pem_sha256'):
-        value = record.get(field)
-        release.require(isinstance(value, str) and re.fullmatch(r'[0-9a-f]{64}', value), 'Missing reviewed source-built tool/Console PEM hashes; export unavailable')
-    for field in ('build_recipe_review_id', 'source_licence_review_id', 'controlled_pty_protocol_review_id'):
-        release.require(isinstance(record.get(field), str) and bool(record[field].strip()), 'Missing reviewed build recipe, licence or controlled PTY protocol')
-    release.require(record.get('password_input_source_verified') is True, 'Controlled PTY password input has not been reviewed')
-    release.require(record.get('encryption_and_output_source_verified') is True, 'PEPK encryption/output review is incomplete')
-    release.require(record.get('export_implementation_reviewed') is True, 'Protected export implementation has not been reviewed')
-    # Changing metadata can never turn this scaffold into a key exporter.
-    raise ValueError('Export execution intentionally unimplemented; a separately audited implementation is required')
+    from pepk_policy import validate_ready
+    validate_ready(record)
 
 
 def preflight(commit):
@@ -45,6 +31,9 @@ def preflight(commit):
     release.require(release.api(f'/repos/{release.REPO}/git/ref/heads/main')['object']['sha'] == commit,
                     'Main moved; review and dispatch the new exact SHA')
     release.gate()  # Existing sole-owner approval/main-only/no-admin-bypass policy, unchanged.
+    # Repository artifacts inherit read access; public-repository artifacts are not owner-private.
+    release.require(release.api(f'/repos/{release.REPO}').get('private') is True,
+                    'Private artifact delivery unavailable in this public repository; do not export/upload')
     validate_review_record(json.loads(RECORD.read_text()))
 
 

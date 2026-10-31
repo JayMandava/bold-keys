@@ -1,0 +1,89 @@
+#!/usr/bin/env python3
+"""PUBLIC, UNPRIVILEGED candidate rebuild/audit. NEVER updates approved export pins."""
+import argparse
+import hashlib
+import json
+import os
+from pathlib import Path
+import platform
+import shutil
+import subprocess
+import sys
+import zlib
+import zipfile
+
+from pepk_build import ENV, ROOT, extract_source, validate_source_tree
+from pepk_disposable_audit import audit
+from pepk_policy import BUILD_SHA, SOURCE_SHA, require
+from pepk_public import verify_public_file
+
+
+def compiler_provenance(java):
+    java=java.resolve(strict=True)
+    result=subprocess.run([str(java),'-version'],env=ENV,capture_output=True,timeout=10)
+    version=result.stderr.decode('utf-8',errors='strict')
+    require(result.returncode==0 and ('version "21.' in version or 'version "21"' in version),'Candidate compiler must be Java21')
+    modules=java.parent.parent/'lib/modules'
+    def digest(path):
+        with path.open('rb') as stream:return hashlib.file_digest(stream,'sha256').hexdigest()
+    return {'java_path':str(java),'java_sha256':digest(java),'java_modules_sha256':digest(modules),
+            'java_version':version,'python_path':str(Path(sys.executable).resolve()),
+            'python_sha256':digest(Path(sys.executable).resolve()),'python_version':sys.version,
+            'zlib_build':zlib.ZLIB_VERSION,'zlib_runtime':zlib.ZLIB_RUNTIME_VERSION,'platform':platform.platform(),
+            'provisioner':os.environ.get('PUBLIC_COMPILER_PROVENANCE','local public audit; publisher provenance requires review')}
+
+
+def candidate(source,work,java,record):
+    require(not work.exists() and not any(c.isspace() for c in str(work.resolve())),'Candidate root must be new and whitespace-free')
+    verify_public_file(source,SOURCE_SHA,record['official_source_size_bytes'])
+    verify_public_file(ROOT/'build_pepk_local.py',BUILD_SHA)
+    provenance=compiler_provenance(java)
+    work.mkdir(mode=0o700)
+    try:
+        shutil.copyfile(source,work/'pepk-src.jar')
+        extract_source(work/'pepk-src.jar',work/'source',record)
+        original=(ROOT/'build_pepk_local.py').read_text()
+        require(original.count("'/usr/bin/java'")==2,'Reviewed build recipe structure changed')
+        # Explicit public candidate recipe delta: selected canonical compiler path only.
+        derived=original.replace("'/usr/bin/java'",repr(str(java.resolve(strict=True))))
+        script=work/'build_local.py';script.write_text(derived)
+        hashes=[]
+        for repeat in range(2):
+            validate_source_tree(work/'source',record)
+            subprocess.run([str(Path(sys.executable).resolve()),str(script)],cwd=work,env=ENV,
+                           stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,check=True,timeout=240)
+            jar=work/'local-build/pepk-local-source-build.jar'
+            with zipfile.ZipFile(jar) as archive:
+                require(len(archive.infolist())==record['class_files']+1,'Candidate class count differs')
+            hashes.append(hashlib.sha256(jar.read_bytes()).hexdigest())
+        require(hashes[0]==hashes[1],'Public candidate builds are not reproducible')
+        result=audit(jar,java,hashes[0])
+        report={'status':'UNPRIVILEGED_CANDIDATE_NOT_APPROVED_FOR_REAL_KEYS','source_sha256':SOURCE_SHA,
+                'base_recipe_sha256':BUILD_SHA,'derived_recipe_sha256':hashlib.sha256(script.read_bytes()).hexdigest(),
+                'recipe_delta':'canonical selected Java21 path replaces /usr/bin/java; flags/packaging unchanged',
+                'candidate_tool_sha256':hashes[0],'prior_audit_tool_sha256':record['source_built_tool_sha256'],
+                'matches_prior_audit':hashes[0]==record['source_built_tool_sha256'],
+                'two_clean_builds_identical':True,'workflow_commit':os.environ.get('GITHUB_SHA'),
+                'workflow_run_id':os.environ.get('GITHUB_RUN_ID'),'compiler_stack':provenance,'disposable_validation':result,
+                'next_step':'Independent review compiler provenance/recipe/hash/tests, then explicit protected pin update; no automatic promotion'}
+        (work/'candidate-public-report.json').write_text(json.dumps(report,indent=2,sort_keys=True)+'\n')
+        return report
+    except BaseException:
+        shutil.rmtree(work)
+        raise
+
+
+if __name__=='__main__':
+    import zipfile
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--source',type=Path,required=True)
+    parser.add_argument('--work',type=Path,required=True)
+    parser.add_argument('--java',type=Path,required=True)
+    args=parser.parse_args()
+    try:
+        os.umask(0o077)
+        record=json.loads((ROOT/'pepk-export-review.json').read_text())
+        print(json.dumps(candidate(args.source.resolve(),args.work.absolute(),args.java,record),sort_keys=True))
+    except BaseException:
+        print('Unprivileged public candidate audit failed; no output hash was approved and no real keys were used.',file=sys.stderr)
+        sys.exit(1)
