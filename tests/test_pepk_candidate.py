@@ -18,6 +18,12 @@ import pepk_export as exporter
 import pepk_policy as policy
 
 
+def fixture_java(system_java=Path('/usr/bin/java')):
+    """Use the workflow-provisioned JDK; local fallback remains Java21-validated."""
+    home=os.environ.get('JAVA_HOME')
+    return (Path(home)/'bin/java' if home else system_java).resolve(strict=True)
+
+
 class PublicCandidateChecks(unittest.TestCase):
     def test_new_candidate_recipe_does_not_promote_or_change_production_pins(self):
         before=(ROOT/'tools/release/pepk-export-review.json').read_bytes()
@@ -31,7 +37,7 @@ class PublicCandidateChecks(unittest.TestCase):
                     'complete_source_manifest_sha256':build.source_manifest(tree,[tree/'Fixture.java'],'source/'),'group_manifests':[['Fixture',1,digest]],
                     'class_files':1,'source_built_tool_sha256':policy.TOOL_SHA,
                     'identity_source_sha256':hashlib.sha256((ROOT/'tools/release/PepkIdentity.java').read_bytes()).hexdigest()}
-            java=Path('/usr/bin/java').resolve()
+            java=fixture_java()
             with patch.object(candidate,'SOURCE_SHA',sha),patch.object(build,'SOURCE_SHA',sha),patch.object(candidate,'audit',return_value={'scope':'mock only; not PEPK execution'}),patch('pepk_driver_audit.audit_driver',return_value={'scope':'mock only; not real driver'}):
                 report=candidate.candidate(source,root/'candidate',java,record)
             self.assertEqual(report['status'],'UNPRIVILEGED_CANDIDATE_NOT_APPROVED_FOR_REAL_KEYS')
@@ -41,6 +47,32 @@ class PublicCandidateChecks(unittest.TestCase):
             self.assertEqual(report['base_recipe_sha256'],policy.BUILD_SHA)
             self.assertEqual(report['compiler_stack']['java_sha256'],hashlib.sha256(java.read_bytes()).hexdigest())
         self.assertEqual((ROOT/'tools/release/pepk-export-review.json').read_bytes(),before)
+
+    def test_fixture_prefers_configured_java21_over_different_system_java(self):
+        # Synthetic version reporters reproduce runner selection, not actual JDK execution.
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp);home=root/'configured-jdk';java=home/'bin/java'
+            java.parent.mkdir(parents=True);(home/'lib').mkdir();(home/'lib/modules').write_bytes(b'fixture modules')
+            system=root/'system-java'
+            for executable,version in [(java,'21.0.13'),(system,'17.0.16')]:
+                executable.write_text(f"#!/bin/sh\necho 'openjdk version \"{version}\"' >&2\n")
+                executable.chmod(0o700)
+            with patch.dict(os.environ,{'JAVA_HOME':str(home)}):
+                selected=fixture_java(system)
+                self.assertEqual(selected,java.resolve())
+                self.assertEqual(candidate.compiler_provenance(selected)['java_path'],str(java.resolve()))
+                with self.assertRaisesRegex(ValueError,'Java21'):
+                    candidate.compiler_provenance(system)
+                # Verify the original build fixture passes this selection to the builder.
+                class SelectionObserved(Exception):pass
+                with patch.object(candidate,'candidate',side_effect=SelectionObserved) as builder:
+                    with self.assertRaises(SelectionObserved):
+                        self.test_new_candidate_recipe_does_not_promote_or_change_production_pins()
+                self.assertEqual(builder.call_args.args[2],java.resolve())
+            with patch.dict(os.environ,{'JAVA_HOME':str(root/'missing-jdk')}):
+                with self.assertRaises(FileNotFoundError):fixture_java(system)
+            with patch.dict(os.environ,{},clear=True):
+                self.assertEqual(fixture_java(system),system.resolve())
 
     def test_independent_crypto_fixture_unwrap_and_corruption(self):
         # Synthetic encryption fixture validates the independent checker, NOT PEPK's implementation.
