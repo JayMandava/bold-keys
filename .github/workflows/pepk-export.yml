@@ -39,8 +39,39 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: python3 tools/release/pepk_preflight.py --commit "$COMMIT_SHA"
 
-  export:
+  prepare_public:
     needs: preflight
+    if: github.repository == 'JayMandava/bold-keys' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      # This public-only stage is unreachable while review pins/protocol are missing.
+      # It is not executed by local preparation and does not change the old task policy.
+      - name: Fetch and pin official source before any protected job
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -m 700 "$RUNNER_TEMP/bold-pepk-public"
+          curl --fail --show-error --proto '=https' --tlsv1.2 --max-time 120 \
+            'https://www.gstatic.com/play-apps-publisher-rapid/signing-tool/prod/pepk-src.jar' \
+            -o "$RUNNER_TEMP/bold-pepk-public/pepk-src.jar"
+          python3 tools/release/pepk_public.py --source "$RUNNER_TEMP/bold-pepk-public/pepk-src.jar"
+      - name: Refuse missing audited source-build and public-input handoff
+        run: |
+          echo 'Source build recipe/licence, controlled PTY protocol and Console PEM review are pending.' >&2
+          exit 1
+      - name: Remove public preparation directory
+        if: always()
+        run: rm -rf -- "$RUNNER_TEMP/bold-pepk-public"
+
+  export:
+    needs: prepare_public
     if: github.repository == 'JayMandava/bold-keys' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -52,7 +83,7 @@ jobs:
       - name: Refuse unimplemented encrypted-key export
         run: |
           set +x
-          echo 'PEPK export unavailable: official tool/password/encryption/output behavior is unverified.' >&2
+          echo 'PEPK export unavailable: audited build recipe, PTY protocol, Console PEM and protected implementation are incomplete.' >&2
           exit 1
       - name: Remove this workflow's temporary directory if present
         if: always()
