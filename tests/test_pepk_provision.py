@@ -12,6 +12,7 @@ ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'tools/release'))
 import pepk_provision as provision
 import pepk_policy as policy
+from pepk_fixtures import disabled_record, approved_record
 
 
 class ProvisionChecks(unittest.TestCase):
@@ -34,9 +35,6 @@ class ProvisionChecks(unittest.TestCase):
         _,derived=provision.reviewed_build_recipe(Path(pins['java_realpath']),record)
         self.assertEqual(derived,'6a1e635d5926ac0a7a0406eed88da3f7f9b13f2d816cbe86d9bf426f4eca61ab')
         self.assertEqual(record['expected_certificate_sha256'],policy.CERT)
-        self.assertFalse(record['export_implementation_reviewed'])
-        self.assertIsNone(record['independent_production_review_id']);self.assertIsNone(record['private_delivery_review_id'])
-        with self.assertRaises(ValueError):policy.validate_ready(record)
 
     def test_image_check_reads_only_public_metadata_and_exact_manifest(self):
         class Metadata(dict):
@@ -127,3 +125,17 @@ class ProvisionChecks(unittest.TestCase):
             if diagnostic:
                 line=next(line for line in result.stderr.splitlines() if line.startswith('Public host-check diagnostics:'))
                 facts=json.loads(line.split(': ',1)[1]);self.assertEqual(facts['first_nonmatching_public_field'],'RUNNER_OS')
+
+    def test_explicit_policy_states_do_not_depend_on_live_approval(self):
+        record=self.record();before=copy.deepcopy(record)
+        with self.assertRaises(ValueError):policy.validate_ready(disabled_record(record))
+        policy.validate_ready(approved_record(record))
+        self.assertEqual(record,before)
+
+    def test_public_facts_observe_new_raw_image_without_promoting_it(self):
+        record=self.record();before=copy.deepcopy(record)
+        env=self.env()|{'ImageVersion':'20261026.354.1'}
+        facts=provision.public_host_facts(record,env,self.release())
+        self.assertEqual(facts['checks']['ImageVersion'],{'observed':'20261026.354.1','expected':'20261025.353.1','matches':False})
+        with self.assertRaisesRegex(ValueError,'image/architecture'):provision.check_host(record,env,self.release())
+        self.assertEqual(record,before)

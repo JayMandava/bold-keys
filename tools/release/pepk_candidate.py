@@ -19,6 +19,8 @@ from pepk_disposable_audit import audit
 from pepk_runtime import (tree_identity, digest, native_libraries, actual_python_runtime, python_child_env, probe_python_child, runtime_identity, candidate_runtime_pins)
 from pepk_policy import BUILD_SHA, SOURCE_SHA, require
 from pepk_public import verify_public_file
+from pepk_provision import public_host_facts
+from pepk_java_runtime import java_runtime_evidence
 
 
 def compiler_provenance(java):
@@ -50,6 +52,7 @@ def candidate(source,work,java,record):
     verify_public_file(source,SOURCE_SHA,record['official_source_size_bytes'])
     verify_public_file(ROOT/'build_pepk_local.py',BUILD_SHA)
     provenance=compiler_provenance(java)
+    host_facts=public_host_facts(record)
     work.mkdir(mode=0o700)
     try:
         shutil.copyfile(source,work/'pepk-src.jar')
@@ -77,6 +80,7 @@ def candidate(source,work,java,record):
         from pepk_stage import probe_console
         probe_console(java.resolve(),identity)
         identity_hash=digest(identity/'PepkIdentity.class')
+        java_runtime=java_runtime_evidence(java,work/'java-runtime-probe',jar)
         result=audit(jar,java,hashes[0])
         from pepk_driver_audit import audit_driver
         driver=audit_driver(jar,java,identity,hashes[0],record)
@@ -90,7 +94,8 @@ def candidate(source,work,java,record):
                 'candidate_tool_sha256':hashes[0],'prior_audit_tool_sha256':record['source_built_tool_sha256'],
                 'matches_prior_audit':hashes[0]==record['source_built_tool_sha256'],
                 'two_clean_builds_identical':True,'workflow_commit':os.environ.get('GITHUB_SHA'),
-                'workflow_run_id':os.environ.get('GITHUB_RUN_ID'),'compiler_stack':provenance,'disposable_validation':result,
+                'workflow_run_id':os.environ.get('GITHUB_RUN_ID'),'compiler_stack':provenance,'public_host_observation':host_facts,
+                'java_runtime_evidence':java_runtime,'disposable_validation':result,
                 'actual_export_driver_validation':driver,'identity_class_sha256':identity_hash,
                 'runtime_installation':runtime_report,'runtime_after_disposable_checks':final_runtime,
                 'candidate_runtime_identity_pins_NOT_APPROVED':candidate_runtime_pins(final_runtime),

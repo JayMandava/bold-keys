@@ -38,8 +38,12 @@ class PublicCandidateChecks(unittest.TestCase):
                     'class_files':1,'source_built_tool_sha256':policy.TOOL_SHA,
                     'identity_source_sha256':hashlib.sha256((ROOT/'tools/release/PepkIdentity.java').read_bytes()).hexdigest()}
             java=fixture_java()
-            with patch.object(candidate,'SOURCE_SHA',sha),patch.object(build,'SOURCE_SHA',sha),patch.object(candidate,'audit',return_value={'scope':'mock only; not PEPK execution'}),patch('pepk_driver_audit.audit_driver',return_value={'scope':'mock only; not real driver'}):
+            with patch.object(candidate,'SOURCE_SHA',sha),patch.object(build,'SOURCE_SHA',sha),patch.object(candidate,'audit',return_value={'scope':'mock only; not PEPK execution'}),patch('pepk_driver_audit.audit_driver',return_value={'scope':'mock only; not real driver'}),patch.object(candidate,'public_host_facts',return_value={'checks':{'ImageVersion':{'observed':'20261026.354.1','matches':False}}}) as host,patch.object(candidate,'java_runtime_evidence',return_value={'scope':'mock only; real Java probe tested separately'}) as java_probe:
                 report=candidate.candidate(source,root/'candidate',java,record)
+            host.assert_called_once_with(record)
+            java_probe.assert_called_once()
+            self.assertEqual(report['public_host_observation']['checks']['ImageVersion']['observed'],'20261026.354.1')
+            self.assertFalse(report['public_host_observation']['checks']['ImageVersion']['matches'])
             self.assertEqual(report['status'],'UNPRIVILEGED_CANDIDATE_NOT_APPROVED_FOR_REAL_KEYS')
             self.assertTrue(report['two_clean_builds_identical'])
             self.assertFalse(report['matches_prior_audit'])
