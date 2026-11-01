@@ -47,4 +47,11 @@ class PredictionTablesTest {
         }
     }
 
+    @Test fun shippedEnglishDictionaryDoesNotReproduceTheObservedFaggLeak() {
+        val text = RuntimeEnvironment.getApplication().assets.open("words.tsv").bufferedReader().use { it.readText() }
+        val e = SpellEngine.fromTsv(text)
+        assertTrue(e.suggest("fagg", 2).none { it.word in setOf("fag", "faggy", "fagot", "faggot", "faggots") })
+        assertTrue(e.complete("fag", 20).any { it.word == "fagin" })
+    }
+
 }
