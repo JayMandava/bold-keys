@@ -96,4 +96,22 @@ class SuggestionSafetyTest {
         assertNull(e.autocorrect("fuck"))
     }
 
+    @Test fun actualEmulatorMissedSlurVariantsCannotSurfaceFromAnyCandidatePath() {
+        val missed = setOf("fag", "fags", "faggy", "fagged", "fagging", "fagot", "fagots", "faggotry")
+        val e = SpellEngine(missed.map { it to 1_000_000 } + listOf("fagin" to 1000, "fagan" to 1000, "fagott" to 1000, "flag" to 1000))
+        e.loadLearned(missed.associateWith { 999 })
+        e.loadFollowers("neutral\t" + missed.joinToString(",") + ",flag")
+        assertEquals(listOf("flag"), e.nextWords("neutral", 2))
+        for (prefix in listOf("fa", "fag", "fagg", "fago")) {
+            assertTrue(e.complete(prefix, 20).none { it.word in missed })
+            assertTrue(e.correct(prefix, 20).none { it.word in missed })
+            assertTrue(e.suggest(prefix, 20).none { it.word in missed })
+            assertTrue(e.autocorrect(prefix)?.let { it !in missed } ?: true)
+        }
+        assertEquals(setOf("fagin", "fagan", "fagott"), e.complete("fag", 20).map { it.word }.toSet())
+        for (word in missed) { assertTrue(e.isWord(word)); assertNull(e.autocorrect(word)) }
+        for (word in listOf("Fagin", "Fagan", "Fagott", "sexual", "health", "pédiatre")) assertTrue(word, SuggestionSafety.allows(word))
+        assertFalse(SuggestionSafety.allows("FAGGY"))
+    }
+
 }

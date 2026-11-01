@@ -18,7 +18,7 @@ object SuggestionSafety {
         bullshit bullshitting bullshitter bullshitters asshole assholes arsehole arseholes
         cunt cunts twat twats cock cocks pussy pussies dickhead dickheads
         slut sluts whore whores tits titties boobs boner boners cocksucker cocksuckers cocksucking bitch bitches bastard bastards
-        nigger niggers nigga niggas faggot faggots spic spics kike kikes chink chinks
+        nigger niggers nigga niggas faggot faggots fag fags faggy fagged fagging fagot fagots faggotry spic spics kike kikes chink chinks
         porn porno pornography pornographic pornos pornstar pornstars xxx blowjob blowjobs handjob handjobs
         hentai bdsm sextape sextapes cum cums cumshot cumshots gangbang gangbangs gangbanging bukkake deepthroat
         fuck's motherfucker's fucker's asshole's cunt's
