@@ -111,17 +111,20 @@ private fun imeState(context: Context): Pair<Boolean, Boolean> {
 
 private fun dictFile(c: Context) = File(c.filesDir, Lang.learnedName(Prefs.language(c))) // each language keeps its own list
 
-private fun readDictionary(c: Context): List<String> = runCatching {
-    dictFile(c).takeIf { it.exists() }?.readLines().orEmpty().mapNotNull { l ->
-        val p = l.split('\t'); if (p.size == 2 && (p[1].toIntOrNull() ?: 0) >= SpellEngine.LEARN_AFTER) p[0] else null
-    }.sorted()
-}.getOrDefault(emptyList())
+private fun dictionaryData(c: Context): Map<String, Int> = runCatching {
+    dictFile(c).takeIf { it.isFile && it.length() <= LearningData.MAX_FILE_BYTES }?.readText()?.let(LearningData::parse).orEmpty()
+}.getOrDefault(emptyMap())
+
+private fun readDictionary(c: Context): List<String> = dictionaryData(c).filter { (w, n) -> ' ' !in w && n >= SpellEngine.LEARN_AFTER }.keys.sorted()
 
 private fun writeDictionary(c: Context, edit: (MutableMap<String, Int>) -> Unit) {
-    val map = LinkedHashMap<String, Int>()
-    runCatching { dictFile(c).takeIf { it.exists() }?.readLines()?.forEach { l -> l.split('\t').takeIf { it.size == 2 }?.let { map[it[0]] = it[1].toIntOrNull() ?: 0 } } }
+    val map = dictionaryData(c).toMutableMap()
     edit(map)
-    dictFile(c).writeText(map.entries.joinToString("") { "${it.key}\t${it.value}\n" })
+    val f = dictFile(c)
+    val tmp = File(f.parentFile, f.name + ".tmp")
+    tmp.writeText(LearningData.encode(map))
+    check(tmp.renameTo(f)) { "Could not save the personal dictionary" }
+    LearningFiles.edited(c, Prefs.language(c))
 }
 
 private enum class Screen(val title: String) {
@@ -448,7 +451,12 @@ private fun AppearanceContent(context: Context) {
             }
             Text("Brightness", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(horizontal = 16.dp))
             Slider(
-                value = level, onValueChange = { level = it; Prefs.put(context, "backlightLevel", it); version++ },
+                value = level,
+                onValueChange = {
+                    level = it
+                    Prefs.put(context, "backlightLevel", it)
+                    version++
+                },
                 enabled = mode != "off", modifier = Modifier.padding(horizontal = 16.dp),
             )
             Note(
@@ -549,7 +557,7 @@ private fun DictionaryContent(context: Context) {
                     Icon(Icons.Default.Add, contentDescription = null); Spacer(Modifier.width(4.dp)); Text("Add")
                 }
             }
-            Note("Words you add are kept as typed. A local filter limits explicit sexual terms, strong profanity and slurs in suggestions and automatic corrections, including personal words. It cannot catch every form or meaning. Words you type twice are added on their own.")
+            Note("Words you add are kept as typed. A local filter limits explicit sexual terms, strong profanity and slurs in suggestions and automatic corrections, including personal words. It cannot catch every form or meaning. Words you type twice are added on their own. Choosing a suggestion also teaches it. Word preferences and immediately adjacent word pairs are counted locally with bounded storage. Clear all learning removes all three.")
         }
         Section(if (words.isEmpty()) "Your words" else "Your words (${words.size})") {
             if (words.isEmpty()) Note("Nothing yet. The keyboard learns words you type twice that it did not know.")
@@ -557,15 +565,15 @@ private fun DictionaryContent(context: Context) {
                 ListItem(
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                     headlineContent = { Text(w) },
-                    trailingContent = { IconButton(onClick = { writeDictionary(context) { it.remove(w) }; refresh() }) { Icon(Icons.Default.Close, contentDescription = "Remove $w") } },
+                    trailingContent = { IconButton(onClick = { writeDictionary(context) { it.keys.removeAll { key -> key.split(' ').contains(w) } }; refresh() }) { Icon(Icons.Default.Close, contentDescription = "Remove $w") } },
                 )
             }
         }
-        if (words.isNotEmpty()) {
-            if (!confirmClear) OutlinedButton(onClick = { confirmClear = true }, modifier = Modifier.fillMaxWidth()) { Text("Clear all words") }
+        if (dictionaryData(context).isNotEmpty()) {
+            if (!confirmClear) OutlinedButton(onClick = { confirmClear = true }, modifier = Modifier.fillMaxWidth()) { Text("Clear all learning") }
             else Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
                 Column(Modifier.padding(16.dp)) {
-                    Text("Remove all ${words.size} words?", fontWeight = FontWeight.SemiBold)
+                    Text("Remove all learned words, preferences and word pairs?", fontWeight = FontWeight.SemiBold)
                     Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(onClick = { writeDictionary(context) { it.clear() }; confirmClear = false; refresh() }) { Text("Remove all") }
                         OutlinedButton(onClick = { confirmClear = false }) { Text("Keep them") }
@@ -582,7 +590,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.aboutItems(context: C
     item(key = "about") {
         val version = remember { runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "" }
         Section("Version $version") {
-            Note("Typing, learning and context-model inference happen on this phone; typed text is not sent to a server, and learned words stay in this app's private storage. Model downloads contact Hugging Face over HTTPS only when you tap Download. Android's emoji support may request a font from a system provider. Opening the privacy policy or a Speed-key link hands that link to another app, which may use the internet. Importing a model uses a document provider that may be cloud-backed. When an editor requests no personalized learning, the keyboard does not update learned words or emoji history/tone preferences; password, email and web-address fields also do not update these records.")
+            Note("Typing, learning and context-model inference happen on this phone; typed text is not sent to a server, and learned words stay in this app's private storage. Model downloads contact Hugging Face over HTTPS only when you tap Download. Android's emoji support may request a font from a system provider. Opening the privacy policy or a Speed-key link hands that link to another app, which may use the internet. Importing a model uses a document provider that may be cloud-backed. When an editor requests no personalized learning, the keyboard does not update learned words, word preferences, word pairs or emoji history/tone preferences; password, email and web-address fields also do not update these records.")
             TextButton(onClick = {
                 try {
                     context.startActivity(Intent(Intent.ACTION_VIEW, "https://jay-mandava-dev.web.app/privacy.html".toUri()))

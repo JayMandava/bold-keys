@@ -13,6 +13,13 @@ val unsignedRelease = when (providers.gradleProperty("unsignedRelease").orElse("
     else -> throw GradleException("unsignedRelease must be exactly true or false.")
 }
 
+// Isolated opt-in package for physical-device review; existing production/debug installs stay separate.
+val suggestionReviewBuild = when (providers.gradleProperty("suggestionReviewBuild").orElse("false").get()) {
+    "true" -> true
+    "false" -> false
+    else -> throw GradleException("suggestionReviewBuild must be exactly true or false.")
+}
+
 val releaseSigningProperties = Properties()
 var releaseSigningProblem: String? = null
 if (!unsignedRelease) {
@@ -100,7 +107,15 @@ android {
     }
 
     buildTypes {
+        debug {
+            if (suggestionReviewBuild) {
+                applicationIdSuffix = ".suggestions.review"
+                versionNameSuffix = "-suggestions-review"
+            }
+            manifestPlaceholders["appLabel"] = if (suggestionReviewBuild) "Bold Keys Suggestions Review" else "Bold Keys"
+        }
         release {
+            manifestPlaceholders["appLabel"] = "Bold Keys"
             isMinifyEnabled = false
             isDebuggable = false
             signingConfig = if (unsignedRelease) null else signingConfigs.findByName("release")

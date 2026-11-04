@@ -34,6 +34,8 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
     private var nextWordOn = true
     private var lastSpaceAt = 0L
     private var learnedStamp = 0L
+    private var learnedRevision = 0L
+    private var engineGeneration = 0
     @Volatile private var learningAllowed = false // no editor means no personalized updates
     private var urlLike = false // a web-address field: suggestions only, nothing is changed for the user
     private var smart = false // dictionary features allowed by the editor; URI fields use suggestions only
@@ -61,14 +63,22 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         saveLearned()
         engineLang = language; lang = language; engine = null
         learnedStamp = 0L
+        val generation = ++engineGeneration
         worker.execute {
             val e = SpellEngine.fromTsv(assets.open(Lang.wordsAsset(language)).bufferedReader().use { it.readText() }, Lang.hasAccents(language))
-            e.loadLearned(readLearned(language))
             runCatching { e.loadFollowers(assets.open(Lang.pairsAsset(language)).bufferedReader().use { it.readText() }) }
-            e.onLearnedChanged = { saveLearned() }
-            e.setLayout(Prefs.layout(this))
-            if (engineLang == language) engine = e
-            ui.post { refreshStrip() }
+            if (language == "en") runCatching { e.loadSupplement(assets.open("suggestion_phrases_en.tsv").bufferedReader().use { it.readText() }) }
+            ui.post {
+                if (generation != engineGeneration || engineLang != language) return@post
+                // Read Settings edits at publication, never publish a worker's stale private snapshot.
+                e.loadLearned(readLearned(language))
+                learnedStamp = learningStamp(learnedFile())
+                learnedRevision = LearningFiles.revision(this, language)
+                e.onLearnedChanged = { ui.removeCallbacks(saveLearning); ui.postDelayed(saveLearning, 1000) }
+                e.setLayout(Prefs.layout(this)); e.british = Prefs.spelling(this) == "uk"
+                engine = e
+                refreshStrip()
+            }
         }
     }
 
@@ -307,7 +317,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
                     if (contextOn && lm != null) judgeInContext(word, fix, text, ctx)
                     return
                 }
-                if (learningAllowed) e.noteTyped(word)
+                if (learningAllowed) { reloadLearnedIfChanged(); e.noteTyped(word, previousWord(ctx)) }
                 if (contextOn && lm != null && !urlLike) { ic.commitText(text, 1); undo = null; refreshAutoCaps(); refreshStrip(); judgeInContext(word, null, text, ctx); return }
             }
         }
@@ -368,7 +378,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
                 // take the correction back: what was typed returns, and the word is learned so it is not "fixed" again
                 ic.deleteSurroundingText(tail.length, 0)
                 ic.commitText(u.typed + u.sep, 1)
-                if (learningAllowed && u.typed.all { it.isLetter() || it == '\'' }) engine?.teach(u.typed)
+                if (learningAllowed && u.typed.all { it.isLetter() || it == '\'' }) { reloadLearnedIfChanged(); engine?.teach(u.typed) }
                 undo = null
                 refreshAutoCaps(); refreshStrip()
                 return
@@ -396,7 +406,11 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         val action = info?.imeOptions?.and(EditorInfo.IME_MASK_ACTION) ?: EditorInfo.IME_ACTION_NONE
         val noAction = info != null && info.imeOptions and EditorInfo.IME_FLAG_NO_ENTER_ACTION != 0
         val word = currentWord()
-        if (smart && learningAllowed && word.isNotEmpty()) engine?.noteTyped(word)
+        if (smart && learningAllowed && word.isNotEmpty()) {
+            reloadLearnedIfChanged()
+            val before = currentInputConnection?.getTextBeforeCursor(160, 0)?.toString().orEmpty().dropLast(word.length)
+            engine?.noteTyped(word, previousWord(before))
+        }
         undo = null
         if (!noAction && action != EditorInfo.IME_ACTION_NONE && action != EditorInfo.IME_ACTION_UNSPECIFIED) {
             currentInputConnection?.performEditorAction(action)
@@ -415,9 +429,18 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         val before = ic.getTextBeforeCursor(40, 0)?.toString() ?: return ""
         var i = before.length
         while (i > 0 && (before[i - 1].isLetter() || before[i - 1] == '\'')) i--
+        if (i == 0 && before.length == 40) return ""
         var w = before.substring(i)
         w = w.trimStart('\'')
         return Lang.stripElision(w, lang)
+    }
+
+    private fun previousWord(before: String): String = Lang.stripElision(LearningData.previousWord(before), lang)
+
+    private fun editorAllowsSuggestions(): Boolean {
+        val info = currentInputEditorInfo ?: return false
+        return smart && info.inputType and InputType.TYPE_MASK_CLASS == InputType.TYPE_CLASS_TEXT &&
+            info.inputType and InputType.TYPE_MASK_VARIATION !in SECRET_VARIATIONS
     }
 
     private fun refreshStrip() {
@@ -426,8 +449,11 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         val ic = currentInputConnection
         val word = if (smart && e != null && ic != null && ic.getSelectedText(0).isNullOrEmpty()) currentWord() else ""
         val out = when {
-            e == null || !suggestOn || !smart || ic == null -> emptyList()
-            word.isNotEmpty() -> e.suggest(word, 2).map { matchCase(word, it.word) }
+            e == null || !suggestOn || !editorAllowsSuggestions() || ic == null -> emptyList()
+            word.isNotEmpty() -> {
+                val before = ic.getTextBeforeCursor(160, 0)?.toString().orEmpty().dropLast(word.length)
+                e.suggest(word, 2, previousWord(before)).map { matchCase(word, it.word) }
+            }
             nextWordOn && ic.getSelectedText(0).isNullOrEmpty() -> nextWordSuggestions(e, ic)
             else -> emptyList()
         }
@@ -442,19 +468,24 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         val trimmed = before.trimEnd()
         val sentenceStart = trimmed.isEmpty() || trimmed.last() in ".!?" || before.endsWith("\n")
         val list = if (sentenceStart) Lang.starters(lang) else {
-            val prev = Regex("[\\p{L}']+$").find(trimmed)?.value ?: return emptyList()
+            val prev = previousWord(before)
             e.nextWords(Lang.stripElision(prev, lang), 2)
         }
         return list.map { w -> if (sentenceStart) w.replaceFirstChar { it.uppercase() } else w }
     }
 
     override fun onPick(index: Int) {
-        if (kb.pickerOpen()) return // a tap on the trackpad must not drop a word into the text while the picker is open
+        if (::kb.isInitialized && kb.pickerOpen()) return // a tap on the trackpad must not drop a word into the text while the picker is open
         val ic = currentInputConnection ?: return
         val pick = shown.getOrNull(index) ?: return
-        if (!smart || !suggestOn || !SuggestionSafety.allows(pick)) return
+        if (!editorAllowsSuggestions() || !suggestOn || !LearningData.validWord(pick) || !SuggestionSafety.allows(pick) || !ic.getSelectedText(0).isNullOrEmpty()) return
         lastSpaceAt = 0
         val word = currentWord()
+        val before = ic.getTextBeforeCursor(160, 0)?.toString().orEmpty().dropLast(word.length)
+        // Consume the displayed choice once; a repeated accessibility/touch action cannot learn it twice.
+        shown = emptyList()
+        ++lmJob
+        if (learningAllowed) { reloadLearnedIfChanged(); engine?.noteTyped(pick, previousWord(before), selected = true) }
         if (word.isEmpty()) { // a next-word suggestion: just add it
             ic.commitText("$pick ", 1)
             undo = null
@@ -508,28 +539,43 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         val ic = currentInputConnection ?: return
         val info = currentInputEditorInfo ?: return
         if (info.inputType and InputType.TYPE_MASK_CLASS != InputType.TYPE_CLASS_TEXT) return
+        if (!::kb.isInitialized) return
         kb.setAutoShift(autoCapsOn && ic.getCursorCapsMode(info.inputType) != 0)
     }
 
-    // ---- what the keyboard has learned (words typed twice that the dictionary did not know), kept on the phone only
+    // ---- bounded words, preferences and pairs, kept in the existing private file
 
+    private val saveLearning = Runnable { saveLearned() }
     private fun learnedFile() = File(filesDir, Lang.learnedName(lang))
 
     private fun readLearned(language: String = lang): Map<String, Int> = runCatching {
-        File(filesDir, Lang.learnedName(language)).takeIf { it.exists() }?.readLines()?.mapNotNull { l -> l.split('\t').takeIf { it.size == 2 }?.let { it[0] to (it[1].toIntOrNull() ?: 0) } }?.toMap()
+        File(filesDir, Lang.learnedName(language)).takeIf { it.isFile && it.length() <= LearningData.MAX_FILE_BYTES }
+            ?.readText()?.let(LearningData::parse)
     }.getOrNull() ?: emptyMap()
 
-    /** The personal dictionary can be edited in Settings: pick up those changes the next time the keyboard opens. */
+    /** Settings edits (including clearing) replace memory before the next learning action. */
+    private fun learningStamp(f: File): Long = if (f.exists()) 31 * f.lastModified() + f.length() else 0L
+
     private fun reloadLearnedIfChanged() {
-        val f = learnedFile(); val stamp = if (f.exists()) f.lastModified() else 0L
-        if (stamp != learnedStamp) { learnedStamp = stamp; engine?.loadLearned(readLearned()) }
+        val e = engine ?: return
+        val stamp = learningStamp(learnedFile())
+        val revision = LearningFiles.revision(this, lang)
+        if (stamp != learnedStamp || revision != learnedRevision) {
+            learnedStamp = stamp; learnedRevision = revision; e.loadLearned(readLearned())
+        }
     }
 
-    @Synchronized private fun saveLearned() {
+    private fun saveLearned() {
+        ui.removeCallbacks(saveLearning)
         if (!learningAllowed) return
         val e = engine ?: return
-        reloadLearnedIfChanged() // never overwrite words that were added or removed in Settings
-        runCatching { learnedFile().writeText(e.learnedSnapshot().entries.joinToString("") { "${it.key}\t${it.value}\n" }); learnedStamp = learnedFile().lastModified() }
+        reloadLearnedIfChanged()
+        runCatching {
+            val f = learnedFile()
+            val tmp = File(f.parentFile, f.name + ".tmp")
+            tmp.writeText(LearningData.encode(e.learningSnapshot()))
+            if (tmp.renameTo(f)) learnedStamp = learningStamp(f) else tmp.delete()
+        }
     }
 
     private companion object {

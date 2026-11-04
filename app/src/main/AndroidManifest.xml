@@ -16,13 +16,13 @@
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
-        android:label="Bold Keys"
+        android:label="${appLabel}"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
 
         <service
             android:name=".BoldKeysService"
             android:exported="true"
-            android:label="Bold Keys"
+            android:label="${appLabel}"
             android:permission="android.permission.BIND_INPUT_METHOD">
             <intent-filter>
                 <action android:name="android.view.InputMethod" />
@@ -35,7 +35,7 @@
         <activity
             android:name=".SetupActivity"
             android:exported="true"
-            android:label="Bold Keys">
+            android:label="${appLabel}">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
