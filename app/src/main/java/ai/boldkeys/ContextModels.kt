@@ -57,13 +57,23 @@ object ContextModels {
     fun file(e: ModelEntry) = File(dir, e.file)
     fun installed(e: ModelEntry) = file(e).let { it.exists() && (e.custom || it.length() == e.bytes) }
 
-    /** The chosen model, or the first one on the phone, or null when none is installed. */
+    fun savedSelectionId(): String? = sp.getString("selected", null)
+
+    /** The effective model may be a temporary fallback; resolving it never changes the saved preference. */
     fun selected(): ModelEntry? {
         val all = entries()
-        val chosen = all.firstOrNull { it.id == sp.getString("selected", null) }
+        val savedId = savedSelectionId()
+        val chosen = all.firstOrNull { it.id == savedId }
         return if (chosen != null && installed(chosen)) chosen else all.firstOrNull { installed(it) }
     }
     fun select(e: ModelEntry) = sp.edit().putString("selected", e.id).apply()
+
+    /** Recheck the file/transfer state when a UI action arrives, rather than trusting a stale row. */
+    fun selectInstalled(e: ModelEntry): Boolean {
+        if (!installed(e) || active(e)) return false
+        select(e)
+        return true
+    }
 
     fun delete(e: ModelEntry) {
         file(e).delete()

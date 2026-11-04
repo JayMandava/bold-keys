@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -664,15 +665,18 @@ private fun ContextContent(context: Context) {
         }
         Section("Models") {
             val entries = ContextModels.entries()
-            entries.forEach { e ->
-                val installed = ContextModels.installed(e)
-                val st = ContextModels.status[e.id]
-                ListItem(
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    leadingContent = { RadioButton(selected = chosen?.id == e.id, enabled = installed, onClick = { ContextModels.select(e); tick++ }) },
-                    headlineContent = { Text(e.name) },
-                    supportingContent = {
-                        Column {
+            Column(Modifier.selectableGroup()) {
+                entries.forEach { e ->
+                    val installed = ContextModels.installed(e)
+                    val st = ContextModels.status[e.id]
+                    ModelOptionRow(
+                        entry = e, installed = installed, effective = chosen?.id == e.id,
+                        savedId = ContextModels.savedSelectionId(), busy = ContextModels.active(e),
+                        onSelect = { ContextModels.selectInstalled(e); tick++ },
+                        onDownload = { ContextModels.download(e, wifiOnly) { tick++ } },
+                        onCancel = { ContextModels.cancel(e) },
+                        onDelete = { ContextModels.delete(e); tick++ },
+                        details = {
                             Text(if (e.custom) "Imported from a file." else "${e.note} ${human(e.bytes)}.")
                             if (entries.count { it.file == e.file } > 1) Text("Shares its local file with another entry. Removing either entry removes that file.")
                             when (st) {
@@ -684,16 +688,9 @@ private fun ContextContent(context: Context) {
                                 is Transfer.Failed -> Text(st.reason, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                                 null -> Unit
                             }
-                        }
-                    },
-                    trailingContent = {
-                        when {
-                            ContextModels.active(e) -> OutlinedButton(onClick = { ContextModels.cancel(e) }) { Text("Cancel") }
-                            installed -> IconButton(onClick = { ContextModels.delete(e); tick++ }) { Icon(Icons.Default.Close, contentDescription = "Delete ${e.name}") }
-                            else -> FilledTonalButton(onClick = { ContextModels.download(e, wifiOnly) { tick++ } }) { Text("Download") }
-                        }
-                    },
-                )
+                        },
+                    )
+                }
             }
             Row(Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
                 OutlinedButton(enabled = !importing, onClick = { picker.launch(arrayOf("*/*")) }) { Text(if (importing) "Importing…" else "Import a .gguf file") }

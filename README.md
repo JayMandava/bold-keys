@@ -64,6 +64,8 @@ Settings > Context model lists the models you can use. Each download is checked 
 QAT is pinned to a publisher revision, byte size and SHA-256. It does not change the default or existing saved choices.
 Importing a file with a catalogue filename verifies its pinned identity before replacing the installed file.
 Existing custom imports retain their IDs; a legacy custom entry can share a file with its new catalogue counterpart.
+Tap anywhere in an installed model's selection row to save that choice. If a saved model is unavailable, the currently used fallback
+is labeled as temporary until you explicitly choose it. Download, Cancel and Delete remain separate controls.
 
 On a held-out test of 2,000 cases, with the compact model: typos fixed 80.7% to 88.5%, and real-word slips fixed 88.0% with 0.6% of
 correct words wrongly changed. Larger models fix more real-word slips but take 0.2-0.4 s a word and 1-3 GB, so they are import-only.
