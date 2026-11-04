@@ -91,7 +91,10 @@ this notice describes the Android runtime dependencies, not a compiler bundle.
 
 OPTIONAL MODELS
 Models are not bundled. The catalogue offers Gemma 3 270M GGUF conversions from
-https://huggingface.co/unsloth/gemma-3-270m-it-GGUF . Gemma is provided under and
+https://huggingface.co/unsloth/gemma-3-270m-it-GGUF and an optional QAT conversion
+by the LM Studio team: https://huggingface.co/lmstudio-community/gemma-3-270m-it-qat-GGUF .
+QAT source weights: Google, gemma-3-270m-it-qat-q4_0-unquantized.
+No model weights are modified or bundled by Bold Keys. Gemma is provided under and
 subject to the Gemma Terms of Use found at https://ai.google.dev/gemma/terms .
 Use restrictions: https://ai.google.dev/gemma/prohibited_use_policy .
 Imported models keep their own terms. The app's Apache license does not license

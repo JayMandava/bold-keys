@@ -15,6 +15,7 @@ class SpellEngine(entries0: List<Pair<String, Int>>, val accented: Boolean = fal
     private val usToUk = HashMap<String, String>()
     private val ukToUs = HashMap<String, String>()
     /** Which English the user writes: the other spelling is corrected to this one and left out of the suggestions. */
+    @get:Synchronized @set:Synchronized
     var british = false
 
     private val words: Array<String>
@@ -27,7 +28,9 @@ class SpellEngine(entries0: List<Pair<String, Int>>, val accented: Boolean = fal
     private val deletes: LongArray // (hash of the word with one letter left out, or of the word itself) << 32 | word index, sorted
 
     /** Words the user has typed: counted here, and treated as real words once seen [LEARN_AFTER] times. */
-    private val learned = HashMap<String, Int>()
+    private val learned = LinkedHashMap<String, Int>()
+    private val learnedPairs = LinkedHashMap<String, Int>()
+    private var extraWords: Set<String> = emptySet()
     var onLearnedChanged: (() -> Unit)? = null
 
     init {
@@ -77,53 +80,102 @@ class SpellEngine(entries0: List<Pair<String, Int>>, val accented: Boolean = fal
 
     private var follow: Map<String, List<String>> = emptyMap()
 
-    /** The next-word table: each line is a word, a tab, and the words that most often come after it. */
-    fun loadFollowers(tsv: String) {
-        follow = tsv.lineSequence().mapNotNull { l -> val t = l.indexOf('\t'); if (t <= 0) null else l.substring(0, t) to l.substring(t + 1).split(',') }.toMap()
+    /** The next-word table: each line is a word, a tab, and its followers. */
+    @Synchronized fun loadFollowers(tsv: String) {
+        follow = tsv.lineSequence().mapNotNull { l ->
+            val parts = l.split('\t', limit = 2)
+            val prev = parts.first().lowercase(java.util.Locale.ROOT)
+            if (parts.size != 2 || !LearningData.validWord(prev)) null else
+                prev to parts[1].split(',').map { it.lowercase(java.util.Locale.ROOT) }
+                    .filter { LearningData.validWord(it) && SuggestionSafety.allows(it) }.distinct().take(24)
+        }.toMap()
     }
 
-    /** Likely words after [prev], best first (empty when nothing is known). */
-    fun nextWords(prev: String, n: Int): List<String> {
-        val p = prev.lowercase()
-        return (follow[p] ?: return emptyList()).filter { it != p && allowed(it) }.map { w -> if (british) usToUk[w] ?: w else w }.filter(SuggestionSafety::allows).take(n)
+    /** Authored conversational/technical coverage is suggestion-only, never an autocorrect dictionary. */
+    @Synchronized fun loadSupplement(tsv: String) {
+        val base = follow
+        loadFollowers(tsv)
+        val added = follow
+        follow = (base.keys + added.keys).associateWith { ((base[it] ?: emptyList()) + (added[it] ?: emptyList())).distinct().take(24) }
+        extraWords = added.values.flatten().distinct().take(512).toSet()
     }
 
-    fun loadLearned(map: Map<String, Int>) { learned.clear(); learned.putAll(map) }
-    fun learnedSnapshot(): Map<String, Int> = HashMap(learned)
+    /** Likely followers, including bounded local pairs, best first. */
+    @Synchronized fun nextWords(prev: String, n: Int): List<String> {
+        if (n <= 0) return emptyList()
+        val p = prev.lowercase(java.util.Locale.ROOT)
+        if (!LearningData.validWord(p)) return emptyList()
+        val candidates = LinkedHashSet(follow[p].orEmpty())
+        for (pair in learnedPairs.keys) if (pair.startsWith("$p ")) candidates.add(pair.substringAfter(' '))
+        return candidates.sortedByDescending { contextBonus(p, it) + preferenceBonus(it) }
+            .map { if (british) usToUk[it] ?: it else it }.distinct()
+            .filter { it != p && allowed(it) && SuggestionSafety.allows(it) }.take(n.coerceAtMost(32))
+    }
+
+    @Synchronized fun loadLearned(map: Map<String, Int>) {
+        learned.clear(); learnedPairs.clear()
+        for ((k, v) in LearningData.sanitize(map)) if (' ' in k) learnedPairs[k] = v else learned[k] = v
+    }
+    @Synchronized fun learnedSnapshot(): Map<String, Int> = LinkedHashMap(learned)
+    @Synchronized fun learningSnapshot(): Map<String, Int> = LinkedHashMap(learned).apply { putAll(learnedPairs) }
 
     /** True for dictionary words and for words the user has typed often enough. */
-    fun isWord(w: String): Boolean {
-        val l = w.lowercase()
+    @Synchronized fun isWord(w: String): Boolean {
+        val l = w.lowercase(java.util.Locale.ROOT)
         return index.containsKey(l) || (learned[l] ?: 0) >= LEARN_AFTER
     }
 
-    /** The user typed [w] and moved on without it being changed: remember it. */
-    fun noteTyped(w: String) {
-        val l = w.lowercase()
-        if (l.length < 2 || index.containsKey(l) || !l.all { it.isLetter() || it == '\'' }) return
-        val n = (learned[l] ?: 0) + 1
-        learned[l] = n
-        if (n == LEARN_AFTER) onLearnedChanged?.invoke()
+    /** Only a word and its immediately preceding word are retained, never surrounding text. */
+    @Synchronized fun noteTyped(w: String, prev: String = "", selected: Boolean = false) {
+        val l = w.lowercase(java.util.Locale.ROOT)
+        if (!LearningData.validWord(l) || (selected && !SuggestionSafety.allows(l))) return
+        fun bump(map: LinkedHashMap<String, Int>, key: String, cap: Int, minimum: Int = 1) {
+            val count = maxOf(minimum, (map.remove(key) ?: 0) + 1).coerceAtMost(LearningData.MAX_COUNT)
+            map[key] = count
+            while (map.size > cap) map.remove(map.keys.first())
+        }
+        bump(learned, l, LearningData.MAX_WORDS, if (selected) LEARN_AFTER else 1)
+        val p = prev.lowercase(java.util.Locale.ROOT)
+        if (LearningData.validWord(p) && SuggestionSafety.allows(p) && SuggestionSafety.allows(l)) bump(learnedPairs, "$p $l", LearningData.MAX_PAIRS)
+        onLearnedChanged?.invoke()
     }
 
-    /** The user undid an autocorrect to keep this word: it counts as typed enough times to be trusted at once. */
-    fun teach(w: String) { val l = w.lowercase(); if (l.length >= 2 && !index.containsKey(l)) { learned[l] = maxOf(learned[l] ?: 0, LEARN_AFTER); onLearnedChanged?.invoke() } }
+    /** Undoing autocorrect trusts the retained word immediately. */
+    @Synchronized fun teach(w: String) {
+        val l = w.lowercase(java.util.Locale.ROOT)
+        if (!LearningData.validWord(l)) return
+        learned[l] = maxOf(LEARN_AFTER - 1, learned[l] ?: 0)
+        noteTyped(l) // notify only after the trusted count has been installed
+    }
 
-    fun forget(w: String) { if (learned.remove(w.lowercase()) != null) onLearnedChanged?.invoke() }
+    @Synchronized fun forget(w: String) {
+        val l = w.lowercase(java.util.Locale.ROOT)
+        learned.remove(l)
+        learnedPairs.keys.removeAll { it.substringBefore(' ') == l || it.substringAfter(' ') == l }
+        onLearnedChanged?.invoke()
+    }
+
+    private fun preferenceBonus(w: String): Float = min(2.5f, ln(1f + (learned[w] ?: 0)))
+    private fun contextBonus(prev: String, w: String): Float {
+        val raw = if (british) ukToUs[w] ?: w else w
+        val rank = follow[prev]?.indexOf(raw) ?: -1
+        val static = if (rank >= 0) 6f / (1f + rank * 0.1f) else 0f
+        return static + min(5f, 2f * ln(1f + (learnedPairs["$prev $w"] ?: 0)))
+    }
 
     private fun learnedLog(w: String): Float? = learned[w]?.takeIf { it >= LEARN_AFTER }?.let { 9.5f + ln(it.toFloat()) } // user words rank like common words
 
     /** Up to [n] words that start with [prefix], most likely first. */
-    fun complete(prefix: String, n: Int): List<Cand> {
+    @Synchronized fun complete(prefix: String, n: Int): List<Cand> {
         val p = fold(prefix.lowercase())
-        if (p.isEmpty()) return emptyList()
+        if (n <= 0 || !LearningData.validWord(p)) return emptyList()
         var lo = 0; var hi = alpha.size
         while (lo < hi) { val mid = (lo + hi) ushr 1; if (key[alpha[mid]] < p) lo = mid + 1 else hi = mid }
         val best = ArrayList<Cand>()
         var i = lo; var scanned = 0
         while (i < alpha.size && key[alpha[i]].startsWith(p) && scanned < 4000) {
             val w = words[alpha[i]]
-            if (w.length > p.length && allowed(w) && SuggestionSafety.allows(w)) {
+            if (w.length > p.length && LearningData.validWord(w) && allowed(w) && SuggestionSafety.allows(w)) {
                 val s = logf[alpha[i]] - 0.15f * (w.length - p.length) // a short completion beats a long one of similar frequency
                 insert(best, Cand(w, s, 0f, true), n)
             }
@@ -134,12 +186,12 @@ class SpellEngine(entries0: List<Pair<String, Int>>, val accented: Boolean = fal
     }
 
     /** Words close to [typed] in what a thumb might have hit, best first. Empty if nothing is close enough. */
-    fun correct(typed: String, n: Int): List<Cand> = correctionCandidates(typed, n, true)
+    @Synchronized fun correct(typed: String, n: Int): List<Cand> = correctionCandidates(typed, n, true)
 
     /** Unfiltered competitors are retained for conservative automatic decisions, never displayed. */
-    internal fun correctionCandidates(typed: String, n: Int, safeOnly: Boolean = false): List<Cand> {
+    @Synchronized internal fun correctionCandidates(typed: String, n: Int, safeOnly: Boolean = false): List<Cand> {
         val t = typed.lowercase()
-        if (t.isEmpty() || t.length > MAX_LEN) return emptyList()
+        if (n <= 0 || t.isEmpty() || t.length > MAX_LEN) return emptyList()
         val maxCost = if (t.length <= 3) 1.05f else if (t.length <= 5) 1.55f else 2.05f
         val best = ArrayList<Cand>()
         val found = HashSet<Int>()
@@ -152,31 +204,48 @@ class SpellEngine(entries0: List<Pair<String, Int>>, val accented: Boolean = fal
             val c = cost(t, w, maxCost)
             if (c <= maxCost) insert(best, Cand(w, logf[i] - COST_WEIGHT * c, c, false), n)
         }
-        for ((w, cnt) in learned) if (cnt >= LEARN_AFTER && (!safeOnly || SuggestionSafety.allows(w)) && w != t && abs(w.length - t.length) <= 2) {
+        for ((w, cnt) in learned) if (w !in index && cnt >= LEARN_AFTER && allowed(w) && (!safeOnly || SuggestionSafety.allows(w)) && w != t && abs(w.length - t.length) <= 2) {
             val c = cost(t, w, maxCost)
             if (c <= maxCost) insert(best, Cand(w, learnedLog(w)!! - COST_WEIGHT * c, c, false), n)
         }
         return best
     }
 
-    /** The strip: the best completions and corrections together. */
-    fun suggest(typed: String, n: Int = 3): List<Cand> {
-        if (typed.isEmpty()) return emptyList()
-        val out = ArrayList<Cand>()
-        for (c in complete(typed, 4)) insert(out, c, n + 2)
-        for (c in correct(typed, 4)) insert(out, c, n + 2)
-        // a word the user already typed correctly is not worth offering back to them
-        out.removeAll { it.word == typed.lowercase() }
-        // an unknown word that is just a known one without its accents ("ete") should offer that word first
-        if (accented && !isWord(typed)) { val f = fold(typed.lowercase()); out.sortByDescending { fold(it.word) == f } }
-        return out.take(n)
+    /** Wider bounded candidate pool; context and preferences affect the strip only. */
+    @Synchronized fun suggest(typed: String, n: Int = 3, prev: String = ""): List<Cand> {
+        val t = typed.lowercase(java.util.Locale.ROOT)
+        if (n <= 0 || !LearningData.validWord(t)) return emptyList()
+        val p = prev.lowercase(java.util.Locale.ROOT).takeIf(LearningData::validWord).orEmpty()
+        val pool = LinkedHashMap<String, Cand>()
+        fun add(c: Cand) {
+            if (c.word != t && allowed(c.word) && SuggestionSafety.allows(c.word)) {
+                val ranked = Cand(c.word, c.score + preferenceBonus(c.word) + contextBonus(p, c.word), c.cost, c.completion)
+                if (ranked.score > (pool[c.word]?.score ?: Float.NEGATIVE_INFINITY)) pool[c.word] = ranked
+            }
+        }
+        for (c in complete(t, 24)) add(c)
+        for (c in correct(t, 12)) add(c)
+        // Direct context seeds keep a useful low-frequency completion from being pruned before ranking.
+        val seeds = extraWords + nextWords(p, 32)
+        for (raw in seeds) {
+            val w = if (british) usToUk[raw] ?: raw else raw
+            if (w.length > t.length && fold(w).startsWith(fold(t))) {
+                val frequency = index[w]?.let { logf[it] } ?: learnedLog(w) ?: 8.5f
+                // Rare contextual completions need a floor to compete with high-frequency unrelated typo candidates.
+                val base = if (contextBonus(p, w) > 0f) maxOf(frequency, 11f) else frequency
+                add(Cand(w, base - 0.15f * (w.length - t.length), 0f, true))
+            }
+        }
+        val out = pool.values.sortedWith(compareByDescending<Cand> { it.score }.thenBy { it.word }).toMutableList()
+        if (accented && !isWord(t)) { val f = fold(t); out.sortByDescending { fold(it.word) == f } }
+        return out.take(n.coerceAtMost(32))
     }
 
     /**
      * What to type instead of [typed] when the user presses space after it, or null to leave it alone.
      * Only words the dictionary does not know are changed, and only to something clearly closer than the alternatives.
      */
-    fun autocorrect(typed: String, maxCost: Float = AC_COST): String? {
+    @Synchronized fun autocorrect(typed: String, maxCost: Float = AC_COST): String? {
         if (!SuggestionSafety.allows(typed)) return null // a listed word typed deliberately is never sanitized
         val t = typed.lowercase()
         // the other English: "colour" for someone who writes American, "color" for someone who writes British
@@ -208,7 +277,7 @@ class SpellEngine(entries0: List<Pair<String, Int>>, val accented: Boolean = fal
     private var pos: Map<Char, Pair<Int, Int>> = Layouts.positions("qwerty")
 
     /** Which wrong keys count as a slip away from the right one follows the layout in use. */
-    fun setLayout(layout: String) { pos = Layouts.positions(layout) }
+    @Synchronized fun setLayout(layout: String) { pos = Layouts.positions(layout) }
 
     private val scratch = Array(3) { FloatArray(MAX_LEN + 3) }
 
@@ -227,7 +296,7 @@ class SpellEngine(entries0: List<Pair<String, Int>>, val accented: Boolean = fal
     /** Cost of turning what was typed ([a]) into the word ([b]); anything above [limit] is reported as just over it. */
     private fun cost(a: String, b: String, limit: Float): Float {
         val n = a.length; val m = b.length
-        if (abs(n - m) > 2) return limit + 1f
+        if (n > MAX_LEN || m > MAX_LEN || abs(n - m) > 2) return limit + 1f
         var prev2 = scratch[0]; var prev = scratch[1]; var cur = scratch[2]
         for (j in 0..m) prev[j] = j * INS
         for (i in 1..n) {

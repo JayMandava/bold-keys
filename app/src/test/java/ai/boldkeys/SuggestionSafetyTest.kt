@@ -24,7 +24,7 @@ class SuggestionSafetyTest {
         assertTrue(e.correct("shitt", 5).all { SuggestionSafety.allows(it.word) })
         assertTrue(e.suggest("shi", 5).all { SuggestionSafety.allows(it.word) })
         assertTrue(e.isWord("shit")); assertTrue(e.isWord("shitting"))
-        assertEquals(500, e.learnedSnapshot()["shitting"])
+        assertEquals(LearningData.MAX_COUNT, e.learnedSnapshot()["shitting"])
     }
 
     @Test fun neutralContextsKeepSafeFollowersAcrossLanguages() {

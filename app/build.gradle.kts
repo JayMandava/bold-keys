@@ -13,6 +13,13 @@ val unsignedRelease = when (providers.gradleProperty("unsignedRelease").orElse("
     else -> throw GradleException("unsignedRelease must be exactly true or false.")
 }
 
+// Isolated opt-in package for physical-device review; existing production/debug installs stay separate.
+val suggestionReviewBuild = when (providers.gradleProperty("suggestionReviewBuild").orElse("false").get()) {
+    "true" -> true
+    "false" -> false
+    else -> throw GradleException("suggestionReviewBuild must be exactly true or false.")
+}
+
 val releaseSigningProperties = Properties()
 var releaseSigningProblem: String? = null
 if (!unsignedRelease) {
@@ -73,8 +80,8 @@ android {
         applicationId = "ai.boldkeys"
         minSdk = 33
         targetSdk = 36
-        versionCode = 10
-        versionName = "0.6.2"
+        versionCode = 11
+        versionName = "0.6.3"
         ndk { abiFilters += "arm64-v8a" }
         externalNativeBuild {
             cmake {
@@ -100,7 +107,15 @@ android {
     }
 
     buildTypes {
+        debug {
+            if (suggestionReviewBuild) {
+                applicationIdSuffix = ".suggestions.review"
+                versionNameSuffix = "-suggestions-qat-picker-review"
+            }
+            manifestPlaceholders["appLabel"] = if (suggestionReviewBuild) "Bold Keys Suggestions Review" else "Bold Keys"
+        }
         release {
+            manifestPlaceholders["appLabel"] = "Bold Keys"
             isMinifyEnabled = false
             isDebuggable = false
             signingConfig = if (unsignedRelease) null else signingConfigs.findByName("release")
@@ -132,6 +147,7 @@ dependencies {
     implementation("androidx.compose.material:material-icons-core")
     implementation("androidx.activity:activity-compose:1.10.1")
     implementation("androidx.customview:customview:1.2.0")
+    testImplementation("androidx.compose.ui:ui-test-junit4")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.17")
 }

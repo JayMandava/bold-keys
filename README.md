@@ -17,7 +17,8 @@ follow the two steps on screen to turn the keyboard on. Needs Android 13 or newe
 - **Caps lock:** hold Shift for about half a second, or double-tap it, to keep letters capitalised. The bar under its arrow shows the lock; tap Shift to turn it off. A quick single tap still capitalises just the next letter.
 - **Autocorrect and suggestions:** a dictionary tuned to where thumbs land (a miss next to the right key costs less than a random one),
   completions as you type, next-word suggestions, and double space for a full stop after a word or emoji. Backspace right after a correction brings your word
-  back and teaches it. Words you type twice are learned; you can add, remove and clear them in Settings.
+  back and teaches it. Prefix suggestions use the preceding word, with bounded conversational and technical candidates.
+  Typed words and chosen suggestions teach local word preferences and adjacent word pairs. You can add, remove and clear all learning in Settings.
 - **Emoji:** tap the right-hand key (the grid of dots, as on the original's Speed key) for every emoji your phone can show, in Unicode's groups, with skin tones (hold an emoji with a dot and slide to a tone; set a default in Settings). "more" jumps to the next group. The picker stays open after each emoji (so a run of them is one visit) and has a delete arrow of its own; its first row, "Recent", holds the seven you use most and most lately.
 - **Speed key:** hold the right-hand key and tap a letter to open an app, a link or type a snippet you set in Settings. Nothing is
   shown on the keys; a plain tap opens the emoji picker (or acts as Shift if that picker is disabled).
@@ -31,7 +32,7 @@ follow the two steps on screen to turn the keyboard on. Needs Android 13 or newe
 - **Context model (optional):** a small language model checks each word against the sentence around it. It picks the right fix for a
   misspelling and catches real words used for another (their/there, then/than, to/too). It only scores words the dictionary proposes and
   never writes text. Off by default. See [docs/how-it-works.md](docs/how-it-works.md).
-- **Private by design:** typing and inference run locally. Password and email fields disable corrections/suggestions; web-address fields may show suggestions but are not rewritten. Editors requesting `IME_FLAG_NO_PERSONALIZED_LEARNING`, and password/email/web-address fields, do not update learned words or emoji history/tone preferences. Optional downloads and external providers are described below.
+- **Private by design:** typing and inference run locally. Password and email fields disable corrections/suggestions; web-address fields may show suggestions but are not rewritten. Editors requesting `IME_FLAG_NO_PERSONALIZED_LEARNING`, and password/email/web-address fields, do not update learned words, word preferences, word pairs or emoji history/tone preferences. Optional downloads and external providers are described below.
 - **Currency key:** the key beside M shows and types your region's sign (£, €, ₹ ...) or any of fourteen you choose in Settings. Its small speaker is real: hold the key and scroll the trackpad up or down to change the media volume (a quick tap still types the sign; switch it off in Settings). No special permission is needed.
 - **Material 3 Expressive settings,** and text emoticons that turn into emoji (optional).
 
@@ -58,6 +59,13 @@ Settings > Context model lists the models you can use. Each download is checked 
 |---|---|---|
 | Gemma 3 270M (compact) | 241 MB | Recommended. About 40 ms to judge a word on a mid-range phone. |
 | Gemma 3 270M (precise) | 291 MB | Same model, higher precision. |
+| Gemma 3 270M (QAT) | 241 MB | Third optional choice; quantization-aware Google weights, LM Studio GGUF conversion. Limited smoke testing only. |
+
+QAT is pinned to a publisher revision, byte size and SHA-256. It does not change the default or existing saved choices.
+Importing a file with a catalogue filename verifies its pinned identity before replacing the installed file.
+Existing custom imports retain their IDs; a legacy custom entry can share a file with its new catalogue counterpart.
+Tap anywhere in an installed model's selection row to save that choice. If a saved model is unavailable, the currently used fallback
+is labeled as temporary until you explicitly choose it. Download, Cancel and Delete remain separate controls.
 
 On a held-out test of 2,000 cases, with the compact model: typos fixed 80.7% to 88.5%, and real-word slips fixed 88.0% with 0.6% of
 correct words wrongly changed. Larger models fix more real-word slips but take 0.2-0.4 s a word and 1-3 GB, so they are import-only.
