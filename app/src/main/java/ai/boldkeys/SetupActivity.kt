@@ -659,11 +659,12 @@ private fun ContextContent(context: Context) {
             SwitchRow("Use a context model", "Checks each word against the sentence around it: picks the right fix for a misspelling, and catches real words used for another (their/there, your/you're).", on) {
                 on = it; Prefs.put(context, "contextModel", it)
             }
-            Note("A small language model on this phone scores the words the dictionary suggests. It never writes text and nothing leaves the phone. Switch it off any time to go back to dictionary-only correction. It has only been measured on English, so it stays off while the language is French.")
+            Note("A small language model on this phone scores the words the dictionary suggests. It never writes text and nothing leaves the phone. Switch it off any time to go back to dictionary-only correction. The context feature has only been measured on English; it stays off in other languages. QAT has only had limited smoke testing, not a quality or speed benchmark.")
             if (on && chosen == null) Note("Download or import a model below to start using it.")
         }
         Section("Models") {
-            ContextModels.entries().forEach { e ->
+            val entries = ContextModels.entries()
+            entries.forEach { e ->
                 val installed = ContextModels.installed(e)
                 val st = ContextModels.status[e.id]
                 ListItem(
@@ -673,6 +674,7 @@ private fun ContextContent(context: Context) {
                     supportingContent = {
                         Column {
                             Text(if (e.custom) "Imported from a file." else "${e.note} ${human(e.bytes)}.")
+                            if (entries.count { it.file == e.file } > 1) Text("Shares its local file with another entry. Removing either entry removes that file.")
                             when (st) {
                                 is Transfer.Downloading -> {
                                     androidx.compose.material3.LinearProgressIndicator(progress = { if (st.total > 0) st.done.toFloat() / st.total else 0f }, modifier = Modifier.fillMaxWidth().padding(top = 6.dp))

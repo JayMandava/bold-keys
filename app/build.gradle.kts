@@ -110,7 +110,7 @@ android {
         debug {
             if (suggestionReviewBuild) {
                 applicationIdSuffix = ".suggestions.review"
-                versionNameSuffix = "-suggestions-review"
+                versionNameSuffix = "-suggestions-qat-review"
             }
             manifestPlaceholders["appLabel"] = if (suggestionReviewBuild) "Bold Keys Suggestions Review" else "Bold Keys"
         }

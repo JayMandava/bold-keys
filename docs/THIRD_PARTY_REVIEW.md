@@ -41,7 +41,7 @@ Upstream content is CC BY-SA 4.0, including its attribution/change-notice and ap
 
 ## Optional Gemma models
 
-No weights are bundled. Catalogue URLs reference Unsloth's GGUF conversions of Gemma 3 270M. Google's current Gemma Terms of Use (https://ai.google.dev/gemma/terms , modified 2026-04-01) explicitly include Gemma 3. They impose distribution conditions, provision of terms/notices and use restrictions (https://ai.google.dev/gemma/prohibited_use_policy). A permissive conversion-repository code license would not replace the base-model terms.
+No weights are bundled. Catalogue URLs reference Unsloth's GGUF conversions of Gemma 3 270M plus the optional LM Studio team QAT conversion described in QAT_MODEL_REVIEW.md. Google's current Gemma Terms of Use (https://ai.google.dev/gemma/terms , modified 2026-04-01) explicitly include Gemma 3. They impose distribution conditions, provision of terms/notices and use restrictions (https://ai.google.dev/gemma/prohibited_use_policy). A permissive conversion-repository code license would not replace the base-model terms.
 
 The app now displays model terms/use-restriction information and an external terms link before the download description. No agreement is accepted on the owner's or user's behalf, no model is downloaded by this task, and no model grant is changed. Owner/legal review must decide how direct third-party downloads and any future model distribution meet the applicable terms. Imported models keep their own licenses and are not licensed by the app.
 

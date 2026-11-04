@@ -59,6 +59,11 @@ Settings > Context model lists the models you can use. Each download is checked 
 |---|---|---|
 | Gemma 3 270M (compact) | 241 MB | Recommended. About 40 ms to judge a word on a mid-range phone. |
 | Gemma 3 270M (precise) | 291 MB | Same model, higher precision. |
+| Gemma 3 270M (QAT) | 241 MB | Third optional choice; quantization-aware Google weights, LM Studio GGUF conversion. Limited smoke testing only. |
+
+QAT is pinned to a publisher revision, byte size and SHA-256. It does not change the default or existing saved choices.
+Importing a file with a catalogue filename verifies its pinned identity before replacing the installed file.
+Existing custom imports retain their IDs; a legacy custom entry can share a file with its new catalogue counterpart.
 
 On a held-out test of 2,000 cases, with the compact model: typos fixed 80.7% to 88.5%, and real-word slips fixed 88.0% with 0.6% of
 correct words wrongly changed. Larger models fix more real-word slips but take 0.2-0.4 s a word and 1-3 GB, so they are import-only.
