@@ -18,7 +18,16 @@ public class TouchDriver {
             MotionEvent event = MotionEvent.obtain(down, down, MotionEvent.ACTION_DOWN, x, y, 0);
             event.setSource(InputDevice.SOURCE_TOUCHSCREEN); inject.invoke(manager, event, 0); event.recycle();
             SystemClock.sleep(hold);
-            event = MotionEvent.obtain(down, SystemClock.uptimeMillis(), MotionEvent.ACTION_UP, x, y, 0);
+            String finish = args.length > 4 ? args[4] : "up";
+            float endY = y;
+            if (finish.equals("slide")) {
+                endY = y - 200;
+                event = MotionEvent.obtain(down, SystemClock.uptimeMillis(), MotionEvent.ACTION_MOVE, x, endY, 0);
+                event.setSource(InputDevice.SOURCE_TOUCHSCREEN); inject.invoke(manager, event, 0); event.recycle();
+                SystemClock.sleep(100);
+            }
+            int action = finish.equals("cancel") ? MotionEvent.ACTION_CANCEL : MotionEvent.ACTION_UP;
+            event = MotionEvent.obtain(down, SystemClock.uptimeMillis(), action, x, endY, 0);
             event.setSource(InputDevice.SOURCE_TOUCHSCREEN); inject.invoke(manager, event, 0); event.recycle();
             if (i + 1 < taps) SystemClock.sleep(80);
         }

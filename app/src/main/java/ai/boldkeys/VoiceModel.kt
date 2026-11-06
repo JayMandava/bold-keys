@@ -53,7 +53,7 @@ object VoiceModel {
                 } }
                 check(!canceled && valid(temp))
                 synchronized(this) { check(!canceled); check(temp.renameTo(file(app))) }
-                "Model ready. Hold space or tap Voice on the keyboard."
+                "Model ready. Hold space to speak; release to transcribe and insert."
             } catch (_: Exception) {
                 if (canceled) "Download canceled." else "Could not download or verify the model. Please try again."
             } finally { temp.delete(); connection?.disconnect(); connection = null }

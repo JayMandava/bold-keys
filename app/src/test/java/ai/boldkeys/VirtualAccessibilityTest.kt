@@ -22,10 +22,14 @@ class VirtualAccessibilityTest {
     private lateinit var keyboard: KeyboardView
     private val typed = mutableListOf<String>()
     private val picks = mutableListOf<Int>()
+    private var voiceStarts = 0
+    private var voiceStops = 0
     @Before fun setup() {
         activity = Robolectric.buildActivity(Activity::class.java).setup().get()
         activity.getSharedPreferences("bk", 0).edit().clear().putString("pattern", "off").apply()
         keyboard = KeyboardView(activity, Feedback(activity), object: KeyboardView.Listener {
+            override fun onVoiceStart(): Boolean { voiceStarts++; keyboard.voiceState = KeyboardView.VoiceState.RECORDING; keyboard.voiceEnabled = false; return true }
+            override fun onVoiceStop() { voiceStops++; keyboard.voiceState = KeyboardView.VoiceState.TRANSCRIBING }
             override fun onText(text: String) { typed += text }
             override fun onDelete() { typed += "DELETE" }
             override fun onEnter() { typed += "ENTER" }
@@ -134,4 +138,16 @@ class VirtualAccessibilityTest {
         assertTrue(click(keyboard,"q"));assertEquals(listOf("q","q"),typed)
     }
 
+
+    @Test fun spaceSupportsNonvisualVoiceStartAndStopWithoutExtraControls() {
+        val labels = nodes(keyboard).map { it.second.contentDescription.toString() }
+        keyboard.voiceEnabled = true
+        assertTrue(click(keyboard, "Space", AccessibilityNodeInfo.ACTION_LONG_CLICK))
+        assertEquals(1, voiceStarts); assertTrue(typed.isEmpty())
+        assertTrue(node(keyboard, "Space").second.stateDescription.toString().contains("Recording"))
+        assertTrue(click(keyboard, "Space")); assertEquals(1, voiceStops)
+        assertTrue(node(keyboard, "Space").second.stateDescription.toString().contains("Transcribing"))
+        assertEquals(labels, nodes(keyboard).map { it.second.contentDescription.toString() })
+        assertTrue(typed.isEmpty()); keyboard.voiceState = KeyboardView.VoiceState.IDLE
+    }
 }

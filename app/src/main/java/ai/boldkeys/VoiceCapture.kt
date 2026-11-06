@@ -12,7 +12,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /** A single bounded recording. PCM lives in memory only and is wiped after local inference. */
 internal class VoiceCapture(private val context: Context, private val language: String,
-    private val state: (String) -> Unit, private val finished: (String?, String?) -> Unit) {
+    private val state: (Phase) -> Unit, private val finished: (String?, String?) -> Unit) {
+    enum class Phase { RECORDING, TRANSCRIBING }
     private val stop = AtomicBoolean(false)
     private val canceled = AtomicBoolean(false)
     private val ui = Handler(Looper.getMainLooper())
@@ -39,7 +40,7 @@ internal class VoiceCapture(private val context: Context, private val language: 
                     check(record.state == AudioRecord.STATE_INITIALIZED && !canceled.get())
                     record.startRecording()
                     check(record.recordingState == AudioRecord.RECORDSTATE_RECORDING)
-                    ui.post { if (!canceled.get()) state("Listening… Release space or tap Stop. 30-second limit.") }
+                    ui.post { if (!canceled.get()) state(Phase.RECORDING) }
                     while (!stop.get() && count < audio.size) {
                         val n = record.read(shorts, 0, minOf(shorts.size, audio.size - count))
                         if (n <= 0) { check(stop.get()); break }
@@ -53,7 +54,7 @@ internal class VoiceCapture(private val context: Context, private val language: 
                 if (count < 4000 || peak < 0.005f) {
                     error = "No speech captured. Please try again."
                 } else {
-                    ui.post { if (!canceled.get()) state("Transcribing on this device…") }
+                    ui.post { if (!canceled.get()) state(Phase.TRANSCRIBING) }
                     check(VoiceModel.valid(VoiceModel.file(context)))
                     val local = Whisper.load(VoiceModel.file(context).absolutePath)
                     check(local != null)

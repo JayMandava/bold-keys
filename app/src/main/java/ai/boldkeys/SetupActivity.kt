@@ -819,7 +819,8 @@ private fun VoiceSettings(context: Context) {
             if (!want) { enabled = false; Prefs.put(context, "voiceTyping", false) }
             else permission.launch(android.Manifest.permission.RECORD_AUDIO)
         }
-        Note("Download the optional 32.2 MB multilingual Whisper Tiny Q5 model, then hold space to speak and release to stop. You can also tap Voice and Stop. Review the transcript and tap Insert; nothing is sent automatically. The keyboard language selects English, French or German recognition.")
+        Note("Download the optional 32.2 MB multilingual Whisper Tiny Q5 model, then hold space to speak. Release to transcribe and insert directly at the cursor. The spacebar glows green while recording and slowly flashes while transcribing. Slide off space to discard before releasing; typing or leaving the editor discards unfinished voice input. Nothing is sent automatically. Recordings are limited to 30 seconds. The keyboard language selects English, French or German recognition.")
+        Note("Screen readers can use Space's Start voice typing action, then activate Space to stop. Processing state is exposed on Space without reading out recognized text. With system animations disabled, the transcription light stays dim and steady.")
         Note("Audio stays in memory on this device and is discarded after transcription or cancellation. There is no online recognition fallback. Voice is disabled in password fields. Speed and accuracy on your phone are experimental.")
         Note("Only the model download contacts Hugging Face and its delivery providers over HTTPS; they can see your IP address and the requested model. No audio or typed text is included. The model is optional and MIT licensed.")
         Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

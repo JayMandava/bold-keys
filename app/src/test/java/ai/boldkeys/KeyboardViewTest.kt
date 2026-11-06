@@ -353,4 +353,48 @@ class KeyboardViewTest {
         event(MotionEvent.ACTION_UP, key(3, 2))
         assertEquals(1, voiceStarts); assertTrue(typed.isEmpty())
     }
+
+    @Test fun slidingOffHeldSpaceDiscardsVoiceWithoutTypingOrStoppingIt() {
+        keyboard.voiceEnabled = true
+        val space = key(3, 2)
+        event(MotionEvent.ACTION_DOWN, space); advance(600)
+        event(MotionEvent.ACTION_MOVE, q); event(MotionEvent.ACTION_UP, q)
+        assertEquals(1, voiceStarts); assertEquals(1, voiceCancels); assertEquals(0, voiceStops)
+        assertTrue(typed.isEmpty())
+    }
+    @Test fun touchCancellationAlsoDiscardsPendingTranscription() {
+        keyboard.voiceState = KeyboardView.VoiceState.TRANSCRIBING
+        event(MotionEvent.ACTION_CANCEL, key(3, 2))
+        assertEquals(1, voiceCancels); assertTrue(typed.isEmpty())
+        keyboard.voiceState = KeyboardView.VoiceState.IDLE
+    }
+    @Test
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun transcriptionBacklightPulsesSlowlyWithoutChangingKeyboardSize() {
+        val scale = android.animation.ValueAnimator::class.java.getDeclaredMethod("setDurationScale", Float::class.javaPrimitiveType).apply { isAccessible = true }
+        scale.invoke(null, 1f)
+        val before = keyboard.measuredHeight
+        keyboard.voiceState = KeyboardView.VoiceState.RECORDING
+        assertEquals(1f, keyboard.voiceBacklightLevelAt(SystemClock.uptimeMillis()), 0.001f)
+        keyboard.voiceState = KeyboardView.VoiceState.TRANSCRIBING
+        val start = SystemClock.uptimeMillis()
+        assertEquals(1f, keyboard.voiceBacklightLevelAt(start), 0.001f)
+        fun renderedGreen(): Int {
+            val bitmap = android.graphics.Bitmap.createBitmap(keyboard.width, keyboard.height, android.graphics.Bitmap.Config.ARGB_8888)
+            keyboard.draw(android.graphics.Canvas(bitmap))
+            val rc = key(3, 2)
+            return android.graphics.Color.green(bitmap.getPixel((rc.left - 2).toInt(), rc.centerY().toInt()))
+        }
+        val bright = renderedGreen()
+        advance(800)
+        assertTrue("The actual spacebar outline must visibly dim", bright > renderedGreen() + 50)
+        assertEquals(0.1f, keyboard.voiceBacklightLevelAt(start + 800), 0.001f)
+        assertEquals(1f, keyboard.voiceBacklightLevelAt(start + 1600), 0.001f)
+        assertEquals(before, keyboard.measuredHeight)
+        scale.invoke(null, 0f)
+        assertEquals(0.55f, keyboard.voiceBacklightLevelAt(start + 800), 0.001f)
+        keyboard.voiceState = KeyboardView.VoiceState.IDLE
+        assertEquals(0f, keyboard.voiceBacklightLevelAt(start), 0.001f)
+        scale.invoke(null, 1f)
+    }
 }

@@ -1,76 +1,43 @@
 # Experimental on-device voice typing
 
-This branch adds an optional Whisper CPU voice-typing experiment. It is off by default in Experimental. Enabling requests Android microphone permission. Downloading the model is a separate explicit action. No audio or editor text is passed to networking code; there is no online recognition service or fallback.
+## Current interaction: hold, speak, release, insert
 
-## User flow
+The user superseded the earlier preview flow. There is **no transcript preview, Insert/Cancel button, status row, toast, or other added keyboard voice UI**. Hold space for 450 ms to record. The spacebar backlight glows green while recording; release stops the recorder, slowly pulses the light during local transcription, and commits the result directly into the same eligible editor. Transcription never invokes Send or autocorrect.
 
-Enable Experimental → On-device voice typing, grant Microphone, and download the model. In an ordinary text field, hold space for 450 ms to record, then release to stop. A green light around the spacebar and a textual Listening indicator show when the recorder is active. Voice and Stop buttons provide an alternative to holding a key. Cancel discards capture or pending output. Review the transcript, then tap Insert to commit literal text; the pipeline never invokes Send or autocorrect. Keyboard language selects English, French or German recognition. Recordings are limited to 30 seconds and held in memory only.
+Slide off space before lifting to discard. Touch cancellation, ordinary typing, selection movement, editor changes/restarts, keyboard dismissal and opting out discard pending work. A generation token and input-connection/surrounding-text snapshot guard delayed output; stale or duplicate results cannot write. Empty/error results insert nothing. Recordings are bounded to 30 seconds and audio remains in memory only.
 
-Quick space taps still type one space. When another finger types before the space is released, the waiting space is committed first. With voice disabled or unavailable, space retains its original finger-down behavior. Double-space punctuation and autocorrect retain their existing service paths.
+The existing keyboard geometry and its two original views (suggestion bar and keyboard) remain. Quick space taps and double-space punctuation retain their service paths. With voice off/unavailable, space keeps its original finger-down behavior. Other typing and autocorrect are unchanged.
 
-Voice is disabled in password and other sensitive fields. Editor restarts, keyboard dismissal, selection changes, typing, suggestion selection and trackpad movement discard pending voice work. A connection and surrounding-text snapshot is checked before showing and inserting delayed output. Revoked microphone access fails closed. Android app settings are linked after denial for users whose permission prompt no longer appears.
+Screen readers can start dictation using Space's long-click action and stop by activating Space. Recording/transcribing state is exposed on that same key without announcing recognized text. A slow 1.6-second pulse avoids rapid flashing; with system animations disabled, a dim steady light and the nonvisual state provide feedback. Android's microphone privacy indicators and permission UI remain intact.
 
-## Dependencies and model provenance
+## Opt-in and privacy
 
-- whisper.cpp v1.8.2, pinned submodule commit `4979e04f5dcaccb36057e059bbaed8a2f5288315`, MIT.
-- Whisper Tiny multilingual Q5_1, 32,152,673 bytes, derived from OpenAI Whisper (MIT).
-- Model source: https://huggingface.co/ggerganov/whisper.cpp/blob/f281eb45af861ab5e5297d23694b7d46e090c02c/ggml-tiny-q5_1.bin
-- SHA-256: `818710568da3ca15689e31a743197b520007872ff9576237bda97bd1b469c3d7`.
-- The downloader checks the entire SHA-256 before atomically installing. Inference verifies it again before opening the native model. Failed or canceled partial downloads are removed. The model lives in private no-backup storage; deleting it is available in Experimental.
-- No weights are bundled in the APK. The model download sends ordinary request metadata to Hugging Face and its HTTPS delivery providers.
-- Full upstream license notices are included in offline Licenses & credits.
+Experimental voice is off by default. Enabling requests microphone permission; downloading the optional 32.2 MB model is a separate explicit action. Password/non-text fields cannot activate voice. English, French or German recognition follows keyboard language. No audio/editor data enters networking code and there is no online recognition fallback. The optional HTTPS model download reveals ordinary request metadata to Hugging Face and its delivery providers.
 
-Whisper and the existing llama.cpp each statically link their own ggml in separate CMake builds. `libvoice.so` exports only its four JNI functions; all bundled Whisper/ggml/C++ symbols are local. The production ABI remains arm64-v8a; `-PtestAbi=x86_64` supports cloud-emulator verification. ARM optimization flags on the existing model are retained. Both native libraries use the existing 16 KB alignment configuration.
+## Dependencies
 
-## Verification in this cloud
+- whisper.cpp v1.8.2, pinned submodule `4979e04f5dcaccb36057e059bbaed8a2f5288315`, MIT.
+- OpenAI Whisper Tiny multilingual Q5_1, 32,152,673 bytes, MIT; no weights bundled.
+- [Pinned model](https://huggingface.co/ggerganov/whisper.cpp/blob/f281eb45af861ab5e5297d23694b7d46e090c02c/ggml-tiny-q5_1.bin), SHA-256 `818710568da3ca15689e31a743197b520007872ff9576237bda97bd1b469c3d7`.
+- Download verifies SHA-256 before atomic installation in private no-backup storage; inference verifies it again. Cancelled/failed partial files are removed. Settings can delete the model. Offline license notices are included.
+- Whisper statically links its own ggml in a separate CMake build and exports only four JNI functions; the existing llama implementation stays separate. Native libraries retain 16 KB alignment and production arm64 ABI; `testAbi=x86_64` supports emulator builds.
 
-Build and static/unit checks completed on 2026-11-06:
+## Verification status
 
-- Debug x86_64 APK builds; debug lint passes.
-- Unsigned arm64 release APK builds; release lint passes.
-- 116 unit tests pass in both debug and release variants, including space/voice gestures, double-space punctuation, permission/model gating, password restrictions, cancellation/opt-out, literal insertion without Send/autocorrect, stale-editor rejection, and corrupted-model rejection.
-- All three arm64 ELF libraries pass 16 KB segment alignment; the APK passes `zipalign -c -P 16 4`.
-- Dynamic symbol inspection confirms `libvoice.so` exports only the four `Java_ai_boldkeys_Whisper_*` functions.
-- Prediction-data and release/bundle Python checks pass. The wider 152-test Python suite needs mixed Java versions: with configured Java 17, 151 pass and the one Java 21 compiler check fails; rerunning its full 11-test module with Java 21 passes. An earlier overloaded run also hit a transient pre-existing PTY cleanup timeout; the later full Java 17 run passed those tests. No signing-tool security controls or credentials were changed.
+The revised interaction has passed debug x86_64 and unsigned release arm64 builds/lint, with 123 unit tests in each variant. The rendered spacebar pulse/reduced-motion regression was additionally rechecked in both variants. Tests cover direct literal insertion without Send/autocorrect, duplicate/stale result rejection, permission/password policy, editor/cursor/typing/dismissal cancellation, touch/hold/release/slide-off, no extra controls, slow pulse/reduced motion, and nonvisual Space actions. Emulator confirmation and a phone retest of this revised flow are required before publication.
 
-Emulator functional verification (AOSP API 33 x86_64, `emulator-5556`):
+Earlier phone tests at `9d1b2e4` verified real model download/hash, acoustic synthetic speech in airplane mode/Wi-Fi off and the old preview interaction. Those results establish the native model path but **do not verify the revised automatic-insertion interaction**. Accuracy was imperfect; human speech, latency and simultaneous QAT/Whisper loading remain untested. Earlier emulator tests used an invalid private marker only for recorder controls, not real inference; the marker was removed.
 
-- Boot completed; APK installation and Settings navigation work. Initial Google-image boot/installation problems were resolved by using the smaller AOSP image. Software emulation has no `/dev/kvm` and produced System UI ANRs during startup; these checks establish behavior, not performance.
-- Experimental is off by default. Enabling shows Android's microphone prompt. Denial keeps `voiceTyping=false`; retry/grant sets it true. These states were checked against Android's runtime-permission state and the app's preferences.
-- Without a model, Voice is disabled and normal typing works. Real touchscreen taps within the 700 ms window produce double-space punctuation. `tools/voice/TouchDriver.java` injects taps in one shell VM so separate `adb input` startup time does not exceed that window.
-- Password fields hide the voice controls. Editor changes during recorder startup discard the pending capture.
-- A deliberately invalid, private marker file was temporarily used to exercise recorder controls independently of model availability. This is **not a Whisper model** and does not pass SHA verification. Android AudioRecord start/stop metadata, Listening text, the green spacebar light, Cancel, explicit Stop, hold-space activation/release, and silence handling were observed. No audio was uploaded, no real model was loaded, and the marker was deleted after the checks.
-- The readiness hint issue reported by the phone tester was reproduced and fixed in `8f0dc63`. The corrected APK was checked for newly-ready state, model-missing state, and password-to-normal return. The unit regression exercises permission/model changes and the password transition in both debug and release variants.
+Cloud model access is still denied with CONNECT HTTP 403. There is no cloud inference claim and no network bypass. No GitHub release/tag, main merge, production signing or Play publication has occurred. The old signed preview candidate was marked obsolete and removed after the user's revised instruction.
 
-Separate device evidence supplied by the phone-testing task: at `84df665`, model download/SHA verification and acoustic synthetic-speech transcription worked with airplane mode on and Wi-Fi off. That task also reports hold-space/glow, Stop/Cancel, preview/Insert, permissions, password/editor protection, spaces, double-space and autocorrect passing. Accuracy was imperfect; human speech, latency and simultaneous QAT/Whisper loading were not tested. The final phone retest at `9d1b2e4` passed for missing-model hints, restoring readiness, password-to-normal return and starting recording; the original QAT state was restored. This report does not treat those phone results as cloud inference results.
+## Isolated phone review
 
-Remaining cloud/release gates:
+Use `:app:assembleDebug -PvoiceReviewBuild=true -PunsignedRelease=true` with default arm64 ABI. Output: `app/build/outputs/apk/debug/app-debug.apk`; package `ai.boldkeys.voice.review`; label **Bold Keys Voice Review**; version `0.6.3-voice-experimental` / code 11. It is separate from production and QAT review. Do not combine the two review flags.
 
-- The cloud's enforced network policy rejects `huggingface.co` with CONNECT HTTP 403. Actual cloud model loading, offline audio inference and preview/Insert from real model output remain unverified. Empty upstream weights or the corrupt recorder marker are not substitutes.
-- Combined real phone inference and cloud emulator/build evidence supports the isolated **Voice Experiment 1** GitHub prerelease described in [its release notes](releases/voice-experiment-1.md). It is a shared-review-key debug APK, not a production-signed release. The cloud inference gap remains disclosed; no network denial is bypassed. Keep the PR in draft for production integration. No main merge or Play publication is authorized here, and no phone latency or general recognition-quality claim is made.
+The shared review key is alias `boldkeys-debug`, certificate SHA-256 `15d7d298c471711285b81c20ea7069567b00e3b486c8d3e43c643fe6b90cda37`. The cloud's default Gradle debug key differs (`7ebbc11c8179258db079ea51c8640984f21e83e9778d125051b28fce9686d3c4`); preserve/verify the shared identity before a phone update. No production key is used.
 
-Commands:
+## Network authorization
 
-```sh
-./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug -PtestAbi=x86_64
-./gradlew :app:assembleRelease :app:testReleaseUnitTest :app:lintRelease -PunsignedRelease=true
-```
+The exact model download begins at `huggingface.co/ggerganov/whisper.cpp/resolve/f281eb45af861ab5e5297d23694b7d46e090c02c/ggml-tiny-q5_1.bin`. The first CONNECT is denied, so its actual delivery redirect is unobservable here. The environment supports custom allowed hosts but this task has read-only configuration tools. The smallest supported step is user-reviewed authorization of `huggingface.co`, then HEAD-only inspection without following redirects, followed by authorization of only the selected delivery host if needed. Do not edit the policy file, bypass the proxy or use a relay.
 
-The debug-only VoiceTestActivity supplies ordinary and password editor fields for emulator tests and is excluded from the release manifest.
-
-## Isolated phone-review package
-
-Build `:app:assembleDebug -PvoiceReviewBuild=true -PunsignedRelease=true` with the default arm64 ABI. The APK is `app/build/outputs/apk/debug/app-debug.apk`, package `ai.boldkeys.voice.review`, label **Bold Keys Voice Review**, version `0.6.3-voice-experimental` (code 11). This is separate from production `ai.boldkeys` and the QAT/suggestion review package `ai.boldkeys.suggestions.review`. Do not combine the two review flags.
-
-This variant uses Gradle's normal debug signing configuration; inspect the actual APK's public certificate fingerprint before installation and preserve that debug key for subsequent review updates. It does not use or fall back to the production release key. `unsignedRelease=true` avoids reading production signing properties while building the debug candidate and does not disable debug signing. The cloud's default-package debug APK must not be used to replace a production-signed installation.
-
-
-## Smallest network authorization step
-
-The exact model URL is `https://huggingface.co/ggerganov/whisper.cpp/resolve/f281eb45af861ab5e5297d23694b7d46e090c02c/ggml-tiny-q5_1.bin`. The first CONNECT to **huggingface.co** is denied, so this runtime cannot observe which delivery hostname this file currently redirects to. Do not guess that a particular CDN is the actual selected hop.
-
-The managed environment supports a custom `allowed_hosts` list, but this task exposes only read-only environment/status/diagnostic tools. Changes must use the supported environment configuration workflow and its user review. The smallest next step is to authorize **huggingface.co** in that configuration, confirm the applied policy is enforced, and inspect the pinned URL's HEAD response **without following redirects**. Then authorize only the actual delivery hostname returned and repeat if another hop is required. Editing `/etc/codex/network-policy.json`, bypassing the proxy, fetching through another relay, or disabling TLS verification is not a solution.
-
-Hugging Face's current [download/network documentation](https://huggingface.co/docs/hub/models-downloading#downloading-behind-a-proxy-or-firewall) lists HTTPS delivery infrastructure including `cas-server.xethub.hf.co`, `cas-server.xethub-eu.hf.co`, `transfer.xethub.hf.co`, `transfer.xethub-eu.hf.co`, `us.aws.cdn.hf.co`, `us.gcp.cdn.hf.co`, `cdn-lfs-us-1.hf.co`, and `cdn-lfs-eu-1.hf.co`. Its [machine-readable domain catalogue](https://huggingface.co/.well-known/meta.json) includes additional regional CDN names. These are provider-published possibilities, **not a verified per-model redirect chain**, and do not justify granting all of them by default. The app uses a direct HTTPS file download, not the hf_xet client APIs.
-
-The configured shared review identity is alias `boldkeys-debug`, certificate SHA-256 `15d7d298c471711285b81c20ea7069567b00e3b486c8d3e43c643fe6b90cda37`. The cloud's default Gradle debug certificate is different (`7ebbc11c8179258db079ea51c8640984f21e83e9778d125051b28fce9686d3c4`). The phone-testing workflow must preserve/verify its existing QAT review identity for update continuity; do not install an APK signed with an unrelated key over an existing review install. Only public certificate identities were inspected; no signing material was published or changed.
+Hugging Face's [current network documentation](https://huggingface.co/docs/hub/models-downloading#downloading-behind-a-proxy-or-firewall) lists `cas-server.xethub.hf.co`, `cas-server.xethub-eu.hf.co`, `transfer.xethub.hf.co`, `transfer.xethub-eu.hf.co`, `us.aws.cdn.hf.co`, `us.gcp.cdn.hf.co`, `cdn-lfs-us-1.hf.co` and `cdn-lfs-eu-1.hf.co`. Its [domain catalogue](https://huggingface.co/.well-known/meta.json) includes regional alternatives. These are possibilities, not a verified model-specific chain, and do not warrant a blanket grant.
