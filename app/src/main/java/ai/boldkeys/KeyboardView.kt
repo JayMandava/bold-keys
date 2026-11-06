@@ -21,6 +21,7 @@ import android.view.accessibility.AccessibilityNodeInfo
 import android.view.MotionEvent
 import android.view.View
 import kotlin.math.abs
+import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
@@ -42,6 +43,9 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
     var personalizedLearningAllowed = true
 
     interface Listener {
+        fun onVoiceStart(): Boolean = false
+        fun onVoiceStop() {}
+        fun onVoiceCancel() {}
         fun onText(text: String)
         fun onDelete()
         fun onEnter()
@@ -55,6 +59,40 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
 
     private class Cell(val key: Key, val row: Int, val col: Int, val rect: RectF)
 
+    enum class VoiceState { IDLE, STARTING, RECORDING, TRANSCRIBING }
+    var voiceEnabled = false
+        set(value) { if (field != value) { field = value; invalidate() } }
+    var voiceState = VoiceState.IDLE
+        set(value) {
+            if (field == value) return
+            field = value; voiceStateAt = SystemClock.uptimeMillis(); invalidate()
+        }
+    private var voiceStateAt = 0L
+    private val voiceOutline = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
+    internal fun voiceBacklightLevelAt(now: Long): Float = when (voiceState) {
+        VoiceState.IDLE, VoiceState.STARTING -> 0f
+        VoiceState.RECORDING -> 1f
+        VoiceState.TRANSCRIBING -> if (!android.animation.ValueAnimator.areAnimatorsEnabled()) 0.55f else {
+            val cycle = (now - voiceStateAt).coerceAtLeast(0) % 1600L
+            (0.1 + 0.9 * (0.5 + 0.5 * cos(cycle * 2.0 * Math.PI / 1600.0))).toFloat()
+        }
+    }
+    private var voicePointer = -1
+    private var spacePending = false
+    private var voiceHeld = false
+    private val voiceHold = Runnable {
+        if (spacePending && pressed[voicePointer]?.key?.kind == Kind.SPACE) {
+            spacePending = false
+            voiceHeld = listener.onVoiceStart()
+        }
+    }
+    private fun flushSpace() {
+        ui.removeCallbacks(voiceHold)
+        if (spacePending) { spacePending = false; listener.onText(" ") }
+    }
+    fun resetVoiceGesture() {
+        ui.removeCallbacks(voiceHold); spacePending = false; voiceHeld = false; voicePointer = -1
+    }
     private var th = KeyTheme(true)
     private var emojiKey = true // the right-hand key opens the emoji picker (a tap) or runs the Speed key (held); off, a tap is a Shift
     private var currency = "$" // what the currency key shows and types (the Currency setting)
@@ -110,7 +148,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         applySettings()
     }
 
-    override fun onDetachedFromWindow() { cancelShiftHold(); sensors.unregisterListener(lightListener); super.onDetachedFromWindow() }
+    override fun onDetachedFromWindow() { resetVoiceGesture(); listener.onVoiceCancel(); cancelShiftHold(); sensors.unregisterListener(lightListener); super.onDetachedFromWindow() }
 
     private val d = resources.displayMetrics.density
     private fun dp(v: Float) = v * d
@@ -245,6 +283,13 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         val down = pressed.values.toSet()
         for (row in cells) for (c in row) drawKey(canvas, c, c in down || latched(c.key))
         if (picker != Picker.NONE) drawPicker(canvas)
+        val voiceLevel = voiceBacklightLevelAt(SystemClock.uptimeMillis())
+        if (voiceLevel > 0f) cells.flatten().firstOrNull { it.key.kind == Kind.SPACE }?.let { c ->
+            voiceOutline.color = ((255 * voiceLevel).toInt() shl 24) or 0x005CF29A
+            voiceOutline.strokeWidth = dp(3f)
+            canvas.drawRoundRect(RectF(c.rect).apply { inset(-dp(2f), -dp(2f)) }, dp(7f), dp(7f), voiceOutline)
+        }
+        if (voiceState == VoiceState.TRANSCRIBING && android.animation.ValueAnimator.areAnimatorsEnabled() && isShown) postInvalidateOnAnimation()
         drawAccents(canvas)
         drawVolume(canvas)
         accessibility.drawFocus(canvas)
@@ -356,12 +401,14 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         val hasFacet = c.key.kind != Kind.SPACE
         val tw = t.width()
 
-        if (glow > 0.01f) {
+        val voiceLevel = if (c.key.kind == Kind.SPACE) voiceBacklightLevelAt(SystemClock.uptimeMillis()) else 0f
+        val voiceLight = voiceLevel > 0f
+        if (voiceLight || glow > 0.01f) {
             // light leaking out from under the key: a few widening, fading outlines, strongest right at the key's edge
             surf.shader = null
             for (i in 4 downTo 1) {
                 val grow = dp(1.5f) * i
-                surf.color = glowArgb(glow * 0.20f / i)
+                surf.color = if (voiceLight) (((0x66 * voiceLevel / i).toInt()) shl 24) or 0x005CF29A else glowArgb(glow * 0.20f / i)
                 canvas.drawRoundRect(RectF(r.left - grow, r.top - grow, r.right + grow, r.bottom + grow), rad + grow, rad + grow, surf)
             }
         }
@@ -544,6 +591,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                     val before = modifierState()
                     if (speedHeld && c.key.kind == Kind.CHAR && c.key.label.length == 1 && c.key.label[0].isLetter()) cancelShiftHold()
                     else finishShiftHold()
+                    flushSpace()
                     flushVolumeTap() // a tap on the currency key still waiting for its finger to lift is typed first, so the order of keys never swaps
                     pressed[e.getPointerId(i)] = c
                     feedback.key()
@@ -559,6 +607,9 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                     } else if (volumeSlide && plain && isCurrencyKey(c.key)) {
                         // typed when the finger lifts, unless the trackpad was used meanwhile: then it was the volume
                         volAnchor = c.rect; volPointer = e.getPointerId(i); volCell = c; volPending = true
+                    } else if (c.key.kind == Kind.SPACE && voiceEnabled && plain) {
+                        voicePointer = e.getPointerId(i); spacePending = true
+                        ui.postDelayed(voiceHold, 450)
                     } else fire(c.key)
                     // The left Shift still acts on press; the right Shift (when emoji is off) still acts on release.
                     // Both share the existing Caps state, without re-locking a press that just unlocked it.
@@ -578,6 +629,12 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                 }
             }
             MotionEvent.ACTION_MOVE -> {
+                val vi = e.findPointerIndex(voicePointer)
+                val vc = pressed[voicePointer]
+                if (vi >= 0 && vc != null && !RectF(vc.rect).apply { inset(-dp(12f), -dp(12f)) }.contains(e.getX(vi), e.getY(vi))) {
+                    if (voiceHeld) listener.onVoiceCancel()
+                    resetVoiceGesture()
+                }
                 val si = e.findPointerIndex(shiftHoldPointer)
                 val held = pressed[shiftHoldPointer]
                 if (si >= 0 && held != null) {
@@ -592,6 +649,15 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                 }
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP, MotionEvent.ACTION_CANCEL -> {
+                if (e.actionMasked == MotionEvent.ACTION_CANCEL || e.getPointerId(e.actionIndex) == voicePointer) {
+                    ui.removeCallbacks(voiceHold)
+                    if (e.actionMasked == MotionEvent.ACTION_CANCEL) {
+                        if (voiceHeld || voiceState != VoiceState.IDLE) listener.onVoiceCancel()
+                    }
+                    else if (voiceHeld) listener.onVoiceStop()
+                    else if (spacePending) listener.onText(" ")
+                    resetVoiceGesture()
+                }
                 val before = modifierState()
                 if (e.actionMasked == MotionEvent.ACTION_CANCEL) cancelShiftHold()
                 else if (e.getPointerId(e.actionIndex) == shiftHoldPointer) finishShiftHold()
@@ -821,6 +887,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
     fun pickerOpen() = picker != Picker.NONE
 
     private fun openPicker(mode: Picker) {
+        if (voiceState != VoiceState.IDLE) listener.onVoiceCancel()
         cancelShiftHold()
         accessibilityEpoch++; accessibilityShortcut = false
         picker = mode; pickScroll = 0f; stopTones(); stopMotion()
@@ -1286,6 +1353,12 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
             val isShift = k.kind == Kind.SHIFT || k.kind == Kind.SPEED && !emojiKey
             val checked = when { k.kind == Kind.LAYER -> altMode != Shift.OFF; isShift -> shift != Shift.OFF; k.kind == Kind.SPEED -> accessibilityShortcut; else -> null }
             val state = when {
+                k.kind == Kind.SPACE && voiceState != VoiceState.IDLE -> when (voiceState) {
+                    VoiceState.STARTING -> "Starting voice typing"
+                    VoiceState.RECORDING -> "Recording; activate Space to stop"
+                    VoiceState.TRANSCRIBING -> "Transcribing on this device; typing discards pending voice input"
+                    else -> null
+                }
                 k.kind == Kind.LAYER -> when (altMode) { Shift.OFF -> "Off"; Shift.ONCE -> "Symbols for next key"; Shift.CAPS -> "Locked" }
                 isShift -> when (shift) { Shift.OFF -> "Off"; Shift.ONCE -> "Next character uppercase"; Shift.CAPS -> "Caps lock" }
                 k.kind == Kind.SPEED && accessibilityShortcut -> "Choose a shortcut letter"
@@ -1303,6 +1376,12 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                 Kind.SYM -> "Symbols"; Kind.SPEED -> if (emojiKey) "Emoji and Speed shortcuts" else "Right Shift"
             }
             val actions = mutableMapOf(click to "Activate")
+            if (k.kind == Kind.SPACE) {
+                if (voiceState == VoiceState.STARTING || voiceState == VoiceState.RECORDING) {
+                    actions[click] = "Stop voice typing"
+                    actions[hold] = "Stop voice typing"
+                } else if (voiceEnabled) actions[hold] = "Start voice typing"
+            }
             if (isCurrencyKey(k) && altMode != Shift.OFF) actions.remove(click)
             if (isShift) actions[hold] = "Toggle Caps lock"
             if (k.kind == Kind.LAYER) actions[hold] = "Toggle Alt lock"
@@ -1312,6 +1391,8 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
             add(i + 1, cell.rect, label, state, checked, actions = actions) { a ->
                 feedback.key(); pressedRow = cell.row; pressedCol = cell.col
                 when {
+                    k.kind == Kind.SPACE && (voiceState == VoiceState.STARTING || voiceState == VoiceState.RECORDING) -> listener.onVoiceStop()
+                    k.kind == Kind.SPACE && a == hold && voiceEnabled -> { if (!listener.onVoiceStart()) return@add false }
                     a == R.id.a11y_shortcut -> { accessibilityShortcut = !accessibilityShortcut; accessibilityEpoch++ }
                     a == R.id.a11y_volume_up || a == R.id.a11y_volume_down -> { volAnchor = cell.rect; try { trackpadVolume(if (a == R.id.a11y_volume_up) -1 else 1) } catch (_: SecurityException) { return@add false } }
                     a == hold && isShift -> { shift = if (shift == Shift.CAPS) Shift.OFF else Shift.CAPS; lastShiftTap = 0 }

@@ -59,10 +59,12 @@ class BundleChecks(unittest.TestCase):
             tool.write_bytes(b'public-fixture')
             path = directory / 'bundle.aab'
             config = json.dumps({'optimizations': {'uncompressNativeLibraries': {'alignment': 'PAGE_ALIGNMENT_16K'}}})
-            for variant in ['valid', 'wrong-abi', 'extra-module', 'signature', 'bad-elf']:
+            for variant in ['valid', 'wrong-abi', 'extra-module', 'signature', 'bad-elf', 'missing-voice']:
                 with zipfile.ZipFile(path, 'w') as archive:
                     archive.writestr('base/manifest/AndroidManifest.xml', b'protobuf-fixture')
-                    for name in ['libcontextlm.so', 'libandroidx.graphics.path.so']:
+                    for name in ['libcontextlm.so', 'libvoice.so', 'libandroidx.graphics.path.so']:
+                        if variant == 'missing-voice' and name == 'libvoice.so':
+                            continue
                         abi = 'x86_64' if variant == 'wrong-abi' else 'arm64-v8a'
                         archive.writestr(f'base/lib/{abi}/{name}', elf(4096 if variant == 'bad-elf' else 16384))
                     if variant == 'extra-module':

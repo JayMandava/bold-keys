@@ -66,7 +66,7 @@ def verify_bundle(path, version, code, signed):
         release.require(len(names) == len(set(names)) and archive.testzip() is None, 'Duplicate or corrupt bundle ZIP entries')
         release.require([n for n in names if n.endswith('/manifest/AndroidManifest.xml')] == ['base/manifest/AndroidManifest.xml'], 'Only the base module is expected')
         native = [n for n in names if n.endswith('.so')]
-        release.require(set(native) == {'base/lib/arm64-v8a/libcontextlm.so', 'base/lib/arm64-v8a/libandroidx.graphics.path.so'}, 'Unexpected native libraries or ABI')
+        release.require(set(native) == {'base/lib/arm64-v8a/libcontextlm.so', 'base/lib/arm64-v8a/libvoice.so', 'base/lib/arm64-v8a/libandroidx.graphics.path.so'}, 'Unexpected native libraries or ABI')
         for name in native:
             elf_16k(archive.read(name))
         signatures = [n for n in names if re.fullmatch(r'META-INF/[^/]+\.(RSA|DSA|EC|SF)', n, re.I)]

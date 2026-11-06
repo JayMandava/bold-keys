@@ -55,7 +55,7 @@ The manual **Protected Android release** workflow builds on a standard `ubuntu-2
 - SDK packages and the Gradle distribution checksum are pinned. JDK 17 is obtained through the SHA-pinned official setup action. Preaccepted hosted-runner SDK licenses are required; the workflow never runs license-acceptance commands. Missing tooling/licenses fail rather than accept new agreements.
 - Standard GitHub-hosted runners are free for this **public** repository; this workflow uses no larger runners or paid services. It sets 60/20/15-minute job timeouts, no dependency caches, compression disabled for already-compressed APKs, and **one-day artifact retention**. Artifact storage still counts toward applicable account allowances; do not treat retention as unlimited/free storage. Public release assets persist intentionally. If repository visibility, runner class, plan or billing rules change, recheck cost before running.
 - Secret-free local tests: `python3 -m unittest discover -s tests -p 'test_release_workflow.py' -v`; `python3 tests/test_release_signing_modes.py` (requires Linux, JDK17 and configured Android SDK). Validate workflow syntax with `actionlint`. Actual protected-environment admission, hosted-runner provisioning and real signing require the approved first validation run.
-- F-Droid and voice typing remain out of scope.
+- F-Droid and Play publication remain out of scope. Optional experimental voice typing uses this same protected APK release path; it does not change signing or approval controls.
 
 ## Official references
 
