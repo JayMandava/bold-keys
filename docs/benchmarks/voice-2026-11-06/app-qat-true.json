@@ -1,0 +1,172 @@
+{
+  "qat_loaded": true,
+  "qat_selected": true,
+  "before_qat_pss_kb": 47462,
+  "with_qat_pss_kb": 560981,
+  "scope": "validation\/load\/JNI\/inference\/free; no capture or editor insertion",
+  "cancellation_check": "passed",
+  "rows": [
+    {
+      "id": "short",
+      "repeat": 0,
+      "text": "Please send the report tomorrow morning.",
+      "validation_ms": 67.083073,
+      "load_ms": 96.406823,
+      "compute_ms": 1223.338802,
+      "pss_kb": 577561
+    },
+    {
+      "id": "names",
+      "repeat": 0,
+      "text": "Jain Thames is meeting Priya in Hyderabad.",
+      "validation_ms": 36.085261,
+      "load_ms": 84.78677,
+      "compute_ms": 1268.147552,
+      "pss_kb": 578089
+    },
+    {
+      "id": "numbers",
+      "repeat": 0,
+      "text": "The invoice is for 12,500 rupees.",
+      "validation_ms": 38.553645,
+      "load_ms": 85.325157,
+      "compute_ms": 1248.114895,
+      "pss_kb": 578538
+    },
+    {
+      "id": "technical",
+      "repeat": 0,
+      "text": "Create a pull request and deploy the cartlin ifier.",
+      "validation_ms": 39.144531,
+      "load_ms": 89.148073,
+      "compute_ms": 1324.273697,
+      "pss_kb": 579011
+    },
+    {
+      "id": "dictation",
+      "repeat": 0,
+      "text": "I will call you after the meeting at 5.30.",
+      "validation_ms": 37.860573,
+      "load_ms": 86.853386,
+      "compute_ms": 1281.876771,
+      "pss_kb": 579351
+    },
+    {
+      "id": "french",
+      "repeat": 0,
+      "text": "bonjour, je voudrais un café de m'amettant.",
+      "validation_ms": 37.566979,
+      "load_ms": 86.989219,
+      "compute_ms": 4434.516405,
+      "pss_kb": 579783
+    },
+    {
+      "id": "german",
+      "repeat": 0,
+      "text": "Bitte schicken Sie den Bericht Nordenfrü.",
+      "validation_ms": 35.872396,
+      "load_ms": 88.188177,
+      "compute_ms": 4389.42854,
+      "pss_kb": 580116
+    },
+    {
+      "id": "noise",
+      "repeat": 0,
+      "text": "Please send the report tomorrow morning.",
+      "validation_ms": 37.606927,
+      "load_ms": 87.483438,
+      "compute_ms": 1187.087083,
+      "pss_kb": 580588
+    },
+    {
+      "id": "silence",
+      "repeat": 0,
+      "text": "you.",
+      "validation_ms": 36.018073,
+      "load_ms": 87.599896,
+      "compute_ms": 1268.182083,
+      "pss_kb": 580920
+    },
+    {
+      "id": "short",
+      "repeat": 1,
+      "text": "Please send the report tomorrow morning.",
+      "validation_ms": 35.811563,
+      "load_ms": 87.248854,
+      "compute_ms": 1195.429166,
+      "pss_kb": 581168
+    },
+    {
+      "id": "names",
+      "repeat": 1,
+      "text": "Jain Thames is meeting Priya in Hyderabad.",
+      "validation_ms": 38.489688,
+      "load_ms": 87.652187,
+      "compute_ms": 1261.772708,
+      "pss_kb": 581492
+    },
+    {
+      "id": "numbers",
+      "repeat": 1,
+      "text": "The invoice is for 12,500 rupees.",
+      "validation_ms": 37.47677,
+      "load_ms": 86.874323,
+      "compute_ms": 1211.659062,
+      "pss_kb": 581872
+    },
+    {
+      "id": "technical",
+      "repeat": 1,
+      "text": "Create a pull request and deploy the cartlin ifier.",
+      "validation_ms": 35.910625,
+      "load_ms": 87.8225,
+      "compute_ms": 1244.016458,
+      "pss_kb": 582204
+    },
+    {
+      "id": "dictation",
+      "repeat": 1,
+      "text": "I will call you after the meeting at 5.30.",
+      "validation_ms": 37.390052,
+      "load_ms": 87.694584,
+      "compute_ms": 1242.369062,
+      "pss_kb": 582512
+    },
+    {
+      "id": "french",
+      "repeat": 1,
+      "text": "bonjour, je voudrais un café de m'amettant.",
+      "validation_ms": 36.991094,
+      "load_ms": 87.989896,
+      "compute_ms": 4485.145832,
+      "pss_kb": 582692
+    },
+    {
+      "id": "german",
+      "repeat": 1,
+      "text": "Bitte schicken Sie den Bericht Nordenfrü.",
+      "validation_ms": 39.041093,
+      "load_ms": 87.463594,
+      "compute_ms": 4360.782602,
+      "pss_kb": 577906
+    },
+    {
+      "id": "noise",
+      "repeat": 1,
+      "text": "Please send the report tomorrow morning.",
+      "validation_ms": 38.550468,
+      "load_ms": 88.216615,
+      "compute_ms": 1308.517499,
+      "pss_kb": 578883
+    },
+    {
+      "id": "silence",
+      "repeat": 1,
+      "text": "you.",
+      "validation_ms": 35.954114,
+      "load_ms": 92.073907,
+      "compute_ms": 1232.299999,
+      "pss_kb": 579157
+    }
+  ]
+}

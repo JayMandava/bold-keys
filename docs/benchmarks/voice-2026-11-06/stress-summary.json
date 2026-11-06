@@ -1,0 +1,61 @@
+{
+  "latency_scope": "native load/inference/free; excludes app validation, capture, JNI, editor insertion",
+  "wer_normalization": "Unicode casefold and word tokens; numeric forms are not equated",
+  "corpus": "synthetic macOS voices; not user speech or accent evidence",
+  "results": [
+    {
+      "file": "stress-baseline.tsv",
+      "samples": 4,
+      "median_native_total_ms": 5810.12,
+      "p95_native_total_ms_nearest_rank": 6648.89,
+      "median_inference_ms": 5695.47,
+      "p95_inference_ms_nearest_rank": 6539.51,
+      "english_timing_samples": 4,
+      "english_median_native_total_ms": 5810.12,
+      "english_p95_native_total_ms_nearest_rank": 6648.89,
+      "median_load_ms": 83.2681,
+      "peak_observed_pss_kb": 129428,
+      "process_peak_rss_kb": 145216,
+      "wer": {
+        "en": {
+          "edits": 58,
+          "reference_words": 258,
+          "rate": 0.2248062015503876
+        },
+        "multilingual": {
+          "edits": 0,
+          "reference_words": 0,
+          "rate": null
+        }
+      },
+      "raw_silence_nonempty": 0
+    },
+    {
+      "file": "stress-adaptive.tsv",
+      "samples": 4,
+      "median_native_total_ms": 4640.514999999999,
+      "p95_native_total_ms_nearest_rank": 6604.96,
+      "median_inference_ms": 4529.03,
+      "p95_inference_ms_nearest_rank": 6494.65,
+      "english_timing_samples": 4,
+      "english_median_native_total_ms": 4640.514999999999,
+      "english_p95_native_total_ms_nearest_rank": 6604.96,
+      "median_load_ms": 83.0013,
+      "peak_observed_pss_kb": 129674,
+      "process_peak_rss_kb": 145480,
+      "wer": {
+        "en": {
+          "edits": 58,
+          "reference_words": 258,
+          "rate": 0.2248062015503876
+        },
+        "multilingual": {
+          "edits": 0,
+          "reference_words": 0,
+          "rate": null
+        }
+      },
+      "raw_silence_nonempty": 0
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+label	mode	threads	repeat	id	load_ms	infer_ms	total_ms	pss_kb	maxrss_kb	status	text
+moonshine-tiny-streaming	cold	default	0	short	177.714	342.787	554.216	146338	162304	0	Please send the report tomorrow morning.
+moonshine-tiny-streaming	cold	default	0	names	166.631	348.03	544.298	148590	169460	0	Jainth Meze's meeting Priya in Hyderabad in
+moonshine-tiny-streaming	cold	default	0	numbers	194.557	501.062	722.543	149154	170196	0	The invoice is for 12,500 rupees.
+moonshine-tiny-streaming	cold	default	0	technical	129.543	447.45	641.662	148946	170240	0	Create a pool request and deploy the cartoon in a cartoon.
+moonshine-tiny-streaming	cold	default	0	dictation	224.193	388.857	642.692	148714	170240	0	I will call you after the meeting at 5:00.
+moonshine-tiny-streaming	cold	default	0	noise	151.415	355.921	538.423	148166	170240	0	Please send the report tomorrow morning.
+moonshine-tiny-streaming	cold	default	0	silence	144.474	46.7793	222.389	145694	170240	0	""
+moonshine-tiny-streaming	cold	default	1	short	143.02	245.781	420.937	148162	170240	0	Please send the report tomorrow morning.
+moonshine-tiny-streaming	cold	default	1	names	142.948	357.383	532.023	148654	170240	0	Jainth Meze's meeting Priya in Hyderabad in
+moonshine-tiny-streaming	cold	default	1	numbers	130.289	421.663	583.549	149386	170240	0	The invoice is for 12,500 rupees.
+moonshine-tiny-streaming	cold	default	1	technical	139.428	376.718	548.79	149182	170364	0	Create a pool request and deploy the cartoon in a cartoon.
+moonshine-tiny-streaming	cold	default	1	dictation	153.26	416.374	601.75	148938	170364	0	I will call you after the meeting at 5:00.
+moonshine-tiny-streaming	cold	default	1	noise	138.301	239.715	412.235	148134	170364	0	Please send the report tomorrow morning.
+moonshine-tiny-streaming	cold	default	1	silence	134.42	39.7492	204.108	145430	170364	0	""

@@ -1,0 +1,24 @@
+[
+  {
+    "id": "long",
+    "file": "long.pcm",
+    "language": "en",
+    "reference": "Please send the report tomorrow morning. Jeyanth Mandava is meeting Priya in Hyderabad. The invoice is for twelve thousand five hundred rupees. Create a pull request and deploy the Kotlin API. I will call you after the meeting at five thirty.",
+    "kind": "concatenated synthetic speech with 250 ms gaps; not user speech",
+    "sha256": "e26bb0d2a0a0e6eab11b96e03af6d7528d6baeb3c6f9cbf4a15d364b741edf5e",
+    "sample_rate": 16000,
+    "samples": 207600,
+    "dataset_version": "synthetic-stress-2026-11-06-v1"
+  },
+  {
+    "id": "near-limit",
+    "file": "near-limit.pcm",
+    "language": "en",
+    "reference": "Please send the report tomorrow morning. Jeyanth Mandava is meeting Priya in Hyderabad. The invoice is for twelve thousand five hundred rupees. Create a pull request and deploy the Kotlin API. I will call you after the meeting at five thirty. Please send the report tomorrow morning. Jeyanth Mandava is meeting Priya in Hyderabad. The invoice is for twelve thousand five hundred rupees. Create a pull request and deploy the Kotlin API. I will call you after the meeting at five thirty. Please send the report tomorrow morning.",
+    "kind": "concatenated synthetic speech with 250 ms gaps; not user speech",
+    "sha256": "804161760c128fdc04bda6f3f71f76b3f4e46d8b4bc7bd01ac778d9d298703e0",
+    "sample_rate": 16000,
+    "samples": 454018,
+    "dataset_version": "synthetic-stress-2026-11-06-v1"
+  }
+]

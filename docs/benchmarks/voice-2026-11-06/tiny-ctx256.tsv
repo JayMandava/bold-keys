@@ -1,0 +1,19 @@
+label	mode	threads	repeat	id	load_ms	infer_ms	total_ms	pss_kb	maxrss_kb	status	text
+tiny-multi-ctx256	cold	2	0	short	85.4493	574.897	685.804	99173	114320	0	 Please send the report tomorrow morning.
+tiny-multi-ctx256	cold	2	0	names	82.6436	617.049	725.619	99873	115024	0	 Jain Thames is meeting Priya in Hyderabad.
+tiny-multi-ctx256	cold	2	0	numbers	81.9996	601.945	713.325	99925	115076	0	 The invoice is for 12,500 rupees.
+tiny-multi-ctx256	cold	2	0	technical	82.8472	695.532	806.525	99905	115076	0	 Create a pull request and deploy the cartlin ifier.
+tiny-multi-ctx256	cold	2	0	dictation	82.9138	611.389	722.569	99877	115076	0	 I will call you after the meeting at 5.30.
+tiny-multi-ctx256	cold	2	0	french	82.854	675.49	790.09	99949	115100	0	 bonjour, je voudrais un café de m'amette un.
+tiny-multi-ctx256	cold	2	0	german	82.4302	1943.79	2054.85	100013	115148	0	 Bitte schicken Sie den Bericht Nordens früh. Bitter schicken Sie den Bericht Nordens früh. Bitter schicken Sie den Bericht Nordens früh. Bitter schicken Sie den Bericht Nordens früh. Bitter schicken Sie den Bericht Nordens früh. Bitter schicken Sie den Bericht Nordens früh. Bitter schicken Sie den Bericht Nordens früh. Bitter schicken Sie den Bericht Nordens früh. Bitter schicken Sie den Bericht Nordens früh.
+tiny-multi-ctx256	cold	2	0	noise	83.1308	572.29	684.633	99873	115148	0	 Please send the report tomorrow morning.
+tiny-multi-ctx256	cold	2	0	silence	83.0567	3983.82	4103.49	119338	135940	0	 the end.
+tiny-multi-ctx256	cold	2	1	short	106.435	558.342	699.743	99826	135940	0	 Please send the report tomorrow morning.
+tiny-multi-ctx256	cold	2	1	names	82.4138	574.722	685.815	99942	135940	0	 Jain Thames is meeting Priya in Hyderabad.
+tiny-multi-ctx256	cold	2	1	numbers	83.5147	559.135	670.999	99994	135940	0	 The invoice is for 12,500 rupees.
+tiny-multi-ctx256	cold	2	1	technical	83.4111	708.201	828.253	99914	135940	0	 Create a pull request and deploy the cartlin ifier.
+tiny-multi-ctx256	cold	2	1	dictation	104.47	577.885	711.527	99886	135940	0	 I will call you after the meeting at 5.30.
+tiny-multi-ctx256	cold	2	1	french	90.8134	574.577	694.157	99958	135940	0	 bonjour, je voudrais un café de m'amette un.
+tiny-multi-ctx256	cold	2	1	german	91.3483	1844.53	1965.18	99966	135940	0	 Bitte schicken Sie den Bericht Nordens früh. Bitter schicken Sie den Bericht Nordens früh. Bitter schicken Sie den Bericht Nordens früh. Bitter schicken Sie den Bericht Nordens früh. Bitter schicken Sie den Bericht Nordens früh. Bitter schicken Sie den Bericht Nordens früh. Bitter schicken Sie den Bericht Nordens früh. Bitter schicken Sie den Bericht Nordens früh. Bitter schicken Sie den Bericht Nordens früh.
+tiny-multi-ctx256	cold	2	1	noise	94.2844	541.326	670.15	99830	135940	0	 Please send the report tomorrow morning.
+tiny-multi-ctx256	cold	2	1	silence	100.622	3681.54	3838.74	119304	135940	0	 the end.

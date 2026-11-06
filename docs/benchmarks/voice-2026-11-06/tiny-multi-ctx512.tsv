@@ -1,0 +1,15 @@
+label	mode	threads	repeat	id	load_ms	infer_ms	total_ms	pss_kb	maxrss_kb	status	text
+tiny-multi-ctx512	cold	2	0	short	84.6524	1026.26	1135.13	104625	120192	0	 Please send the report tomorrow morning.
+tiny-multi-ctx512	cold	2	0	names	82.3569	1109.59	1218.26	105397	120964	0	 Jain Thames is meeting Priya in Hyderabad.
+tiny-multi-ctx512	cold	2	0	numbers	81.5871	1087.83	1197.78	105449	121012	0	 The invoice is for 12,500 rupees.
+tiny-multi-ctx512	cold	2	0	technical	82.8198	1116.36	1228.81	105429	121012	0	 Create a pull request and deploy the cartlin ifier.
+tiny-multi-ctx512	cold	2	0	dictation	81.8662	1118.63	1229.15	105397	121012	0	 I will call you after the meeting at 5.30.
+tiny-multi-ctx512	cold	2	0	noise	82.5433	1072.62	1185.45	105341	121012	0	 Please send the report tomorrow morning.
+tiny-multi-ctx512	cold	2	0	silence	82.319	1111.91	1227.52	124673	141816	0	 you.
+tiny-multi-ctx512	cold	2	1	short	82.2948	1014.65	1125.79	105345	141816	0	 Please send the report tomorrow morning.
+tiny-multi-ctx512	cold	2	1	names	82.2644	1167.55	1278.93	105397	141816	0	 Jain Thames is meeting Priya in Hyderabad.
+tiny-multi-ctx512	cold	2	1	numbers	82.8722	1072.36	1184.3	105449	141816	0	 The invoice is for 12,500 rupees.
+tiny-multi-ctx512	cold	2	1	technical	83.0303	1076.49	1188.62	105429	141816	0	 Create a pull request and deploy the cartlin ifier.
+tiny-multi-ctx512	cold	2	1	dictation	82.259	1070.12	1181.44	105401	141816	0	 I will call you after the meeting at 5.30.
+tiny-multi-ctx512	cold	2	1	noise	82.0263	1051.11	1162.53	105345	141816	0	 Please send the report tomorrow morning.
+tiny-multi-ctx512	cold	2	1	silence	84.2792	1188.13	1304.76	124673	141820	0	 you.
