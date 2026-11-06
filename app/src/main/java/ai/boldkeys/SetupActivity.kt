@@ -319,7 +319,7 @@ internal fun ExpandableHelp(label: String, summary: String, details: String) {
                 contentDescription = "$label: ${if (expanded) "hide full instructions" else "show full instructions"}"
                 stateDescription = if (expanded) "Expanded" else "Collapsed"
             },
-        ) { Text(if (expanded) "Hide $label" else "$label details") }
+        ) { Text(if (expanded) "Hide $label" else label) }
         if (expanded) Note(details)
     }
 }
