@@ -31,12 +31,18 @@ class KeyboardViewTest {
     private val typed = mutableListOf<String>()
     private val shortcuts = mutableListOf<Char>()
     private var deletes = 0
+    private var voiceStarts = 0
+    private var voiceStops = 0
+    private var voiceCancels = 0
 
     @Before fun setUp() {
         activityController = Robolectric.buildActivity(Activity::class.java).setup()
         activity = activityController.get()
         activity.getSharedPreferences("bk", 0).edit().clear().putString("pattern", "off").apply()
         keyboard = KeyboardView(activity, Feedback(activity), object : KeyboardView.Listener {
+            override fun onVoiceStart(): Boolean { voiceStarts++; return true }
+            override fun onVoiceStop() { voiceStops++ }
+            override fun onVoiceCancel() { voiceCancels++ }
             override fun onText(text: String) { typed += text }
             override fun onDelete() { deletes++ }
             override fun onEnter() {}
@@ -291,5 +297,60 @@ class KeyboardViewTest {
         assertFalse(keyboard.pickerOpen())
         tap(speed); tap(pickerRect("close"))
         assertFalse(keyboard.pickerOpen())
+    }
+
+    @Test fun voiceOffRetainsFingerDownSpace() {
+        event(MotionEvent.ACTION_DOWN, key(3, 2))
+        assertEquals(listOf(" "), typed)
+        advance(600)
+        event(MotionEvent.ACTION_UP, key(3, 2))
+        assertEquals(0, voiceStarts)
+    }
+
+    @Test fun voiceEnabledQuickTapStillTypesExactlyOneSpace() {
+        keyboard.voiceEnabled = true
+        event(MotionEvent.ACTION_DOWN, key(3, 2)); advance(100)
+        assertTrue(typed.isEmpty())
+        event(MotionEvent.ACTION_UP, key(3, 2)); advance(600)
+        assertEquals(listOf(" "), typed)
+        assertEquals(0, voiceStarts)
+    }
+
+    @Test fun voiceHoldStartsOnceAndReleaseStopsWithoutSpace() {
+        keyboard.voiceEnabled = true
+        event(MotionEvent.ACTION_DOWN, key(3, 2)); advance(1000)
+        assertEquals(1, voiceStarts)
+        event(MotionEvent.ACTION_UP, key(3, 2))
+        assertEquals(1, voiceStops)
+        assertTrue(typed.isEmpty())
+    }
+
+    @Test fun anotherFingerFlushesSpaceBeforeTheLetter() {
+        keyboard.voiceEnabled = true
+        val space = key(3, 2)
+        event(MotionEvent.ACTION_DOWN, space)
+        multi(MotionEvent.ACTION_POINTER_DOWN or (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT), space, q)
+        assertEquals(listOf(" ", "q"), typed)
+        advance(600)
+        assertEquals(0, voiceStarts)
+        event(MotionEvent.ACTION_CANCEL, space)
+    }
+
+    @Test fun canceledSpaceNeverTypesOrStartsVoiceLater() {
+        keyboard.voiceEnabled = true
+        event(MotionEvent.ACTION_DOWN, key(3, 2)); advance(100)
+        event(MotionEvent.ACTION_CANCEL, key(3, 2)); advance(600)
+        assertTrue(typed.isEmpty()); assertEquals(0, voiceStarts)
+    }
+
+    @Test fun cancelAndEditorResetDisarmHeldSpace() {
+        keyboard.voiceEnabled = true
+        event(MotionEvent.ACTION_DOWN, key(3, 2)); advance(600)
+        event(MotionEvent.ACTION_CANCEL, key(3, 2))
+        assertEquals(1, voiceCancels)
+        event(MotionEvent.ACTION_DOWN, key(3, 2))
+        keyboard.resetVoiceGesture(); advance(600)
+        event(MotionEvent.ACTION_UP, key(3, 2))
+        assertEquals(1, voiceStarts); assertTrue(typed.isEmpty())
     }
 }

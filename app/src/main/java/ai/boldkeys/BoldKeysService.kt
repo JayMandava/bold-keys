@@ -52,8 +52,111 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
     private class Undo(val typed: String, val fixed: String, val sep: String)
     private var undo: Undo? = null
 
+    private val voicePreferenceListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key == "voiceTyping") ui.post { if (!Prefs.voiceTyping(this)) cancelVoice() else updateVoice() }
+    }
+    private var voiceCapture: VoiceCapture? = null
+    private var voiceEpoch = 0
+    private var voiceEditor = false
+    private var voiceTranscript: String? = null
+    private var voiceAnchor: VoiceEditorAnchor? = null
+    private lateinit var voiceRow: LinearLayout
+    private lateinit var voiceStatusScroll: android.widget.ScrollView
+    private lateinit var voiceStatus: android.widget.TextView
+    private lateinit var voiceStart: android.widget.Button
+    private lateinit var voiceStop: android.widget.Button
+    private lateinit var voiceInsert: android.widget.Button
+    private lateinit var voiceCancel: android.widget.Button
+
+    private fun voiceReady() = voiceEditor && Prefs.voiceTyping(this) && VoiceModel.installed(this) &&
+        checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED
+    private fun updateVoice() {
+        if (!::voiceRow.isInitialized) return
+        val ready = voiceReady()
+        kb.voiceEnabled = ready && voiceCapture == null && voiceTranscript == null
+        voiceRow.visibility = if (Prefs.voiceTyping(this) && voiceEditor) View.VISIBLE else View.GONE
+        voiceStart.isEnabled = ready && voiceCapture == null
+        voiceStart.visibility = if (voiceCapture == null && voiceTranscript == null) View.VISIBLE else View.GONE
+        voiceStop.visibility = if (voiceCapture != null) View.VISIBLE else View.GONE
+        voiceInsert.visibility = if (voiceTranscript != null) View.VISIBLE else View.GONE
+        voiceStatusScroll.layoutParams?.let { params ->
+            params.height = if (voiceTranscript != null) (96 * resources.displayMetrics.density).toInt() else -2
+            voiceStatusScroll.layoutParams = params
+        }
+        voiceCancel.visibility = if (voiceCapture != null || voiceTranscript != null) View.VISIBLE else View.GONE
+        if (!ready && voiceCapture == null) voiceStatus.text = "Voice needs microphone permission and a model in Experimental."
+    }
+    private fun cancelVoice() {
+        ++voiceEpoch; voiceCapture?.cancel(); voiceCapture = null; voiceTranscript = null; voiceAnchor = null
+        if (::kb.isInitialized) { kb.voiceListening = false; kb.resetVoiceGesture() }
+        if (::voiceStatus.isInitialized) voiceStatus.text = "On-device voice"
+        updateVoice()
+    }
+    override fun onVoiceCancel() { cancelVoice() }
+    override fun onVoiceStart(): Boolean {
+        if (!voiceReady() || voiceCapture != null) return false
+        voiceTranscript = null
+        val epoch = ++voiceEpoch
+        val connection = currentInputConnection ?: return false
+        voiceAnchor = VoiceEditorAnchor.capture(connection)
+        if (voiceAnchor == null) { voiceStatus.text = "Voice typing is unavailable in this editor."; return false }
+        ++lmJob; undo = null; lastSpaceAt = 0
+        val capture = VoiceCapture(this, Prefs.language(this), { message ->
+            if (epoch == voiceEpoch) {
+                voiceStatus.text = message
+                kb.voiceListening = message.startsWith("Listening")
+                voiceStop.isEnabled = message.startsWith("Listening")
+            }
+        }, { text, error ->
+            if (epoch == voiceEpoch) {
+                if (!voiceReady() || currentInputConnection !== connection || voiceAnchor?.matches(connection) != true) {
+                    cancelVoice(); return@VoiceCapture
+                }
+                voiceCapture = null; kb.voiceListening = false
+                voiceTranscript = text?.takeIf { error == null }
+                voiceStatus.text = error ?: voiceTranscript
+                updateVoice()
+            }
+        })
+        voiceCapture = capture
+        voiceStatus.text = "Starting microphone…"; voiceStop.isEnabled = true
+        updateVoice(); capture.start()
+        return true
+    }
+    override fun onVoiceStop() {
+        voiceCapture?.stop(); kb.voiceListening = false
+        if (::voiceStop.isInitialized) voiceStop.isEnabled = false
+    }
+    private fun insertVoice() {
+        val text = voiceTranscript ?: return
+        if (!voiceReady() || voiceCapture != null) { cancelVoice(); return }
+        val ic = currentInputConnection ?: return
+        if (voiceAnchor?.matches(ic) != true) { cancelVoice(); return }
+        cancelVoice(); ++lmJob; undo = null; lastSpaceAt = 0
+        // Commit literal text, never invoke the editor action or run it through autocorrect.
+        ic.commitText(text, 1); scheduleRefresh()
+    }
+    private fun createVoiceRow(): View {
+        voiceStatus = android.widget.TextView(this).apply { setTextColor(0xFFFFFFFF.toInt()); text = "On-device voice"; setPadding(12, 8, 12, 8) }
+        fun button(label: String, action: () -> Unit) = android.widget.Button(this).apply {
+            text = label; minHeight = (48 * resources.displayMetrics.density).toInt(); setOnClickListener { action() }
+        }
+        voiceStart = button("Voice") { onVoiceStart() }; voiceStop = button("Stop") { onVoiceStop() }
+        voiceInsert = button("Insert") { insertVoice() }; voiceCancel = button("Cancel") { cancelVoice() }
+        voiceStatusScroll = android.widget.ScrollView(this).apply { addView(voiceStatus) }
+        voiceRow = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(voiceStatusScroll, LinearLayout.LayoutParams(-1, -2))
+            addView(LinearLayout(this@BoldKeysService).apply {
+                for (b in listOf(voiceStart, voiceStop, voiceInsert, voiceCancel)) addView(b, LinearLayout.LayoutParams(0, -2, 1f))
+            })
+        }
+        updateVoice(); return voiceRow
+    }
+
     override fun onCreate() {
         super.onCreate()
+        getSharedPreferences("bk", MODE_PRIVATE).registerOnSharedPreferenceChangeListener(voicePreferenceListener)
         loadEngine(Prefs.language(this))
     }
 
@@ -82,7 +185,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         }
     }
 
-    override fun onDestroy() { saveLearned(); lmWorker.execute { lm?.close(); lm = null }; super.onDestroy() }
+    override fun onDestroy() { getSharedPreferences("bk", MODE_PRIVATE).unregisterOnSharedPreferenceChangeListener(voicePreferenceListener); cancelVoice(); saveLearned(); lmWorker.execute { lm?.close(); lm = null }; super.onDestroy() }
 
     /** Loads the chosen model when the setting is on (and one is installed), and lets go of it when it is off or changed. */
     private fun syncContextModel() {
@@ -172,6 +275,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
             root = this
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(0xFF000000.toInt())
+            addView(createVoiceRow(), LinearLayout.LayoutParams(-1, -2))
             addView(bar, LinearLayout.LayoutParams(-1, -2))
             addView(kb, LinearLayout.LayoutParams(-1, -2))
             // The keyboard is drawn edge to edge: keep the keys clear of the system's navigation bar.
@@ -201,6 +305,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
 
     override fun onStartInput(info: EditorInfo, restarting: Boolean) {
         // Flush the previous ordinary editor before changing policy. Incognito text is never added.
+        cancelVoice()
         saveLearned()
         undo = null; lastSpaceAt = 0
         smart = false; shown = emptyList() // no prior-editor candidates while new input policy is being applied
@@ -212,6 +317,9 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
     }
 
     private fun applyLearningPolicy(info: EditorInfo) {
+        voiceEditor = info.inputType and InputType.TYPE_MASK_CLASS == InputType.TYPE_CLASS_TEXT &&
+            info.inputType and InputType.TYPE_MASK_VARIATION !in SECRET_VARIATIONS
+        updateVoice()
         val variation = info.inputType and InputType.TYPE_MASK_VARIATION
         learningAllowed = info.imeOptions and EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING == 0 &&
             info.inputType and InputType.TYPE_MASK_CLASS == InputType.TYPE_CLASS_TEXT &&
@@ -248,7 +356,10 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         refreshInsets()
     }
 
+    override fun onFinishInputView(finishingInput: Boolean) { cancelVoice(); super.onFinishInputView(finishingInput) }
+    override fun onWindowHidden() { cancelVoice(); super.onWindowHidden() }
     override fun onFinishInput() {
+        cancelVoice(); voiceEditor = false; updateVoice()
         super.onFinishInput()
         saveLearned()
         learningAllowed = false; smart = false; shown = emptyList()
@@ -271,6 +382,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
 
     override fun onUpdateSelection(oldSelStart: Int, oldSelEnd: Int, newSelStart: Int, newSelEnd: Int, candidatesStart: Int, candidatesEnd: Int) {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
+        if ((voiceCapture != null || voiceTranscript != null) && (oldSelStart != newSelStart || oldSelEnd != newSelEnd)) cancelVoice()
         selStart = newSelStart; selEnd = newSelEnd
         ui.removeCallbacks(hideRunnable) // the cursor moved: the tap was in the field, not away from it
         if (::bar.isInitialized) scheduleRefresh()
@@ -286,6 +398,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
     // ---- typing
 
     override fun onText(text: String) {
+        if (voiceCapture != null || voiceTranscript != null) cancelVoice()
         val ic = currentInputConnection ?: return
         val e = engine
         if (smart && !urlLike && doubleSpaceOn && text == " ") {
@@ -351,6 +464,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
     }
 
     override fun onShortcut(letter: Char): Boolean {
+        if (voiceCapture != null || voiceTranscript != null) cancelVoice()
         val sc = Shortcuts.get(this, letter) ?: return false
         val typed = runCatching { Shortcuts.run(this, sc) }.getOrNull()
         if (typed != null) onText(typed)
@@ -359,6 +473,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
 
     /** A letter was held and an accented form chosen: it replaces the plain letter that was typed when the key went down. */
     override fun onAccent(accent: String) {
+        if (voiceCapture != null || voiceTranscript != null) cancelVoice()
         val ic = currentInputConnection ?: return
         lastSpaceAt = 0
         undo = null
@@ -369,6 +484,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
     }
 
     override fun onDelete() {
+        if (voiceCapture != null || voiceTranscript != null) cancelVoice()
         val ic = currentInputConnection ?: return
         lastSpaceAt = 0
         val u = undo
@@ -401,6 +517,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
     }
 
     override fun onEnter() {
+        if (voiceCapture != null || voiceTranscript != null) cancelVoice()
         lastSpaceAt = 0
         val info = currentInputEditorInfo
         val action = info?.imeOptions?.and(EditorInfo.IME_MASK_ACTION) ?: EditorInfo.IME_ACTION_NONE
@@ -475,6 +592,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
     }
 
     override fun onPick(index: Int) {
+        if (voiceCapture != null || voiceTranscript != null) cancelVoice()
         if (::kb.isInitialized && kb.pickerOpen()) return // a tap on the trackpad must not drop a word into the text while the picker is open
         val ic = currentInputConnection ?: return
         val pick = shown.getOrNull(index) ?: return
@@ -510,6 +628,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
     // ---- trackpad
 
     override fun onMove(dx: Int, dy: Int, select: Boolean) {
+        if ((dx != 0 || dy != 0) && (voiceCapture != null || voiceTranscript != null)) cancelVoice()
         if (select && (dx != 0 || dy != 0)) kb.cancelShiftHold()
         if (dx != 0 || dy != 0) lastSpaceAt = 0
         if (kb.isCurrencyHeld()) { kb.trackpadVolume(dy); return } // the currency key (with the speaker) is held: the trackpad's up and down are the volume

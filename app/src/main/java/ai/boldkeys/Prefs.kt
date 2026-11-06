@@ -31,6 +31,7 @@ object Prefs {
     fun backlightLevel(c: Context) = float(c, "backlightLevel", 0.6f)
 
     // typing
+    fun voiceTyping(c: Context) = bool(c, "voiceTyping", false)
     fun autocorrect(c: Context) = bool(c, "autocorrect", true)
     fun suggestions(c: Context) = bool(c, "suggestions", true)
     fun autoCapitals(c: Context) = bool(c, "autocaps", true)

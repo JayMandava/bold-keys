@@ -33,6 +33,7 @@ follow the two steps on screen to turn the keyboard on. Needs Android 13 or newe
   misspelling and catches real words used for another (their/there, then/than, to/too). It only scores words the dictionary proposes and
   never writes text. Off by default. See [docs/how-it-works.md](docs/how-it-works.md).
 - **Private by design:** typing and inference run locally. Password and email fields disable corrections/suggestions; web-address fields may show suggestions but are not rewritten. Editors requesting `IME_FLAG_NO_PERSONALIZED_LEARNING`, and password/email/web-address fields, do not update learned words, word preferences, word pairs or emoji history/tone preferences. Optional downloads and external providers are described below.
+- **Experimental on-device voice:** optional and off by default. Enable it in Experimental, grant microphone access and download the 32.2 MB Whisper Tiny model. Hold space to record, release to stop, then review and Insert; Voice/Stop/Cancel buttons are also available. No online recognition fallback. See [implementation and verification status](docs/VOICE_TYPING_REVIEW.md).
 - **Currency key:** the key beside M shows and types your region's sign (£, €, ₹ ...) or any of fourteen you choose in Settings. Its small speaker is real: hold the key and scroll the trackpad up or down to change the media volume (a quick tap still types the sign; switch it off in Settings). No special permission is needed.
 - **Material 3 Expressive settings,** and text emoticons that turn into emoji (optional).
 

@@ -129,7 +129,7 @@ private fun writeDictionary(c: Context, edit: (MutableMap<String, Int>) -> Unit)
 }
 
 private enum class Screen(val title: String) {
-    HOME("Bold Keys"), TYPING("Typing"), LOOK("Appearance"), FEEL("Key feel"), SYMBOLS("Symbols & emoji"), DICTIONARY("Personal dictionary"), SHORTCUTS("Speed key"), CONTEXT("Context model"), ABOUT("About"), LICENSES("Licenses & credits"),
+    EXPERIMENTAL("Experimental"), HOME("Bold Keys"), TYPING("Typing"), LOOK("Appearance"), FEEL("Key feel"), SYMBOLS("Symbols & emoji"), DICTIONARY("Personal dictionary"), SHORTCUTS("Speed key"), CONTEXT("Context model"), ABOUT("About"), LICENSES("Licenses & credits"),
 }
 
 @Composable
@@ -163,6 +163,7 @@ private fun SettingsApp() {
                 Screen.SYMBOLS -> symbolItems(context)
                 Screen.DICTIONARY -> dictionaryItems(context)
                 Screen.SHORTCUTS -> item(key = "shortcuts") { ShortcutsContent(context) }
+                Screen.EXPERIMENTAL -> item(key = "voice") { VoiceSettings(context) }
                 Screen.CONTEXT -> contextItems(context)
                 Screen.ABOUT -> aboutItems(context) { screen = Screen.LICENSES.name }
                 Screen.LICENSES -> licenseItems(context)
@@ -186,6 +187,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.homeItems(context: Co
                 NavRow("Personal dictionary", "${readDictionary(context).size} words you have taught it") { open(Screen.DICTIONARY) }
                 NavRow("Speed key", "${Shortcuts.all(context).size} letters assigned: hold the right-hand key, tap a letter") { open(Screen.SHORTCUTS) }
                 NavRow("Context model", if (Prefs.contextModel(context)) "On: judges words by the sentence around them" else "Off: optional, needs a download") { open(Screen.CONTEXT) }
+                NavRow("Experimental", "Optional on-device voice typing") { open(Screen.EXPERIMENTAL) }
                 NavRow("About", "Privacy and credits") { open(Screen.ABOUT) }
             }
         }
@@ -591,7 +593,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.aboutItems(context: C
     item(key = "about") {
         val version = remember { runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "" }
         Section("Version $version") {
-            Note("Typing, learning and context-model inference happen on this phone; typed text is not sent to a server, and learned words stay in this app's private storage. Model downloads contact Hugging Face over HTTPS only when you tap Download. Android's emoji support may request a font from a system provider. Opening the privacy policy or a Speed-key link hands that link to another app, which may use the internet. Importing a model uses a document provider that may be cloud-backed. When an editor requests no personalized learning, the keyboard does not update learned words, word preferences, word pairs or emoji history/tone preferences; password, email and web-address fields also do not update these records.")
+            Note("Experimental voice typing records only while activated and transcribes locally with Whisper; audio is held in memory and discarded after transcription or cancellation, with no online fallback. The optional model download contacts Hugging Face and its delivery providers without audio. Typing, learning and context-model inference happen on this phone; typed text is not sent to a server, and learned words stay in this app's private storage. Model downloads contact Hugging Face over HTTPS only when you tap Download. Android's emoji support may request a font from a system provider. Opening the privacy policy or a Speed-key link hands that link to another app, which may use the internet. Importing a model uses a document provider that may be cloud-backed. When an editor requests no personalized learning, the keyboard does not update learned words, word preferences, word pairs or emoji history/tone preferences; password, email and web-address fields also do not update these records.")
             TextButton(onClick = {
                 try {
                     context.startActivity(Intent(Intent.ACTION_VIEW, "https://jay-mandava-dev.web.app/privacy.html".toUri()))
@@ -614,6 +616,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.licenseItems(context:
         "Nunito — SIL Open Font License" to "Nunito-OFL-1.1.txt",
         "Unicode License V3" to "Unicode-V3.txt",
         "llama.cpp / ggml — MIT" to "llama-MIT.txt",
+        "whisper.cpp / ggml — MIT" to "whisper-MIT.txt",
+        "Whisper model — MIT" to "Whisper-model-MIT.txt",
         "AndroidX graphics path notices" to "graphics-path-NOTICE.txt",
         "Kotlin runtime third-party notices" to "Kotlin-runtime-NOTICES.txt",
         "Common Voice data — CC0" to "CommonVoice-CC0.txt",
@@ -792,4 +796,46 @@ private fun ShortcutDialog(context: Context, letter: Char, current: Shortcut?, o
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
+}
+
+
+@Composable
+private fun VoiceSettings(context: Context) {
+    var enabled by remember { mutableStateOf(Prefs.voiceTyping(context)) }
+    var message by remember { mutableStateOf<String?>(null) }
+    var busy by remember { mutableStateOf(VoiceModel.busy) }
+    var installed by remember { mutableStateOf(VoiceModel.installed(context)) }
+    androidx.compose.runtime.LaunchedEffect(busy) {
+        while (VoiceModel.busy) { kotlinx.coroutines.delay(500) }
+        busy = false; installed = VoiceModel.installed(context)
+    }
+    val permission = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { granted ->
+        enabled = granted; Prefs.put(context, "voiceTyping", granted)
+        message = if (granted) "Microphone permission granted. Download the optional model below." else "Microphone permission denied. Voice typing stays off; you can enable it again here."
+    }
+    Section("On-device voice typing") {
+        SwitchRow("Enable experimental voice typing", "Off by default. Uses Whisper Tiny on this device; accuracy and speed are still being tested.", enabled) { want ->
+            if (!want) { enabled = false; Prefs.put(context, "voiceTyping", false) }
+            else permission.launch(android.Manifest.permission.RECORD_AUDIO)
+        }
+        Note("Download the optional 32.2 MB multilingual Whisper Tiny Q5 model, then hold space to speak and release to stop. You can also tap Voice and Stop. Review the transcript and tap Insert; nothing is sent automatically. The keyboard language selects English, French or German recognition.")
+        Note("Audio stays in memory on this device and is discarded after transcription or cancellation. There is no online recognition fallback. Voice is disabled in password fields. Speed and accuracy on your phone are experimental.")
+        Note("Only the model download contacts Hugging Face and its delivery providers over HTTPS; they can see your IP address and the requested model. No audio or typed text is included. The model is optional and MIT licensed.")
+        Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(enabled = enabled && !busy && !installed, onClick = {
+                busy = true; message = "Downloading and verifying model…"
+                VoiceModel.download(context) { message = it; busy = false; installed = VoiceModel.installed(context) }
+            }) { Text(if (installed) "Model installed" else "Download model") }
+            if (busy) TextButton(onClick = { VoiceModel.cancel() }) { Text("Cancel download") }
+            if (installed && !busy) TextButton(onClick = { VoiceModel.delete(context); installed = false }) { Text("Delete model") }
+        }
+        message?.let { Note(it) }
+        if (message?.contains("denied") == true) {
+            Note("If Android no longer shows a permission prompt, allow Microphone in the app's Android settings.")
+            TextButton(onClick = {
+                context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, "package:${context.packageName}".toUri()))
+            }) { Text("Open Android app settings") }
+        }
+    }
 }

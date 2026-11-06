@@ -105,3 +105,13 @@ Inspired by BlackBerry Bold 9900. BlackBerry is a trademark of its owner;
 this project is independent and is not affiliated with or endorsed by BlackBerry.
 
 AndroidX CustomView 1.2.0: ExploreByTouchHelper, Copyright The Android Open Source Project, Apache License 2.0. Source: https://android.googlesource.com/platform/frameworks/support/ ; published sources: https://dl.google.com/dl/android/maven2/androidx/customview/customview/1.2.0/customview-1.2.0-sources.jar . The full Apache-2.0 text is included offline.
+
+EXPERIMENTAL VOICE
+whisper.cpp v1.8.2 / ggml, Copyright (c) 2023-2024 The ggml authors, MIT.
+Source: https://github.com/ggml-org/whisper.cpp/tree/4979e04f5dcaccb36057e059bbaed8a2f5288315
+Optional Whisper Tiny multilingual Q5_1 model, MIT (Copyright OpenAI, 2022).
+Weights are downloaded only on request, never bundled; original weights:
+https://github.com/openai/whisper ; conversion:
+https://huggingface.co/ggerganov/whisper.cpp/blob/f281eb45af861ab5e5297d23694b7d46e090c02c/ggml-tiny-q5_1.bin
+SHA-256: 818710568da3ca15689e31a743197b520007872ff9576237bda97bd1b469c3d7
+The complete whisper.cpp and OpenAI model MIT notices are included offline.
