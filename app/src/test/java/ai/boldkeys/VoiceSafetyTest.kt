@@ -106,4 +106,23 @@ class VoiceSafetyTest {
         shadowOf(android.os.Looper.getMainLooper()).idle()
         assertNull(ReflectionHelpers.getField<String?>(s, "voiceTranscript"))
     }
+
+    @Test fun idleHintReflectsTheMissingRequirementAndClearsWhenReady() {
+        val s = service()
+        Prefs.put(s, "voiceTyping", true)
+        policy(s, InputType.TYPE_CLASS_TEXT)
+        val status = ReflectionHelpers.getField<android.widget.TextView>(s, "voiceStatus")
+        assertEquals("Microphone access is off. Enable voice in Experimental.", status.text.toString())
+        shadowOf(RuntimeEnvironment.getApplication()).grantPermissions(Manifest.permission.RECORD_AUDIO)
+        policy(s, InputType.TYPE_CLASS_TEXT)
+        assertEquals("Download the voice model in Experimental.", status.text.toString())
+        VoiceModel.file(s).writeBytes(byteArrayOf(1))
+        policy(s, InputType.TYPE_CLASS_TEXT)
+        assertEquals("On-device voice", status.text.toString())
+        policy(s, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
+        assertEquals(false, ReflectionHelpers.getField<Boolean>(s, "voiceEditor"))
+        policy(s, InputType.TYPE_CLASS_TEXT)
+        assertEquals("On-device voice", status.text.toString())
+        VoiceModel.file(s).delete()
+    }
 }

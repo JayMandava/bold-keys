@@ -84,7 +84,13 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
             voiceStatusScroll.layoutParams = params
         }
         voiceCancel.visibility = if (voiceCapture != null || voiceTranscript != null) View.VISIBLE else View.GONE
-        if (!ready && voiceCapture == null) voiceStatus.text = "Voice needs microphone permission and a model in Experimental."
+        if (!ready && voiceCapture == null) {
+            voiceStatus.text = if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED)
+                VOICE_MIC_NEEDED else VOICE_MODEL_NEEDED
+        } else if (ready && voiceCapture == null && voiceTranscript == null &&
+            voiceStatus.text.toString() in setOf(VOICE_MIC_NEEDED, VOICE_MODEL_NEEDED)) {
+            voiceStatus.text = "On-device voice"
+        }
     }
     private fun cancelVoice() {
         ++voiceEpoch; voiceCapture?.cancel(); voiceCapture = null; voiceTranscript = null; voiceAnchor = null
@@ -698,6 +704,8 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
     }
 
     private companion object {
+        const val VOICE_MIC_NEEDED = "Microphone access is off. Enable voice in Experimental."
+        const val VOICE_MODEL_NEEDED = "Download the voice model in Experimental."
         /** The last character of every text face that is changed as soon as it is typed. */
         val EMOTICON_ENDS: Set<Char> = Layouts.emoticonsNow.keys.map { it.last() }.toSet()
         const val SEPARATORS = " .,!?;:"
