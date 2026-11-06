@@ -1,8 +1,6 @@
 package ai.boldkeys
 
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -43,22 +41,20 @@ internal fun ModelOptionRow(
         !installed -> "Not installed"
         else -> "Available"
     }
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+    Column(Modifier.fillMaxWidth()) {
         ListItem(
-            modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                 .selectable(selected = effective, enabled = installed && !busy, role = Role.RadioButton, onClick = onSelect)
                 .semantics { stateDescription = state },
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             leadingContent = { RadioButton(selected = effective, enabled = installed && !busy, onClick = null) },
             headlineContent = { Text(entry.name) },
-            supportingContent = { Column { if (fallback) Text(state); details() } },
+            supportingContent = { Column { Text(state); details() } },
         )
-        Box(Modifier.padding(end = 16.dp), contentAlignment = Alignment.Center) {
-            when {
-                busy -> OutlinedButton(onClick = onCancel, modifier = Modifier.semantics { contentDescription = "Cancel ${entry.name}" }) { Text("Cancel") }
-                installed -> IconButton(onClick = onDelete) { Icon(Icons.Default.Close, contentDescription = "Delete ${entry.name}") }
-                else -> FilledTonalButton(onClick = onDownload, modifier = Modifier.semantics { contentDescription = "Download ${entry.name}" }) { Text("Download") }
-            }
+        when {
+            busy -> OutlinedButton(onClick = onCancel, modifier = Modifier.padding(start = 72.dp, end = 16.dp).semantics { contentDescription = "Cancel ${entry.name}" }) { Text("Cancel") }
+            installed -> OutlinedButton(onClick = onDelete, modifier = Modifier.padding(start = 72.dp, end = 16.dp).semantics { contentDescription = "Delete ${entry.name}" }) { Text("Remove model") }
+            else -> FilledTonalButton(onClick = onDownload, modifier = Modifier.padding(start = 72.dp, end = 16.dp).semantics { contentDescription = "Download ${entry.name}" }) { Text("Download") }
         }
     }
 }

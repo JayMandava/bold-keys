@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -84,6 +85,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
@@ -133,7 +139,7 @@ private enum class Screen(val title: String) {
 }
 
 @Composable
-private fun SettingsApp() {
+internal fun SettingsApp() {
     val context = LocalContext.current
     var screen by rememberSaveable { mutableStateOf(Screen.HOME.name) }
     val current = Screen.valueOf(screen)
@@ -185,8 +191,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.homeItems(context: Co
                 NavRow("Key feel", "How hard each key press buzzes") { open(Screen.FEEL) }
                 NavRow("Symbols & emoji", "The emoji key, skin tone, and the sym key") { open(Screen.SYMBOLS) }
                 NavRow("Personal dictionary", "${readDictionary(context).size} words you have taught it") { open(Screen.DICTIONARY) }
-                NavRow("Speed key", "${Shortcuts.all(context).size} letters assigned: hold the right-hand key, tap a letter") { open(Screen.SHORTCUTS) }
-                NavRow("Context model", if (Prefs.contextModel(context)) "On: judges words by the sentence around them" else "Off: optional, needs a download") { open(Screen.CONTEXT) }
+                NavRow("Speed key", "${Shortcuts.all(context).size} letters assigned") { open(Screen.SHORTCUTS) }
+                NavRow("Context model", if (Prefs.contextModel(context)) "On: sentence-aware corrections" else "Off: optional local download") { open(Screen.CONTEXT) }
                 NavRow("Experimental", "Optional on-device voice typing") { open(Screen.EXPERIMENTAL) }
                 NavRow("About", "Privacy and credits") { open(Screen.ABOUT) }
             }
@@ -301,6 +307,44 @@ private fun Note(text: String) {
     Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
 }
 
+/** Keeps optional instructions available without hiding safety and privacy notices. */
+@Composable
+internal fun ExpandableHelp(label: String, summary: String, details: String) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    Column {
+        Note(summary)
+        TextButton(
+            onClick = { expanded = !expanded },
+            modifier = Modifier.padding(horizontal = 8.dp).semantics {
+                contentDescription = "$label: ${if (expanded) "hide full instructions" else "show full instructions"}"
+                stateDescription = if (expanded) "Expanded" else "Collapsed"
+            },
+        ) { Text(if (expanded) "Hide $label" else "$label details") }
+        if (expanded) Note(details)
+    }
+}
+
+@Composable
+internal fun <T> ChoiceFlow(options: List<Pair<T, String>>, selected: T, onSelect: (T) -> Unit) {
+    val fontScale = androidx.compose.ui.platform.LocalDensity.current.fontScale
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
+        if (options.size <= 6 && maxWidth >= 280.dp && fontScale <= 1.15f) {
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                options.forEachIndexed { index, (value, label) ->
+                    SegmentedButton(selected = selected == value, onClick = { onSelect(value) }, shape = SegmentedButtonDefaults.itemShape(index, options.size), icon = {}) { Text(label, maxLines = 1, softWrap = false) }
+                }
+            }
+        } else FlowRow(
+            Modifier.fillMaxWidth().selectableGroup(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            options.forEach { (value, label) ->
+                FilterChip(selected = selected == value, onClick = { onSelect(value) }, modifier = Modifier.heightIn(min = 48.dp).semantics { role = Role.RadioButton }, label = { Text(label, softWrap = true) })
+            }
+        }
+    }
+}
+
 // ---------------------------------------------------------------- typing
 
 private fun androidx.compose.foundation.lazy.LazyListScope.typingItems(context: Context) {
@@ -315,44 +359,26 @@ private fun androidx.compose.foundation.lazy.LazyListScope.typingItems(context: 
         var language by remember { mutableStateOf(Prefs.languageChoice(context)) }
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Section("Layout") {
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
-                Layouts.LAYOUTS.forEachIndexed { i, (key, name) ->
-                    SegmentedButton(
-                        selected = layout == key,
-                        onClick = {
-                            if (key != layout) {
-                                layout = key; Prefs.put(context, "layout", key)
-                                // an earlier version switched autocorrect off with AZERTY because the dictionary was English only: give it back
-                                if (Prefs.bool(context, "acByLayout", false)) { correct = true; Prefs.put(context, "autocorrect", true); Prefs.put(context, "acByLayout", false) }
-                                language = Prefs.languageChoice(context)
-                            }
-                        },
-                        shape = SegmentedButtonDefaults.itemShape(i, Layouts.LAYOUTS.size), icon = {},
-                    ) { Text(name, maxLines = 1, softWrap = false) }
+            ChoiceFlow(Layouts.LAYOUTS, layout) { key ->
+                if (key != layout) {
+                    layout = key; Prefs.put(context, "layout", key)
+                    // an earlier version switched autocorrect off with AZERTY because the dictionary was English only: give it back
+                    if (Prefs.bool(context, "acByLayout", false)) { correct = true; Prefs.put(context, "autocorrect", true); Prefs.put(context, "acByLayout", false) }
+                    language = Prefs.languageChoice(context)
                 }
             }
-            Note(
-                when (layout) {
-                    "azerty" -> "A, Z, Q and W swap places and M moves beside N. Hold a letter (A, E, I, O, U, C, Y, N, S) to pick an accented form."
-                    "qwertz" -> "Z and Y swap places, as on a German keyboard. Hold A, O, U or S for ä, ö, ü and ß; hold E, I or C for é, è, ï, ç and the rest."
-                    else -> "The order printed on the Bold. Hold a letter (A, E, I, O, U, C, Y, N, S) to pick an accented form. AZERTY and QWERTZ are available too."
-                },
-            )
+            ExpandableHelp("Layout and accents", "Choose the key order printed on your keyboard.", when (layout) {
+                "azerty" -> "A, Z, Q and W swap places and M moves beside N. Hold a letter (A, E, I, O, U, C, Y, N, S) to pick an accented form."
+                "qwertz" -> "Z and Y swap places, as on a German keyboard. Hold A, O, U or S for ä, ö, ü and ß; hold E, I or C for é, è, ï, ç and the rest."
+                else -> "The order printed on the Bold. Hold a letter (A, E, I, O, U, C, Y, N, S) to pick an accented form. AZERTY and QWERTZ are available too."
+            })
         }
         Section("Language") {
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
-                Layouts.LANGUAGES.forEachIndexed { i, (key, name) ->
-                    SegmentedButton(
-                        selected = language == key,
-                        onClick = { language = key; Prefs.put(context, "language", key) },
-                        shape = SegmentedButtonDefaults.itemShape(i, Layouts.LANGUAGES.size), icon = {},
-                    ) { Text(name, maxLines = 1, softWrap = false) }
-                }
-            }
-            Note("Sets the dictionary, suggestions and next-word hints. Automatic follows the layout: French with AZERTY, German with QWERTZ, English with QWERTY. In French, typing \"ete\" offers and corrects to \"été\", and l', j' and qu' are handled. Each language keeps its own personal dictionary.")
+            ChoiceFlow(Layouts.LANGUAGES, language) { key -> language = key; Prefs.put(context, "language", key) }
+            ExpandableHelp("Language behavior", "Sets the dictionary, suggestions and next-word hints.", "Automatic follows the layout: French with AZERTY, German with QWERTZ, English with QWERTY. In French, typing \"ete\" offers and corrects to \"été\", and l', j' and qu' are handled. Each language keeps its own personal dictionary.")
         }
         Section("Alt key") {
-            Note("Tap Alt and the next key types its small symbol. For a run of numbers, double-tap Alt, or hold it for half a second and let go: it stays on until you tap Alt again. You can also hold Alt with one thumb and type with the other.")
+            ExpandableHelp("Alt key behavior", "Tap Alt then a key for its small symbol.", "For a run of numbers, double-tap Alt, or hold it for half a second and let go: it stays on until you tap Alt again. You can also hold Alt with one thumb and type with the other.")
         }
         Section("While you type") {
             SwitchRow("Autocorrect", "Fixes a misspelt word when you press space or punctuation. Backspace right after brings your word back.", correct) { correct = it; Prefs.put(context, "autocorrect", it) }
@@ -362,12 +388,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.typingItems(context: 
             SwitchRow("Double space for a full stop", "Pressing space twice after a word ends the sentence with a full stop.", dbl) { dbl = it; Prefs.put(context, "doubleSpace", it) }
         }
         Section("English spelling") {
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
-                val options = listOf("us" to "American", "uk" to "British")
-                options.forEachIndexed { i, (key, name) ->
-                    SegmentedButton(selected = spelling == key, onClick = { spelling = key; Prefs.put(context, "spelling", key) }, shape = SegmentedButtonDefaults.itemShape(i, options.size), icon = {}) { Text(name, maxLines = 1, softWrap = false) }
-                }
-            }
+            val options = listOf("us" to "American", "uk" to "British")
+            ChoiceFlow(options, spelling) { key -> spelling = key; Prefs.put(context, "spelling", key) }
             Note("Words like colour/color, realise/realize and centre/center are corrected to the one you choose, and only that one is suggested.")
         }
         }
@@ -405,47 +427,27 @@ private fun AppearanceContent(context: Context) {
             )
         }
         Section("Keys") {
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
-                val options = listOf("dark" to "Black", "light" to "White", "auto" to "Match phone")
-                options.forEachIndexed { i, (key, name) ->
-                    SegmentedButton(
-                        selected = theme == key, onClick = { theme = key; Prefs.put(context, "theme", key); version++ },
-                        shape = SegmentedButtonDefaults.itemShape(i, options.size),
-                        icon = {}, // no check mark: the fill shows the choice, and the label needs the room
-                    ) { Text(name, maxLines = 1, softWrap = false) }
-                }
-            }
+            val options = listOf("dark" to "Black", "light" to "White", "auto" to "Match phone")
+            ChoiceFlow(options, theme) { key -> theme = key; Prefs.put(context, "theme", key); version++ }
             Note("Match phone follows the system's light or dark setting.")
         }
         Section("Key size") {
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
-                val options = listOf("small" to "Small", "normal" to "Normal", "large" to "Large", "xlarge" to "XL")
-                options.forEachIndexed { i, (key, name) ->
-                    SegmentedButton(
-                        selected = keySize == key, onClick = { keySize = key; Prefs.put(context, "keySize", key); version++ },
-                        shape = SegmentedButtonDefaults.itemShape(i, options.size),
-                        icon = {}, // no check mark: the fill shows the choice, and the label needs the room
-                    ) { Text(name, maxLines = 1, softWrap = false) }
-                }
-            }
+            val options = listOf("small" to "Small", "normal" to "Normal", "large" to "Large", "xlarge" to "XL")
+            ChoiceFlow(options, keySize) { key -> keySize = key; Prefs.put(context, "keySize", key); version++ }
             Note("How tall the keys are. Large and XL make bigger buttons for big thumbs; the keyboard takes more of the screen.")
         }
         Section("Backlight") {
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
-                val options = listOf("off" to "Off", "on" to "On", "auto" to "Auto")
-                options.forEachIndexed { i, (key, name) ->
-                    SegmentedButton(
-                        selected = mode == key, onClick = { mode = key; Prefs.put(context, "backlight", key); version++ },
-                        shape = SegmentedButtonDefaults.itemShape(i, options.size),
-                        icon = {}, // no check mark: the fill shows the choice, and the label needs the room
-                    ) { Text(name, maxLines = 1, softWrap = false) }
-                }
-            }
+            val options = listOf("off" to "Off", "on" to "On", "auto" to "Auto")
+            ChoiceFlow(options, mode) { key -> mode = key; Prefs.put(context, "backlight", key); version++ }
             Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
                 for ((key, rgb) in Prefs.BACKLIGHT_COLORS) {
                     Box(
-                        Modifier.size(40.dp).clip(CircleShape).background(Color(rgb))
-                            .clickable { color = key; Prefs.put(context, "backlightColor", key); version++ },
+                        Modifier.size(48.dp).clip(CircleShape).background(Color(rgb))
+                            .clickable { color = key; Prefs.put(context, "backlightColor", key); version++ }
+                            .semantics {
+                                contentDescription = "$key backlight color"
+                                stateDescription = if (color == key) "Selected" else "Not selected"
+                            },
                         contentAlignment = Alignment.Center,
                     ) {
                         if (color == key) Box(Modifier.size(16.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.55f)))
@@ -482,7 +484,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.feelItems(context: Co
         var pattern by remember { mutableStateOf(fb.pattern) }
         val amplitude = remember { fb.vibrator.hasAmplitudeControl() }
         Section("The click") {
-            Note(if (amplitude) "This phone's motor can change strength." else "This phone's motor is on or off only, so the feel comes from how long it buzzes.")
+            ExpandableHelp("Key feel", if (amplitude) "Choose how strong each key press feels." else "Choose how long each key press buzzes.", if (amplitude) "This phone's motor can change strength." else "This phone's motor is on or off only, so the feel comes from how long it buzzes.")
             FlowRow(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 for ((key, name) in Feedback.PATTERNS) ToggleButton(checked = pattern == key, onCheckedChange = { pattern = key; fb.pattern = key; fb.buzz(key) }) { Text(name) }
             }
@@ -506,13 +508,9 @@ private fun androidx.compose.foundation.lazy.LazyListScope.symbolItems(context: 
             SwitchRow("Turn text faces into emoji", "Typing :) gives 🙂 and :D then a space gives 😀. Backspace gives your text back.", emoticons) { emoticons = it; Prefs.put(context, "emoticons", it) }
         }
         Section("Skin tone") {
-            val options = listOf("👍", "👍🏻", "👍🏼", "👍🏽", "👍🏾", "👍🏿")
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
-                options.forEachIndexed { i, face ->
-                    SegmentedButton(selected = tone == i, onClick = { tone = i; Prefs.put(context, "skinTone", i.toString()) }, shape = SegmentedButtonDefaults.itemShape(i, options.size), icon = {}) { Text(face, maxLines = 1, softWrap = false) }
-                }
-            }
-            Note("Used for every emoji that comes in skin tones. In the emoji picker, hold one of those (they have a small dot) and slide to a tone to change just that emoji.")
+            val options = listOf("👍", "👍🏻", "👍🏼", "👍🏽", "👍🏾", "👍🏿").mapIndexed { index, face -> index to face }
+            ChoiceFlow(options, tone) { selected -> tone = selected; Prefs.put(context, "skinTone", selected.toString()) }
+            ExpandableHelp("Emoji skin tones", "Sets the default tone for emoji that support one.", "Used for every emoji that comes in skin tones. In the emoji picker, hold one of those (they have a small dot) and slide to a tone to change just that emoji.")
         }
         Section("Currency key") {
             val signs = listOf("auto" to "Auto", "$" to "$", "£" to "£", "€" to "€", "¥" to "¥", "₹" to "₹", "₩" to "₩", "₽" to "₽", "₺" to "₺", "₦" to "₦", "₱" to "₱", "₫" to "₫", "฿" to "฿", "₪" to "₪")
@@ -524,10 +522,11 @@ private fun androidx.compose.foundation.lazy.LazyListScope.symbolItems(context: 
             Note("The key beside M types this sign. Auto uses your phone's region (${Prefs.regionCurrency()} here).")
         }
         Section("Volume") {
-            SwitchRow("Volume on the currency key", "Hold the currency key (the one with the small speaker) with one thumb and scroll the trackpad (the square above the keys) up or down with the other: up is louder, down is quieter. A quick tap still types the sign, when you lift. No special permission is needed.", volume) { volume = it; Prefs.put(context, "volumeSlide", it) }
+            SwitchRow("Volume on the currency key", "Hold the currency key and scroll the trackpad to change volume.", volume) { volume = it; Prefs.put(context, "volumeSlide", it) }
+            ExpandableHelp("Volume controls", "Up is louder; down is quieter. A quick tap still types the sign.", "Hold the currency key (the one with the small speaker) with one thumb and scroll the trackpad (the square above the keys) up or down with the other. No special permission is needed.")
         }
         Section("Sym key") {
-            Note("The sym key keeps to symbols: three pages you can scroll with the trackpad or your finger. Both the sym and emoji pickers stay open while you pick, and close with the close button. The emoji picker opens on a row of the emoji you use most.")
+            ExpandableHelp("Symbol picker behavior", "The Sym key opens three symbol pages.", "You can scroll with the trackpad or your finger. Both the Sym and emoji pickers stay open while you pick, and close with the close button. The emoji picker opens on a row of the emoji you use most.")
         }
         }
     }
@@ -549,18 +548,17 @@ private fun DictionaryContent(context: Context) {
     val valid = clean.length in 2..24 && clean.all { it.isLetter() || it == '\'' }
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Section("Add a word") {
-            Row(Modifier.padding(horizontal = 16.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.padding(horizontal = 16.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
-                    value = field, onValueChange = { field = it }, singleLine = true, modifier = Modifier.weight(1f), shape = RoundedCornerShape(20.dp),
+                    value = field, onValueChange = { field = it }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp),
                     placeholder = { Text("A name, a place, slang…") },
                     keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, capitalization = KeyboardCapitalization.None),
                 )
-                Spacer(Modifier.width(8.dp))
                 FilledTonalButton(enabled = valid, onClick = { writeDictionary(context) { it[clean] = 5 }; field = ""; refresh() }) {
                     Icon(Icons.Default.Add, contentDescription = null); Spacer(Modifier.width(4.dp)); Text("Add")
                 }
             }
-            Note("Words you add are kept as typed. A local filter limits explicit sexual terms, strong profanity and slurs in suggestions and automatic corrections, including personal words. It cannot catch every form or meaning. Words you type twice are added on their own. Choosing a suggestion also teaches it. Word preferences and immediately adjacent word pairs are counted locally with bounded storage. Clear all learning removes all three.")
+            ExpandableHelp("Learning and safety", "Words stay on this phone. Clear all learning removes words, preferences and word pairs.", "Words you add are kept as typed. A local filter limits explicit sexual terms, strong profanity and slurs in suggestions and automatic corrections, including personal words. It cannot catch every form or meaning. Words you type twice are added on their own. Choosing a suggestion also teaches it. Word preferences and immediately adjacent word pairs are counted locally with bounded storage. Clear all learning removes all three.")
         }
         Section(if (words.isEmpty()) "Your words" else "Your words (${words.size})") {
             if (words.isEmpty()) Note("Nothing yet. The keyboard learns words you type twice that it did not know.")
@@ -592,18 +590,20 @@ private fun DictionaryContent(context: Context) {
 private fun androidx.compose.foundation.lazy.LazyListScope.aboutItems(context: Context, openLicenses: () -> Unit) {
     item(key = "about") {
         val version = remember { runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "" }
-        Section("Version $version") {
-            Note("Experimental voice typing records only while activated and transcribes locally with Whisper; audio is held in memory and discarded after transcription or cancellation, with no online fallback. The optional model download contacts Hugging Face and its delivery providers without audio. Typing, learning and context-model inference happen on this phone; typed text is not sent to a server, and learned words stay in this app's private storage. Model downloads contact Hugging Face over HTTPS only when you tap Download. Android's emoji support may request a font from a system provider. Opening the privacy policy or a Speed-key link hands that link to another app, which may use the internet. Importing a model uses a document provider that may be cloud-backed. When an editor requests no personalized learning, the keyboard does not update learned words, word preferences, word pairs or emoji history/tone preferences; password, email and web-address fields also do not update these records.")
-            TextButton(onClick = {
-                try {
-                    context.startActivity(Intent(Intent.ACTION_VIEW, "https://jay-mandava-dev.web.app/privacy.html".toUri()))
-                } catch (_: ActivityNotFoundException) {
-                    Toast.makeText(context, "No browser is available to open the privacy policy.", Toast.LENGTH_LONG).show()
-                }
-            }) { Text("Privacy policy (opens in browser)") }
-            TextButton(onClick = openLicenses) { Text("Licenses & credits (available offline)") }
-            Note("English, French and German word frequencies come from FrequencyWords/OpenSubtitles (CC BY-SA 4.0); Next-word hints use only Common Voice text (CC0); spelling dictionaries retain CC BY-SA 4.0 terms. Nunito uses the SIL Open Font License. The offline credits include source details and separate third-party terms.")
-            Note("Inspired by the classic BlackBerry Bold 9900 keyboard. BlackBerry is a trademark of its owner; this app is independent and is not affiliated with or endorsed by BlackBerry.")
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Section("Privacy") {
+                ExpandableHelp("Privacy details", "Typed text, learning and context inference stay on this phone. Voice audio is discarded after use. Optional downloads contact Hugging Face and delivery providers with your IP address and requested model; no audio or typed text is attached.", "Experimental voice typing records only while activated and transcribes locally with Whisper; audio is held in memory and discarded after transcription or cancellation, with no online fallback. Typing, learning and context-model inference happen on this phone; typed text is not sent to a server, and learned words stay in this app's private storage. Model downloads contact Hugging Face over HTTPS only when you tap Download. Android's emoji support may request a font from a system provider. Opening the privacy policy or a Speed-key link hands that link to another app, which may use the internet. Importing a model uses a document provider that may be cloud-backed. When an editor requests no personalized learning, the keyboard does not update learned words, word preferences, word pairs or emoji history/tone preferences; password, email and web-address fields also do not update these records.")
+                TextButton(onClick = {
+                    try { context.startActivity(Intent(Intent.ACTION_VIEW, "https://jay-mandava-dev.web.app/privacy.html".toUri())) }
+                    catch (_: ActivityNotFoundException) { Toast.makeText(context, "No browser is available to open the privacy policy.", Toast.LENGTH_LONG).show() }
+                }) { Text("Privacy policy (opens in browser)") }
+            }
+            Section("Version $version") { Note("Bold Keys works offline by default.") }
+            Section("Credits") {
+                TextButton(onClick = openLicenses) { Text("Licenses & credits (available offline)") }
+                Note("English, French and German word frequencies come from FrequencyWords/OpenSubtitles (CC BY-SA 4.0); Next-word hints use only Common Voice text (CC0); spelling dictionaries retain CC BY-SA 4.0 terms. Nunito uses the SIL Open Font License. The offline credits include source details and separate third-party terms.")
+                Note("Inspired by the classic BlackBerry Bold 9900 keyboard. BlackBerry is a trademark of its owner; this app is independent and is not affiliated with or endorsed by BlackBerry.")
+            }
         }
     }
 }
@@ -626,7 +626,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.licenseItems(context:
     files.forEach { (title, file) ->
         item(key = file) {
             val text = remember(file) { context.assets.open("licenses/$file").bufferedReader().use { it.readText() } }
-            Section(title) { SelectionContainer { Text(text, style = MaterialTheme.typography.bodyMedium) } }
+            Section(title) { SelectionContainer { Text(text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) } }
         }
     }
 }
@@ -637,7 +637,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.contextItems(context:
     item(key = "context") { ContextContent(context) }
 }
 
-private fun human(bytes: Long) = if (bytes >= 1_000_000_000) "%.1f GB".format(bytes / 1e9) else "${bytes / 1_000_000} MB"
+internal fun human(bytes: Long) = if (bytes >= 1_000_000_000) "%.1f GB".format(bytes / 1e9) else "${bytes / 1_000_000} MB"
 
 @Composable
 private fun ContextContent(context: Context) {
@@ -664,7 +664,8 @@ private fun ContextContent(context: Context) {
             SwitchRow("Use a context model", "Checks each word against the sentence around it: picks the right fix for a misspelling, and catches real words used for another (their/there, your/you're).", on) {
                 on = it; Prefs.put(context, "contextModel", it)
             }
-            Note("A small language model on this phone scores the words the dictionary suggests. It never writes text and nothing leaves the phone. Switch it off any time to go back to dictionary-only correction. The context feature has only been measured on English; it stays off in other languages. QAT has only had limited smoke testing, not a quality or speed benchmark.")
+            Note("Local scoring is English-only; it stays off in other languages. QAT has limited smoke testing, not a quality or speed benchmark.")
+            ExpandableHelp("How context scoring works", "Uses a local model to score dictionary suggestions; it never writes text or sends it away.", "Switch it off any time to go back to dictionary-only correction. The context feature has only been measured on English; it stays off in other languages. QAT has only had limited smoke testing, not a quality or speed benchmark.")
             if (on && chosen == null) Note("Download or import a model below to start using it.")
         }
         Section("Models") {
@@ -681,7 +682,8 @@ private fun ContextContent(context: Context) {
                         onCancel = { ContextModels.cancel(e) },
                         onDelete = { ContextModels.delete(e); tick++ },
                         details = {
-                            Text(if (e.custom) "Imported from a file." else "${e.note} ${human(e.bytes)}.")
+                            Text(human(e.bytes))
+                            Text(if (e.custom) "Imported from a file." else e.note)
                             if (entries.count { it.file == e.file } > 1) Text("Shares its local file with another entry. Removing either entry removes that file.")
                             when (st) {
                                 is Transfer.Downloading -> {
@@ -723,8 +725,8 @@ private fun ShortcutsContent(context: Context) {
     val assigned = remember(version) { Shortcuts.all(context) }
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Section("How it works") {
-            Note("Hold the right-hand key (the grid of dots, bottom right) and tap a letter to run its shortcut. The keys show nothing: it is there for you to remember. Tapping that key on its own opens the emoji picker (or acts as Shift when the emoji key is off in Symbols & emoji).")
-            Note("A shortcut opens an app, opens a link or action (a web page, tel:, mailto:, geo:), or types a piece of text. It only runs while this keyboard is on screen.")
+            ExpandableHelp("Speed key behavior", "Hold the right-hand key and tap a letter to run its shortcut.", "The right-hand key is the grid of dots at bottom right. The keys show nothing: it is there for you to remember. Tapping that key on its own opens the emoji picker (or acts as Shift when the emoji key is off in Symbols & emoji).")
+            ExpandableHelp("Shortcut types", "Shortcuts can open an app, link, action, or type text.", "Links and actions can be a web page, tel:, mailto:, or geo:. A shortcut only runs while this keyboard is on screen.")
         }
         Section("Letters") {
             ('A'..'Z').forEach { ch ->
@@ -814,29 +816,36 @@ private fun VoiceSettings(context: Context) {
         enabled = granted; Prefs.put(context, "voiceTyping", granted)
         message = if (granted) "Microphone permission granted. Download the optional model below." else "Microphone permission denied. Voice typing stays off; you can enable it again here."
     }
-    Section("On-device voice typing") {
-        SwitchRow("Enable experimental voice typing", "Off by default. Uses Whisper Tiny on this device; accuracy and speed are still being tested.", enabled) { want ->
-            if (!want) { enabled = false; Prefs.put(context, "voiceTyping", false) }
-            else permission.launch(android.Manifest.permission.RECORD_AUDIO)
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Section("Enable experimental voice typing") {
+            SwitchRow("Enable voice typing", "Off by default. Uses Whisper Tiny on this device; accuracy and speed are still being tested.", enabled) { want ->
+                if (!want) { enabled = false; Prefs.put(context, "voiceTyping", false) }
+                else permission.launch(android.Manifest.permission.RECORD_AUDIO)
+            }
+            Note("Audio stays in memory on this device and is discarded after transcription or cancellation. There is no online recognition fallback. Voice is disabled in password fields.")
         }
-        Note("Download the optional 32.2 MB multilingual Whisper Tiny Q5 model, then hold space to speak. Release to transcribe and insert directly at the cursor. The spacebar glows green while recording and slowly flashes while transcribing. Slide off space to discard before releasing; typing or leaving the editor discards unfinished voice input. Nothing is sent automatically. Recordings are limited to 30 seconds. The keyboard language selects English, French or German recognition.")
-        Note("Screen readers can use Space's Start voice typing action, then activate Space to stop. Processing state is exposed on Space without reading out recognized text. With system animations disabled, the transcription light stays dim and steady.")
-        Note("Audio stays in memory on this device and is discarded after transcription or cancellation. There is no online recognition fallback. Voice is disabled in password fields. Speed and accuracy on your phone are experimental.")
-        Note("Only the model download contacts Hugging Face and its delivery providers over HTTPS; they can see your IP address and the requested model. No audio or typed text is included. The model is optional and MIT licensed.")
-        Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(enabled = enabled && !busy && !installed, onClick = {
-                busy = true; message = "Downloading and verifying model…"
-                VoiceModel.download(context) { message = it; busy = false; installed = VoiceModel.installed(context) }
-            }) { Text(if (installed) "Model installed" else "Download model") }
-            if (busy) TextButton(onClick = { VoiceModel.cancel() }) { Text("Cancel download") }
-            if (installed && !busy) TextButton(onClick = { VoiceModel.delete(context); installed = false }) { Text("Delete model") }
+        Section("Voice model") {
+            Note("Optional 32.2 MB multilingual Whisper Tiny Q5 model. Recordings are limited to 30 seconds.")
+            FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(enabled = enabled && !busy && !installed, onClick = {
+                    busy = true; message = "Downloading and verifying model…"
+                    VoiceModel.download(context) { message = it; busy = false; installed = VoiceModel.installed(context) }
+                }) { Text(if (installed) "Model installed" else "Download model") }
+                if (busy) TextButton(onClick = { VoiceModel.cancel() }) { Text("Cancel download") }
+                if (installed && !busy) TextButton(onClick = { VoiceModel.delete(context); installed = false }) { Text("Delete model") }
+            }
+            message?.let { Note(it) }
         }
-        message?.let { Note(it) }
-        if (message?.contains("denied") == true) {
+        Section("Privacy") {
+            Note("Only the model download contacts Hugging Face and its delivery providers over HTTPS; they can see your IP address and the requested model. No audio or typed text is included. The model is optional and MIT licensed.")
+        }
+        Section("Optional instructions") {
+            ExpandableHelp("Voice controls", "Hold Space to speak; release to transcribe and insert.", "The spacebar glows green while recording and slowly flashes while transcribing. Slide off Space to discard before releasing; typing or leaving the editor discards unfinished voice input. Nothing is sent automatically. The keyboard language selects English, French or German recognition.")
+            ExpandableHelp("Screen reader controls", "Screen readers can start and stop voice typing with Space.", "Screen readers can use Space's Start voice typing action, then activate Space to stop. Processing state is exposed on Space without reading out recognized text. With system animations disabled, the transcription light stays dim and steady.")
+        }
+        if (message?.contains("denied") == true) Section("Microphone permission") {
             Note("If Android no longer shows a permission prompt, allow Microphone in the app's Android settings.")
-            TextButton(onClick = {
-                context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, "package:${context.packageName}".toUri()))
-            }) { Text("Open Android app settings") }
+            TextButton(onClick = { context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, "package:${context.packageName}".toUri())) }) { Text("Open Android app settings") }
         }
     }
 }
