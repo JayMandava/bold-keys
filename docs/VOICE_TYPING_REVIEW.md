@@ -36,7 +36,7 @@ Build and static/unit checks completed on 2026-11-06:
 Remaining gates:
 
 - This cloud's enforced network policy rejects `huggingface.co` with CONNECT HTTP 403. The actual model cannot be downloaded here. Real offline recognition, accuracy, latency and native model-load/coexistence testing remain unverified; synthetic/empty upstream test weights are not a substitute.
-- The API 33 Google APIs x86_64 emulator runs using software emulation because `/dev/kvm` is unavailable. First boot has not yet reached `sys.boot_completed=1`; initial install attempts failed because PackageManagerInternal was not initialized. A smaller AOSP image is being prepared to continue UI verification.
+- The API 33 Google APIs x86_64 emulator runs using software emulation because `/dev/kvm` is unavailable. First boot has not yet reached `sys.boot_completed=1`; initial install attempts failed because PackageManagerInternal was not initialized. The Google image was shut down after its startup remained incomplete. A smaller AOSP API 33 x86_64 image is installed and currently booting as `emulator-5556` (AVD `bold-voice-aosp33`), with a 480×960 display and Vulkan disabled. It has not yet exposed a usable Android UI.
 - Emulator permission-denial/grant flows, recording activation/Stop/Cancel, green light, editor lifecycle, text insertion and offline audio inference still need functional verification.
 - No GitHub release, tag, production signing, merge or Play Store publication has occurred. Keep the pull request in draft until these gates pass. No phone performance or recognition-quality claim has been made.
 
