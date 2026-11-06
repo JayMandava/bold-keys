@@ -60,6 +60,7 @@ class SettingsScreensTest {
         compose.onNode(hasText("Optional downloads contact Hugging Face", substring = true))
             .performScrollTo().assertIsDisplayed()
         compose.onNodeWithContentDescription("Privacy details: show full instructions")
+            .assertTextEquals("Privacy details")
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Collapsed"))
         compose.onAllNodes(hasText("Model downloads contact Hugging Face over HTTPS only when you tap Download", substring = true))
             .assertCountEquals(0)
