@@ -1,3 +1,5 @@
+> Superseded: the user selected the existing protected production release process for 0.6.4. The empty voice-experiment-1 draft is unpublished and must not be published. See [0.6.4 notes](0.6.4.md).
+
 # Voice Experiment 1 — experimental phone-testing prerelease
 
 Optional, on-device voice typing is available under Experimental, off by default. Enable it, grant microphone permission and download the separate 32.2 MB Whisper Tiny model. Audio stays on device; there is no online recognition fallback.
