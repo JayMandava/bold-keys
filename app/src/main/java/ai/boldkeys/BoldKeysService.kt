@@ -110,10 +110,11 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         val eligible = voiceReady() && currentInputConnection === connection &&
             runCatching { voiceAnchor?.matches(connection) == true }.getOrDefault(false)
         val output = text?.takeIf { it.isNotBlank() && error == null && voicePhase == KeyboardView.VoiceState.TRANSCRIBING }
+            ?.let { voiceAnchor?.insertion(it) }
         cancelVoice()
         if (!eligible) return
         if (output != null) {
-            // Literal text only: never invoke Send or pass recognized speech through autocorrect.
+            // Only word-boundary spacing is added; never invoke Send or autocorrect.
             ++lmJob; undo = null; lastSpaceAt = 0
             if (runCatching { connection.commitText(output, 1) }.getOrDefault(false)) scheduleRefresh()
         } else if (error != null && ::kb.isInitialized) {

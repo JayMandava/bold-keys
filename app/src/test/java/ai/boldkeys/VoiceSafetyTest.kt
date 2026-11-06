@@ -148,4 +148,17 @@ class VoiceSafetyTest {
         val file = VoiceModel.file(RuntimeEnvironment.getApplication()); file.writeBytes(ByteArray(32_152_673))
         assertFalse(VoiceModel.valid(file))
     }
+
+    @Test fun dictationSeparatesWordsButPreservesSelectionReplacementAndExistingSpaces() {
+        val s = service(); val ic = connection(s)
+        ic.commitText("hello", 1)
+        var epoch = pending(s, ic); complete(s, epoch, ic, "world")
+        assertEquals("hello world", ic.editable.toString())
+        ic.commitText(" ", 1)
+        epoch = pending(s, ic); complete(s, epoch, ic, "again")
+        assertEquals("hello world again", ic.editable.toString())
+        ic.setSelection(6, 11)
+        epoch = pending(s, ic); complete(s, epoch, ic, "replacement")
+        assertEquals("hello replacement again", ic.editable.toString())
+    }
 }
