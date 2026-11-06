@@ -20,6 +20,14 @@ val suggestionReviewBuild = when (providers.gradleProperty("suggestionReviewBuil
     else -> throw GradleException("suggestionReviewBuild must be exactly true or false.")
 }
 
+// Separate package for the voice experiment's physical-device review.
+val voiceReviewBuild = when (providers.gradleProperty("voiceReviewBuild").orElse("false").get()) {
+    "true" -> true
+    "false" -> false
+    else -> throw GradleException("voiceReviewBuild must be exactly true or false.")
+}
+if (voiceReviewBuild && suggestionReviewBuild) throw GradleException("Choose one review build at a time.")
+
 val releaseSigningProperties = Properties()
 var releaseSigningProblem: String? = null
 if (!unsignedRelease) {
@@ -114,7 +122,15 @@ android {
                 applicationIdSuffix = ".suggestions.review"
                 versionNameSuffix = "-suggestions-qat-picker-review"
             }
-            manifestPlaceholders["appLabel"] = if (suggestionReviewBuild) "Bold Keys Suggestions Review" else "Bold Keys"
+            if (voiceReviewBuild) {
+                applicationIdSuffix = ".voice.review"
+                versionNameSuffix = "-voice-experimental"
+            }
+            manifestPlaceholders["appLabel"] = when {
+                voiceReviewBuild -> "Bold Keys Voice Review"
+                suggestionReviewBuild -> "Bold Keys Suggestions Review"
+                else -> "Bold Keys"
+            }
         }
         release {
             manifestPlaceholders["appLabel"] = "Bold Keys"

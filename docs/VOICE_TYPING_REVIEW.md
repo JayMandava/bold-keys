@@ -48,3 +48,9 @@ Commands:
 ```
 
 The debug-only VoiceTestActivity supplies ordinary and password editor fields for emulator tests and is excluded from the release manifest.
+
+## Isolated phone-review package
+
+Build `:app:assembleDebug -PvoiceReviewBuild=true -PunsignedRelease=true` with the default arm64 ABI. The APK is `app/build/outputs/apk/debug/app-debug.apk`, package `ai.boldkeys.voice.review`, label **Bold Keys Voice Review**, version `0.6.3-voice-experimental` (code 11). This is separate from production `ai.boldkeys` and the QAT/suggestion review package `ai.boldkeys.suggestions.review`. Do not combine the two review flags.
+
+This variant uses Gradle's normal debug signing configuration; inspect the actual APK's public certificate fingerprint before installation and preserve that debug key for subsequent review updates. It does not use or fall back to the production release key. `unsignedRelease=true` avoids reading production signing properties while building the debug candidate and does not disable debug signing. The cloud's default-package debug APK must not be used to replace a production-signed installation.
