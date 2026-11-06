@@ -1,0 +1,15 @@
+label	mode	threads	repeat	id	load_ms	infer_ms	total_ms	pss_kb	maxrss_kb	status	text
+tiny-en-ctx512	cold	2	0	short	85.8978	1013.83	1122.95	103895	119540	0	 Please send the report tomorrow morning.
+tiny-en-ctx512	cold	2	0	names	80.7607	1125.7	1233.01	104595	120256	0	 J. Entomise is meeting Priya in Hyderabad.
+tiny-en-ctx512	cold	2	0	numbers	81.406	1083.95	1195.31	104647	120308	0	 The invoice is for 12,500 rupees.
+tiny-en-ctx512	cold	2	0	technical	82.4057	1103.53	1214.62	104627	120308	0	 Create a pull request and deploy the carton API.
+tiny-en-ctx512	cold	2	0	dictation	82.0054	1128.62	1241.47	104599	120308	0	 I will call you after the meeting at 5.30.
+tiny-en-ctx512	cold	2	0	noise	83.1153	1003.35	1115.35	104539	120308	0	 Please send the report tomorrow morning.
+tiny-en-ctx512	cold	2	0	silence	83.8427	963.315	1076.1	104547	120308	0	 you
+tiny-en-ctx512	cold	2	1	short	82.1978	1083.59	1196.33	104539	120308	0	 Please send the report tomorrow morning.
+tiny-en-ctx512	cold	2	1	names	82.7369	1120.05	1234.61	104595	120308	0	 J. Entomise is meeting Priya in Hyderabad.
+tiny-en-ctx512	cold	2	1	numbers	83.1245	1074.39	1186.52	104647	120308	0	 The invoice is for 12,500 rupees.
+tiny-en-ctx512	cold	2	1	technical	82.3823	1071.12	1182.36	104627	120308	0	 Create a pull request and deploy the carton API.
+tiny-en-ctx512	cold	2	1	dictation	82.3643	1078.27	1189.8	104599	120308	0	 I will call you after the meeting at 5.30.
+tiny-en-ctx512	cold	2	1	noise	82.3509	1136.34	1249.58	104539	120308	0	 Please send the report tomorrow morning.
+tiny-en-ctx512	cold	2	1	silence	82.8606	969.338	1081.24	104547	120308	0	 you

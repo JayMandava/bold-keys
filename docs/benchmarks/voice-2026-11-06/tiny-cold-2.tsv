@@ -1,0 +1,19 @@
+label	mode	threads	repeat	id	load_ms	infer_ms	total_ms	pss_kb	maxrss_kb	status	text
+tiny-multi	cold	2	0	short	84.3651	4206.65	4317.64	126067	141296	0	 Please send the report tomorrow morning.
+tiny-multi	cold	2	0	names	82.0133	4378.34	4488.95	126827	142044	0	 Jain Thume is meeting Priya in Hyderabad.
+tiny-multi	cold	2	0	numbers	81.0739	4257.45	4369.83	126879	142092	0	 The invoice is for 12,500 rupees.
+tiny-multi	cold	2	0	technical	81.4855	4328.55	4442.6	126859	142092	0	 Create a pull request and deploy the cartlin if you are.
+tiny-multi	cold	2	0	dictation	82.0795	4325.74	4439.83	126831	142092	0	 I will call you after the meeting at 5.30.
+tiny-multi	cold	2	0	french	82.4091	4383.51	4497.73	126903	142120	0	 bonjour, je voudrais un café de m'amettant.
+tiny-multi	cold	2	0	german	82.1102	4287.96	4401.81	126819	142120	0	 Bitte schicken Sie den Bericht Nordenfrü.
+tiny-multi	cold	2	0	noise	83.5973	4257.62	4372.4	126779	142120	0	 Please send the report tomorrow morning.
+tiny-multi	cold	2	0	silence	82.3305	4427.47	4553.92	146073	162560	0	 you
+tiny-multi	cold	2	1	short	82.0741	4188.27	4301.35	126741	162560	0	 Please send the report tomorrow morning.
+tiny-multi	cold	2	1	names	82.8604	4317.76	4432.85	126793	162560	0	 Jain Thume is meeting Priya in Hyderabad.
+tiny-multi	cold	2	1	numbers	82.4443	4226.67	4340.64	126845	162560	0	 The invoice is for 12,500 rupees.
+tiny-multi	cold	2	1	technical	82.0556	4393.24	4507.05	126825	162560	0	 Create a pull request and deploy the cartlin if you are.
+tiny-multi	cold	2	1	dictation	83.0528	4366.89	4480.56	126797	162560	0	 I will call you after the meeting at 5.30.
+tiny-multi	cold	2	1	french	82.8067	4432.31	4547.31	126869	162560	0	 bonjour, je voudrais un café de m'amettant.
+tiny-multi	cold	2	1	german	83.3999	4646.98	4767.95	126785	162560	0	 Bitte schicken Sie den Bericht Nordenfrü.
+tiny-multi	cold	2	1	noise	107.438	4267.01	4409.82	126741	162560	0	 Please send the report tomorrow morning.
+tiny-multi	cold	2	1	silence	97.8769	4182.87	4315.54	146003	162560	0	 you

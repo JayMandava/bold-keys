@@ -7,4 +7,8 @@
         <activity android:name=".LeakEvalActivity" android:exported="true" />
         <activity android:name=".IconDumpActivity" android:exported="true" />
     </application>
+    <instrumentation
+        android:name="ai.boldkeys.VoiceFileBenchmark"
+        android:targetPackage="${applicationId}"
+        android:label="Offline voice file benchmark" />
 </manifest>

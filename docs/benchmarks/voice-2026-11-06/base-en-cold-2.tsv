@@ -1,0 +1,15 @@
+label	mode	threads	repeat	id	load_ms	infer_ms	total_ms	pss_kb	maxrss_kb	status	text
+base-english	cold	2	0	short	109.716	9015.21	9155.14	174013	189188	0	 Please send the report tomorrow morning.
+base-english	cold	2	0	names	106.617	8847.86	8987.69	174760	189936	0	 Jayant Mez is meeting Priya in Hyderabad.
+base-english	cold	2	0	numbers	105.081	8990.33	9132.35	174812	189992	0	 The invoice is for 12,500 rupees.
+base-english	cold	2	0	technical	110.261	9332.75	9478.47	174772	189992	0	 Create a pull request and deploy the Cartlin API.
+base-english	cold	2	0	dictation	110.83	9306.44	9460.54	174744	189992	0	 I will call you after the meeting at 5.30.
+base-english	cold	2	0	noise	152.996	9524.37	9715.29	174751	189992	0	 Please send the report tomorrow morning.
+base-english	cold	2	0	silence	130.668	9130.54	9305.89	174512	189992	0	""
+base-english	cold	2	1	short	123.216	9065.32	9236.28	174504	189992	0	 Please send the report tomorrow morning.
+base-english	cold	2	1	names	127.213	9072.89	9242.97	174550	189992	0	 Jayant Mez is meeting Priya in Hyderabad.
+base-english	cold	2	1	numbers	122.512	9053.04	9211.37	174602	189992	0	 The invoice is for 12,500 rupees.
+base-english	cold	2	1	technical	109.982	8929.2	9077.24	174582	189992	0	 Create a pull request and deploy the Cartlin API.
+base-english	cold	2	1	dictation	108.188	8908.43	9053.43	174554	189992	0	 I will call you after the meeting at 5.30.
+base-english	cold	2	1	noise	107.516	8838.17	8982.17	174502	189992	0	 Please send the report tomorrow morning.
+base-english	cold	2	1	silence	107.73	8596.32	8740.32	174510	189992	0	""

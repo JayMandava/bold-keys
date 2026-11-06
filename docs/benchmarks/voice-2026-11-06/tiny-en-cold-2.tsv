@@ -1,0 +1,15 @@
+label	mode	threads	repeat	id	load_ms	infer_ms	total_ms	pss_kb	maxrss_kb	status	text
+tiny-english	cold	2	0	short	87.0617	4167.26	4279.95	124915	140176	0	 Please send the report tomorrow morning.
+tiny-english	cold	2	0	names	81.6332	4248.2	4357.88	125615	140884	0	 Jantamise is meeting Priya in Hyderabad.
+tiny-english	cold	2	0	numbers	85.452	4129.05	4246.38	125667	140936	0	 The invoice is for 12,500 rupees.
+tiny-english	cold	2	0	technical	90.1882	4238.51	4359.03	125647	140936	0	 Create a pull request and deploy the carton API.
+tiny-english	cold	2	0	dictation	82.2949	4174.87	4287.59	125619	140936	0	 I will call you after the meeting at 5.30.
+tiny-english	cold	2	0	noise	85.1837	4194.74	4310.88	125559	140936	0	 Please send the report tomorrow morning.
+tiny-english	cold	2	0	silence	82.9207	4032.66	4146.15	125540	140936	0	""
+tiny-english	cold	2	1	short	82.9153	4363.47	4479.67	125532	140936	0	 Please send the report tomorrow morning.
+tiny-english	cold	2	1	names	83.382	4234.19	4351.39	125588	140936	0	 Jantamise is meeting Priya in Hyderabad.
+tiny-english	cold	2	1	numbers	83.3569	4330.99	4446.63	125640	140936	0	 The invoice is for 12,500 rupees.
+tiny-english	cold	2	1	technical	83.6347	4222.86	4340.26	125620	140936	0	 Create a pull request and deploy the carton API.
+tiny-english	cold	2	1	dictation	83.1873	4253.05	4368.45	125592	140936	0	 I will call you after the meeting at 5.30.
+tiny-english	cold	2	1	noise	82.9624	4220.56	4334.55	125532	140936	0	 Please send the report tomorrow morning.
+tiny-english	cold	2	1	silence	82.9851	4164.11	4278.72	125540	140936	0	""

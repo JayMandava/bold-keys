@@ -1,6 +1,7 @@
 #include <jni.h>
 #include <whisper.h>
 #include <atomic>
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -43,6 +44,10 @@ Java_ai_boldkeys_Whisper_nativeTranscribe(JNIEnv *env, jobject, jlong h, jfloatA
     env->ReleaseStringUTFChars(language, lang);
     auto params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
     params.n_threads = 2;
+    // English short dictation need not encode 30 seconds of padding. Keep three
+    // seconds of headroom, grow with the entire recording, and retain the full
+    // context for other languages (short contexts regressed German in testing).
+    if (langCopy == "en") params.audio_ctx = std::min(1500, std::max(512, (n + 319) / 320 + 150));
     params.language = langCopy.c_str();
     params.translate = false;
     params.no_context = true;

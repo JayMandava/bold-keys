@@ -1,0 +1,19 @@
+label	mode	threads	repeat	id	load_ms	infer_ms	total_ms	pss_kb	maxrss_kb	status	text
+tiny-multi	warm	2	0	short	0	4238.15	4242.64	125883	140712	0	 Please send the report tomorrow morning.
+tiny-multi	warm	2	0	names	0	4532.82	4537.26	126083	143772	0	 Jain Thume is meeting Priya in Hyderabad.
+tiny-multi	warm	2	0	numbers	0	4239.43	4245.56	126143	143772	0	 The invoice is for 12,500 rupees.
+tiny-multi	warm	2	0	technical	0	4372.34	4377.06	126127	143772	0	 Create a pull request and deploy the cartlin if you are.
+tiny-multi	warm	2	0	dictation	0	4263.74	4268.69	126107	143772	0	 I will call you after the meeting at 5.30.
+tiny-multi	warm	2	0	french	0	4241.69	4247.13	126167	143772	0	 bonjour, je voudrais un café de m'amettant.
+tiny-multi	warm	2	0	german	0	4304.61	4310.26	126107	143772	0	 Bitte schicken Sie den Bericht Nordenfrü.
+tiny-multi	warm	2	0	noise	0	4224.42	4230.2	126015	143772	0	 Please send the report tomorrow morning.
+tiny-multi	warm	2	0	silence	0	4261.59	4266.61	145339	161484	0	 you
+tiny-multi	warm	2	1	short	0	4982.7	4988.16	145107	162160	0	 Please send the report tomorrow morning.
+tiny-multi	warm	2	1	names	0	4121.17	4126.62	145207	162160	0	 Jain Thume is meeting Priya in Hyderabad.
+tiny-multi	warm	2	1	numbers	0	4134.68	4139.65	145247	162160	0	 The invoice is for 12,500 rupees.
+tiny-multi	warm	2	1	technical	0	4157.36	4162.76	145231	162160	0	 Create a pull request and deploy the cartlin if you are.
+tiny-multi	warm	2	1	dictation	0	4194.68	4199.63	145211	162160	0	 I will call you after the meeting at 5.30.
+tiny-multi	warm	2	1	french	0	4290.2	4296.32	145259	162160	0	 bonjour, je voudrais un café de m'amettant.
+tiny-multi	warm	2	1	german	0	4157.82	4162.99	145199	162160	0	 Bitte schicken Sie den Bericht Nordenfrü.
+tiny-multi	warm	2	1	noise	0	4068.03	4073.02	145107	162160	0	 Please send the report tomorrow morning.
+tiny-multi	warm	2	1	silence	0	4113.86	4119.09	145111	162160	0	 you

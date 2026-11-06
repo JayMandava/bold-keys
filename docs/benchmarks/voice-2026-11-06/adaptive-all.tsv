@@ -1,0 +1,19 @@
+label	mode	threads	repeat	id	load_ms	infer_ms	total_ms	pss_kb	maxrss_kb	status	text
+adaptive-multilingual	cold	2	0	short	84.5192	1034.43	1143.82	104678	120284	0	 Please send the report tomorrow morning.
+adaptive-multilingual	cold	2	0	names	81.1392	1110.69	1218.2	105382	120996	0	 Jain Thames is meeting Priya in Hyderabad.
+adaptive-multilingual	cold	2	0	numbers	82.1621	1092.21	1203.49	105434	121044	0	 The invoice is for 12,500 rupees.
+adaptive-multilingual	cold	2	0	technical	83.6505	1101.1	1214.02	105414	121044	0	 Create a pull request and deploy the cartlin ifier.
+adaptive-multilingual	cold	2	0	dictation	82.7169	1081.97	1193.33	105386	121044	0	 I will call you after the meeting at 5.30.
+adaptive-multilingual	cold	2	0	french	82.6615	4375.04	4489.88	126178	141788	0	 bonjour, je voudrais un café de m'amettant.
+adaptive-multilingual	cold	2	0	german	83.4521	4282.44	4397.46	126094	141788	0	 Bitte schicken Sie den Bericht Nordenfrü.
+adaptive-multilingual	cold	2	0	noise	82.8868	1022.18	1133.83	105334	141788	0	 Please send the report tomorrow morning.
+adaptive-multilingual	cold	2	0	silence	83.4888	1161.03	1280.47	124666	141788	0	 you.
+adaptive-multilingual	cold	2	1	short	82.5416	1000.79	1112.02	105338	141788	0	 Please send the report tomorrow morning.
+adaptive-multilingual	cold	2	1	names	82.3155	1110.63	1221.67	105386	141788	0	 Jain Thames is meeting Priya in Hyderabad.
+adaptive-multilingual	cold	2	1	numbers	82.7793	1111.83	1225	105438	141788	0	 The invoice is for 12,500 rupees.
+adaptive-multilingual	cold	2	1	technical	82.3752	1146.3	1258.71	105418	141788	0	 Create a pull request and deploy the cartlin ifier.
+adaptive-multilingual	cold	2	1	dictation	84.4616	1086.47	1199.51	105390	141788	0	 I will call you after the meeting at 5.30.
+adaptive-multilingual	cold	2	1	french	82.5409	4385.61	4499.19	126178	141792	0	 bonjour, je voudrais un café de m'amettant.
+adaptive-multilingual	cold	2	1	german	85.086	4293.85	4410.91	126094	141792	0	 Bitte schicken Sie den Bericht Nordenfrü.
+adaptive-multilingual	cold	2	1	noise	83.2044	1011.05	1123.14	105334	141792	0	 Please send the report tomorrow morning.
+adaptive-multilingual	cold	2	1	silence	82.7659	1146.09	1276.51	124666	141860	0	 you.

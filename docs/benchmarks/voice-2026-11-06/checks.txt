@@ -1,0 +1,15 @@
+Final app checks: testDebugUnitTest assembleDebug lintDebug, with voiceReviewBuild=true and unsignedRelease=true.
+Gradle result: BUILD SUCCESSFUL in 23s, 58 actionable tasks: 17 executed, 41 up-to-date.
+JUnit XML totals: 124 tests, 0 failures, 0 errors, 0 skipped.
+Metric unittest result: 7 tests, OK (including separate total/inference labels).
+Isolated APK package: ai.boldkeys.voice.review, versionCode 12, versionName 0.6.4-voice-experimental.
+File-input instrumentation without QAT: result=passed, INSTRUMENTATION_CODE=-1.
+File-input instrumentation with QAT: result=passed, INSTRUMENTATION_CODE=-1.
+Cancellation and model reopening: passed in both app result JSONs.
+Pinned QAT SHA256 verified: 5f4b2e17722e510122c464573b880587f4983347a40e5472b858d5a3c1ab8095.
+Moonshine SDK manifest: all eight files verified by size and CRC32C; total 45,398,523 bytes.
+External QAT/voice snapshot: TOTAL PSS 643080 KiB, TOTAL RSS 733744 KiB, thermal status 0.
+Production ai.boldkeys versionName 0.6.4/versionCode 12 and original update time unchanged.
+Active production IME remained ai.boldkeys/.BoldKeysService.
+No microphone capture or runtime microphone permission grant occurred.
+Empty transcript TSV cells use quoted empty strings; this is formatting only, preserving empty transcript values.
