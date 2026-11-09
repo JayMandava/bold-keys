@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -39,8 +40,10 @@ internal fun Note(text: String) {
 internal fun SettingsLink(onClick: () -> Unit, modifier: Modifier = Modifier, content: @Composable RowScope.() -> Unit) {
     TextButton(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).heightIn(min = 48.dp).then(modifier),
-        contentPadding = PaddingValues(vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).then(modifier),
+        // Inset belongs inside the clip; multiline labels must not touch rounded corners.
+        shape = RoundedCornerShape(8.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         content = { Row(Modifier.fillMaxWidth(), content = content) },
     )
 }
