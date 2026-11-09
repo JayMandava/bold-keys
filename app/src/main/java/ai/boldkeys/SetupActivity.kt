@@ -679,15 +679,15 @@ private fun ContextContent(context: Context) {
                         onCancel = { ContextModels.cancel(e) },
                         onDelete = { ContextModels.delete(e); tick++ },
                         details = {
-                            Text(human(e.bytes), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            SettingsDescription(human(e.bytes))
                             SettingsDescription(if (e.custom) "Imported from a file." else e.note)
                             if (entries.count { it.file == e.file } > 1) SettingsDescription("Shares its local file with another entry. Removing either entry removes that file.")
                             when (st) {
                                 is Transfer.Downloading -> {
                                     androidx.compose.material3.LinearProgressIndicator(progress = { if (st.total > 0) st.done.toFloat() / st.total else 0f }, modifier = Modifier.fillMaxWidth().padding(top = 6.dp))
-                                    Text("${human(st.done)} of ${human(st.total)}", style = MaterialTheme.typography.bodySmall)
+                                    SettingsDescription("${human(st.done)} of ${human(st.total)}")
                                 }
-                                Transfer.Verifying -> Text("Checking the download…", style = MaterialTheme.typography.bodySmall)
+                                Transfer.Verifying -> SettingsDescription("Checking the download…")
                                 is Transfer.Failed -> SettingsDescription(st.reason, color = MaterialTheme.colorScheme.error)
                                 null -> Unit
                             }
@@ -728,19 +728,27 @@ private fun ShortcutsContent(context: Context) {
         Section("Letters") {
             ('A'..'Z').forEach { ch ->
                 val sc = assigned[ch]
-                ListItem(
-                    modifier = Modifier.clickable { editing = ch },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    leadingContent = { Text(ch.toString(), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium) },
-                    headlineContent = { Text(sc?.label?.ifBlank { sc.value } ?: "Not set", color = if (sc == null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface) },
-                    supportingContent = sc?.let { { Text(when (it.type) { Shortcut.APP -> "App"; Shortcut.LINK -> "Link: ${it.value}"; else -> "Text" }) } },
-                    trailingContent = if (sc != null) {{ IconButton(onClick = { Shortcuts.set(context, ch, null); version++ }) { Icon(Icons.Default.Close, contentDescription = "Clear $ch") } }} else null,
-                )
+                ShortcutSettingRow(ch, sc, onEdit = { editing = ch }, onClear = {
+                    Shortcuts.set(context, ch, null); version++
+                })
             }
         }
     }
     editing?.let { ch ->
         ShortcutDialog(context, ch, assigned[ch], onDismiss = { editing = null }) { Shortcuts.set(context, ch, it); version++; editing = null }
+    }
+}
+
+@Composable
+internal fun ShortcutSettingRow(letter: Char, shortcut: Shortcut?, onEdit: () -> Unit, onClear: () -> Unit) {
+    Column(Modifier.fillMaxWidth().clickable(onClick = onEdit)) {
+        ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            leadingContent = { Text(letter.toString(), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium) },
+            headlineContent = { Text(shortcut?.label?.ifBlank { shortcut.value } ?: "Not set", color = if (shortcut == null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface) },
+            trailingContent = if (shortcut != null) {{ IconButton(onClick = onClear) { Icon(Icons.Default.Close, contentDescription = "Clear $letter") } }} else null,
+        )
+        shortcut?.let { Note(when (it.type) { Shortcut.APP -> "App"; Shortcut.LINK -> "Link: ${it.value}"; else -> "Text" }) }
     }
 }
 
