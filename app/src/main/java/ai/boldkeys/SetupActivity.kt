@@ -679,7 +679,7 @@ private fun ContextContent(context: Context) {
                         onCancel = { ContextModels.cancel(e) },
                         onDelete = { ContextModels.delete(e); tick++ },
                         details = {
-                            Text(human(e.bytes))
+                            Text(human(e.bytes), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             SettingsDescription(if (e.custom) "Imported from a file." else e.note)
                             if (entries.count { it.file == e.file } > 1) SettingsDescription("Shares its local file with another entry. Removing either entry removes that file.")
                             when (st) {
