@@ -40,6 +40,7 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -303,8 +304,14 @@ private fun Section(title: String, content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun Note(text: String) {
-    Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+internal fun Note(text: String, paragraph: Boolean = false) {
+    Text(
+        text,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = if (paragraph) TextAlign.Justify else TextAlign.Start,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+    )
 }
 
 /** Keeps optional instructions available without hiding safety and privacy notices. */
@@ -320,7 +327,7 @@ internal fun ExpandableHelp(label: String, summary: String, details: String) {
                 stateDescription = if (expanded) "Expanded" else "Collapsed"
             },
         ) { Text(if (expanded) "Hide $label" else label) }
-        if (expanded) Note(details)
+        if (expanded) Note(details, paragraph = true)
     }
 }
 
@@ -390,11 +397,11 @@ private fun androidx.compose.foundation.lazy.LazyListScope.typingItems(context: 
         Section("English spelling") {
             val options = listOf("us" to "American", "uk" to "British")
             ChoiceFlow(options, spelling) { key -> spelling = key; Prefs.put(context, "spelling", key) }
-            Note("Words like colour/color, realise/realize and centre/center are corrected to the one you choose, and only that one is suggested.")
+            Note("Words like colour/color, realise/realize and centre/center are corrected to the one you choose, and only that one is suggested.", paragraph = true)
         }
         }
     }
-    item(key = "typing-note") { Note("Password and email fields suppress correction and suggestions. Web addresses are never automatically rewritten, but suggestions may appear. These protections depend on the editor reporting its input type correctly.") }
+    item(key = "typing-note") { Note("Password and email fields suppress correction and suggestions. Web addresses are never automatically rewritten, but suggestions may appear. These protections depend on the editor reporting its input type correctly.", paragraph = true) }
 }
 
 // ---------------------------------------------------------------- appearance
@@ -434,7 +441,7 @@ private fun AppearanceContent(context: Context) {
         Section("Key size") {
             val options = listOf("small" to "Small", "normal" to "Normal", "large" to "Large", "xlarge" to "XL")
             ChoiceFlow(options, keySize) { key -> keySize = key; Prefs.put(context, "keySize", key); version++ }
-            Note("How tall the keys are. Large and XL make bigger buttons for big thumbs; the keyboard takes more of the screen.")
+            Note("How tall the keys are. Large and XL make bigger buttons for big thumbs; the keyboard takes more of the screen.", paragraph = true)
         }
         Section("Backlight") {
             val options = listOf("off" to "Off", "on" to "On", "auto" to "Auto")
@@ -601,8 +608,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.aboutItems(context: C
             Section("Version $version") { Note("Bold Keys works offline by default.") }
             Section("Credits") {
                 TextButton(onClick = openLicenses) { Text("Licenses & credits (available offline)") }
-                Note("English, French and German word frequencies come from FrequencyWords/OpenSubtitles (CC BY-SA 4.0); Next-word hints use only Common Voice text (CC0); spelling dictionaries retain CC BY-SA 4.0 terms. Nunito uses the SIL Open Font License. The offline credits include source details and separate third-party terms.")
-                Note("Inspired by the classic BlackBerry Bold 9900 keyboard. BlackBerry is a trademark of its owner; this app is independent and is not affiliated with or endorsed by BlackBerry.")
+                Note("English, French and German word frequencies come from FrequencyWords/OpenSubtitles (CC BY-SA 4.0); Next-word hints use only Common Voice text (CC0); spelling dictionaries retain CC BY-SA 4.0 terms. Nunito uses the SIL Open Font License. The offline credits include source details and separate third-party terms.", paragraph = true)
+                Note("Inspired by the classic BlackBerry Bold 9900 keyboard. BlackBerry is a trademark of its owner; this app is independent and is not affiliated with or endorsed by BlackBerry.", paragraph = true)
             }
         }
     }
@@ -664,7 +671,7 @@ private fun ContextContent(context: Context) {
             SwitchRow("Use a context model", "Checks each word against the sentence around it: picks the right fix for a misspelling, and catches real words used for another (their/there, your/you're).", on) {
                 on = it; Prefs.put(context, "contextModel", it)
             }
-            Note("Local scoring is English-only; it stays off in other languages. QAT has limited smoke testing, not a quality or speed benchmark.")
+            Note("Local scoring is English-only; it stays off in other languages. QAT has limited smoke testing, not a quality or speed benchmark.", paragraph = true)
             ExpandableHelp("How context scoring works", "Uses a local model to score dictionary suggestions; it never writes text or sends it away.", "Switch it off any time to go back to dictionary-only correction. The context feature has only been measured on English; it stays off in other languages. QAT has only had limited smoke testing, not a quality or speed benchmark.")
             if (on && chosen == null) Note("Download or import a model below to start using it.")
         }
@@ -704,13 +711,13 @@ private fun ContextContent(context: Context) {
             note?.let { Note(it) }
         }
         Section("Downloads") {
-            Note("Optional Gemma models have their own terms and use restrictions; they are not licensed under the app's Apache license.")
+            Note("Optional Gemma models have their own terms and use restrictions; they are not licensed under the app's Apache license.", paragraph = true)
             TextButton(onClick = {
                 try { context.startActivity(Intent(Intent.ACTION_VIEW, "https://ai.google.dev/gemma/terms".toUri())) }
                 catch (_: ActivityNotFoundException) { Toast.makeText(context, "No browser is available to open the model terms.", Toast.LENGTH_LONG).show() }
             }) { Text("Gemma terms and use restrictions (opens in browser)") }
             SwitchRow("Wi-Fi only", "Models are a few hundred megabytes. Downloads are checked against a fixed checksum, and a file that does not match is thrown away.", wifiOnly) { wifiOnly = it; Prefs.put(context, "modelWifiOnly", it) }
-            Note("A model download sends an HTTPS request to Hugging Face and potentially its delivery providers; they can see normal request metadata such as IP address and the model requested. No typed text is attached. Wi-Fi only checks whether Android marks the connection as metered. Android emoji font providers, opened links and cloud-backed document providers can also use the network.")
+            Note("A model download sends an HTTPS request to Hugging Face and potentially its delivery providers; they can see normal request metadata such as IP address and the model requested. No typed text is attached. Wi-Fi only checks whether Android marks the connection as metered. Android emoji font providers, opened links and cloud-backed document providers can also use the network.", paragraph = true)
         }
     }
 }
@@ -822,7 +829,7 @@ private fun VoiceSettings(context: Context) {
                 if (!want) { enabled = false; Prefs.put(context, "voiceTyping", false) }
                 else permission.launch(android.Manifest.permission.RECORD_AUDIO)
             }
-            Note("Audio stays in memory on this device and is discarded after transcription or cancellation. There is no online recognition fallback. Voice is disabled in password fields.")
+            Note("Audio stays in memory on this device and is discarded after transcription or cancellation. There is no online recognition fallback. Voice is disabled in password fields.", paragraph = true)
         }
         Section("Voice model") {
             Note("Optional 32.2 MB multilingual Whisper Tiny Q5 model. Recordings are limited to 30 seconds.")
@@ -837,7 +844,7 @@ private fun VoiceSettings(context: Context) {
             message?.let { Note(it) }
         }
         Section("Privacy") {
-            Note("Only the model download contacts Hugging Face and its delivery providers over HTTPS; they can see your IP address and the requested model. No audio or typed text is included. The model is optional and MIT licensed.")
+            Note("Only the model download contacts Hugging Face and its delivery providers over HTTPS; they can see your IP address and the requested model. No audio or typed text is included. The model is optional and MIT licensed.", paragraph = true)
         }
         Section("Optional instructions") {
             ExpandableHelp("Voice controls", "Hold Space to speak; release to transcribe and insert.", "The spacebar glows green while recording and slowly flashes while transcribing. Slide off Space to discard before releasing; typing or leaving the editor discards unfinished voice input. Nothing is sent automatically. The keyboard language selects English, French or German recognition.")
