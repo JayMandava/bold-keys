@@ -49,9 +49,11 @@ internal fun ModelOptionRow(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             leadingContent = { RadioButton(selected = effective, enabled = installed && !busy, onClick = null) },
             headlineContent = { Text(entry.name) },
-            supportingContent = { Text(state) },
         )
-        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) { details() }
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
+            SettingsDescription(state)
+            details()
+        }
         when {
             busy -> OutlinedButton(onClick = onCancel, modifier = Modifier.padding(horizontal = 16.dp).semantics { contentDescription = "Cancel ${entry.name}" }) { Text("Cancel") }
             installed -> OutlinedButton(onClick = onDelete, modifier = Modifier.padding(horizontal = 16.dp).semantics { contentDescription = "Delete ${entry.name}" }) { Text("Remove model") }
