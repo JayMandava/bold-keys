@@ -34,6 +34,8 @@ jobs:
         timeout-minutes: 32
         run: |
           export PATH="$ANDROID_HOME/platform-tools:$PATH"
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/settings-qa-avd"
+          mkdir -p "$ANDROID_AVD_HOME"
           echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd --name settings-qa --package 'system-images;android-33;default;x86_64' --device pixel_2
           "$ANDROID_HOME/emulator/emulator" -avd settings-qa -no-window -no-audio -no-boot-anim -no-snapshot -accel off -gpu swiftshader -feature -Vulkan -memory 2048 -cores 2 > qa-artifacts/emulator.log 2>&1 &
           emulator_pid=$!
