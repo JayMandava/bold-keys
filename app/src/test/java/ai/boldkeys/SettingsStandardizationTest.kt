@@ -77,6 +77,25 @@ class SettingsStandardizationTest {
         assertSameEdges("Reference explanation", "Expanded explanation")
     }
 
+    @Test fun multilineLinksAtLargeTextKeepTheirContentInsetAndFullHeight() {
+        val label = "Privacy policy (opens in browser)"
+        activity.get().setContent {
+            val density = androidx.compose.ui.platform.LocalDensity.current
+            androidx.compose.runtime.CompositionLocalProvider(
+                androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(density.density, 2f)
+            ) { MaterialTheme { Column(Modifier.fillMaxWidth()) {
+                Note("Reference explanation")
+                SettingsLink(onClick = {}) { Text(label) }
+            } } }
+        }
+        val text = node(label).fetchSemanticsNode().boundsInRoot
+        val reference = node("Reference explanation").fetchSemanticsNode().boundsInRoot
+        assertEquals(reference.left, text.left, 0.5f)
+        val button = compose.onNodeWithText(label).fetchSemanticsNode().boundsInRoot
+        assertTrue("Label has protected space inside button clip", text.left - button.left >= 15f)
+        assertTrue("Button contains full multiline label", text.top > button.top && text.bottom < button.bottom)
+    }
+
     @Test fun assignedShortcutDescriptionsUseFullWidthAndKeepEditAndClearActions() {
         val shortcut = Shortcut(Shortcut.LINK, "https://example.com/a/long/saved/link", "Example")
         var edits = 0
