@@ -309,7 +309,8 @@ internal fun Note(text: String, paragraph: Boolean = false) {
         text,
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        textAlign = if (paragraph) TextAlign.Justify else TextAlign.Start,
+        // Large accessibility text leaves too few words per line for readable justification.
+        textAlign = if (paragraph && androidx.compose.ui.platform.LocalDensity.current.fontScale <= 1.3f) TextAlign.Justify else TextAlign.Start,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
     )
 }
