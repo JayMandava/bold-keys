@@ -285,11 +285,12 @@ private fun TryCard() {
 @Composable
 internal fun SwitchRow(title: String, subtitle: String? = null, checked: Boolean, onChange: (Boolean) -> Unit) {
     Column(Modifier.fillMaxWidth().toggleable(value = checked, role = Role.Switch, onValueChange = onChange)) {
-        ListItem(
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-            headlineContent = { Text(title) },
-            trailingContent = { Switch(checked = checked, onCheckedChange = null) },
-        )
+        Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            Text(title, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+            Spacer(Modifier.width(16.dp))
+            Switch(checked = checked, onCheckedChange = null)
+        }
         subtitle?.let { Note(it) }
     }
 }
