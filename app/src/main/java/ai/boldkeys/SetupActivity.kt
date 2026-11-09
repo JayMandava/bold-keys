@@ -324,9 +324,17 @@ internal fun ExpandableHelp(label: String, summary: String, details: String) {
 
 @Composable
 internal fun <T> ChoiceFlow(options: List<Pair<T, String>>, selected: T, onSelect: (T) -> Unit) {
-    val fontScale = androidx.compose.ui.platform.LocalDensity.current.fontScale
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val textMeasurer = androidx.compose.ui.text.rememberTextMeasurer()
+    val labelStyle = MaterialTheme.typography.labelLarge
+    val widestLabel = options.maxOfOrNull { (_, label) ->
+        textMeasurer.measure(label, style = labelStyle, softWrap = false, maxLines = 1).size.width
+    } ?: 0
+    // Each equal-width segment needs its complete label plus Material's internal spacing.
+    val minimumSegmentWidth = with(density) { widestLabel.toDp() } + 40.dp
     androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
-        if (options.size <= 6 && maxWidth >= 280.dp && fontScale <= 1.15f) {
+        if (options.size <= 6 && maxWidth >= 280.dp && density.fontScale <= 1.15f &&
+            maxWidth / options.size.coerceAtLeast(1) >= minimumSegmentWidth) {
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                 options.forEachIndexed { index, (value, label) ->
                     SegmentedButton(selected = selected == value, onClick = { onSelect(value) }, shape = SegmentedButtonDefaults.itemShape(index, options.size), icon = {}) { Text(label, maxLines = 1, softWrap = false) }
