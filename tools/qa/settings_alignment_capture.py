@@ -6,19 +6,33 @@ out = Path("qa-artifacts")
 def adb(*args):
     return subprocess.check_output(["adb", *args], timeout=60)
 def dump():
-    adb("shell", "uiautomator", "dump", "/sdcard/settings-qa.xml")
-    return adb("shell", "cat", "/sdcard/settings-qa.xml")
+    # UiAutomator may report success while leaving an old file behind on a slow guest.
+    for attempt in range(6):
+        adb("shell", "rm", "-f", "/sdcard/settings-qa.xml")
+        result = adb("shell", "uiautomator", "dump", "/sdcard/settings-qa.xml")
+        try:
+            xml = adb("shell", "cat", "/sdcard/settings-qa.xml")
+            root = ET.fromstring(xml)
+            if not list(root.iter("node")):
+                raise ValueError("Empty accessibility tree")
+            (out/"last-ui.xml").write_bytes(xml)
+            return xml
+        except (subprocess.CalledProcessError, ET.ParseError, ValueError):
+            time.sleep(5)
+    raise RuntimeError("Android accessibility tree never became ready")
 def tap(label):
-    for _ in range(9):
+    for attempt in range(16):
         root = ET.fromstring(dump())
         for n in root.iter("node"):
-            if n.get("text") == label or n.get("content-desc") == label:
+            if n.get("text") == label or n.get("content-desc", "").startswith(label + ":") or n.get("content-desc") == label:
                 x1,y1,x2,y2 = map(int, re.findall(r"\d+", n.get("bounds", "")))
                 adb("shell", "input", "tap", str((x1+x2)//2), str((y1+y2)//2))
-                time.sleep(2)
+                time.sleep(8)
                 return
-        adb("shell", "input", "swipe", "300", "1000", "300", "400", "450")
-        time.sleep(1)
+        if attempt >= 4:
+            adb("shell", "input", "swipe", "300", "1000", "300", "400", "450")
+        time.sleep(5)
+    (out/"navigation-failure.png").write_bytes(adb("exec-out","screencap","-p"))
     raise RuntimeError("Could not locate " + label)
 for width, scale, label in [(720,"1.0","normal"),(640,"1.3","narrow"),(720,"2.0","large-text")]:
     adb("shell","wm","size",f"{width}x1280")
@@ -27,8 +41,10 @@ for width, scale, label in [(720,"1.0","normal"),(640,"1.3","narrow"),(720,"2.0"
     for screen in ("Typing", "About", "Experimental"):
         adb("shell","am","force-stop","ai.boldkeys")
         adb("shell","am","start","-W","-n","ai.boldkeys/.SetupActivity")
-        time.sleep(3)
+        time.sleep(10)
         tap(screen)
+        # Save the initial screen before attempting expansion for failure diagnosis.
+        (out/f"{label}-{screen.lower()}-initial.png").write_bytes(adb("exec-out","screencap","-p"))
         if screen == "Typing":
             tap("Layout and accents")
         for page in range(5):
