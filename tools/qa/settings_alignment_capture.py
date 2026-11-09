@@ -38,7 +38,7 @@ for width, scale, label in [(720,"1.0","normal"),(640,"1.3","narrow"),(720,"2.0"
     adb("shell","wm","size",f"{width}x1280")
     adb("shell","wm","density","320")
     adb("shell","settings","put","system","font_scale",scale)
-    for screen in ("Typing", "About", "Experimental"):
+    for screen in ("Typing", "Appearance", "Context model", "About", "Experimental"):
         adb("shell","am","force-stop","ai.boldkeys")
         adb("shell","am","start","-W","-n","ai.boldkeys/.SetupActivity")
         time.sleep(10)
@@ -47,7 +47,7 @@ for width, scale, label in [(720,"1.0","normal"),(640,"1.3","narrow"),(720,"2.0"
         (out/f"{label}-{screen.lower()}-initial.png").write_bytes(adb("exec-out","screencap","-p"))
         if screen == "Typing":
             tap("Layout and accents")
-        for page in range(5):
+        for page in range(6):
             stem = f"{label}-{screen.lower()}-{page}"
             xml = dump()
             if b"ai.boldkeys" not in xml:
