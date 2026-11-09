@@ -1,6 +1,7 @@
 package ai.boldkeys
 
 import android.graphics.Bitmap
+import android.os.SystemClock
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
@@ -110,7 +111,7 @@ class SettingsStandardizationCapture {
             val layouts = mutableListOf<TextLayoutResult>()
             legalText.performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
             check(layouts.any { it.layoutInput.text.text == expected }) { "Missing full text layout: $file" }
-            if (layouts.any { it.hasVisualOverflow }) issues += "license-section-$index: legal text overflow: $file"
+            layouts.forEach { checkTextLayout("license-section-$index-$file", it) }
             captureViewport("Licenses & credits", "section-start", index)
             out.resolve("license-sections.tsv").appendText("$index\t$file\t${expected.length} characters checked\n")
         }
@@ -126,9 +127,45 @@ class SettingsStandardizationCapture {
         out.resolve("screens.tsv").appendText("Licenses & credits\t11 section starts + final boundary\t12\n")
     }
 
+    /** Semantics idle can precede SurfaceFlinger presenting the newly drawn frame. */
+    private fun settleFrame() {
+        compose.waitForIdle()
+        instrumentation.waitForIdleSync()
+        SystemClock.sleep(250)
+        instrumentation.waitForIdleSync()
+        compose.waitForIdle()
+    }
+
+    private fun checkTextLayout(stem: String, result: TextLayoutResult) {
+        val text = result.layoutInput.text.text.replace('\n', ' ').replace('\t', ' ').take(100)
+        val lines = 0 until result.lineCount
+        val widestLine = lines.maxOfOrNull { result.getLineRight(it) - result.getLineLeft(it) } ?: 0f
+        val bottom = lines.maxOfOrNull { result.getLineBottom(it) } ?: 0f
+        val ellipsized = lines.any { result.isLineEllipsized(it) }
+        val truncated = result.multiParagraph.didExceedMaxLines || ellipsized ||
+            (result.lineCount > 0 && result.getLineEnd(result.lineCount - 1) < result.layoutInput.text.length)
+        // GetTextLayoutResult for simple Text can rebuild a wider MultiParagraph from the
+        // incoming max constraints while retaining the original intrinsic layoutSize.
+        // Compare actual line extents, not that synthetic paragraph-container width.
+        val widthOverrun = widestLine - result.size.width
+        val heightOverrun = bottom - result.size.height
+        val meaningful = widthOverrun > 1f || heightOverrun > 1f || truncated
+        if (result.hasVisualOverflow || meaningful) {
+            out.resolve("text-layout-metrics.tsv").appendText(
+                "$stem\tsize=${result.size.width}x${result.size.height}" +
+                    "\tparagraph=${result.multiParagraph.width}x${result.multiParagraph.height}" +
+                    "\tlineWidth=$widestLine\tlineBottom=$bottom" +
+                    "\twidthOverrun=$widthOverrun\theightOverrun=$heightOverrun" +
+                    "\tlines=${result.lineCount}\tmaxLines=${result.layoutInput.maxLines}" +
+                    "\tellipsized=$ellipsized\ttruncated=$truncated" +
+                    "\thasVisualOverflow=${result.hasVisualOverflow}\tfailure=$meaningful\t$text\n")
+        }
+        if (meaningful) issues += "$stem: text overflow width=$widthOverrun height=$heightOverrun truncated=$truncated: $text"
+    }
+
     private fun captureViewport(screen: String, state: String, page: Int) {
         val stem = "${slug(screen)}-$state-${page.toString().padStart(3, '0')}"
-        compose.waitForIdle()
+        settleFrame()
         val root = compose.onRoot(useUnmergedTree = true).fetchSemanticsNode()
         val nodes = compose.onAllNodes(SemanticsMatcher("all") { true }, useUnmergedTree = true)
             .fetchSemanticsNodes()
@@ -137,10 +174,7 @@ class SettingsStandardizationCapture {
                 val bounds = node.boundsInRoot
                 val results = mutableListOf<TextLayoutResult>()
                 node.config.getOrNull(SemanticsActions.GetTextLayoutResult)?.action?.invoke(results)
-                results.forEach { result ->
-                    val text = result.layoutInput.text.text.replace('\n', ' ').take(100)
-                    if (result.hasVisualOverflow) issues += "$stem: text overflow: $text"
-                }
+                results.forEach { result -> checkTextLayout(stem, result) }
                 if (bounds.width <= 0 || bounds.height <= 0) return@forEach
                 // position/size are unclipped, unlike boundsInRoot. Ignore vertical scroll clipping.
                 val left = node.positionInRoot.x
@@ -162,6 +196,11 @@ class SettingsStandardizationCapture {
 
     private fun sweep(screen: String, state: String) {
         top()
+        settleFrame()
+        val topAxis = list().fetchSemanticsNode().config[SemanticsProperties.VerticalScrollAxisRange].value()
+        check(topAxis == 0f) { "Expected scroll origin for $screen/$state, got $topAxis" }
+        if (screen == "Appearance") compose.onNodeWithText("Keys").assertIsDisplayed()
+        if (screen == "Typing") compose.onNodeWithText("Layout").assertIsDisplayed()
         var page = 0
         while (true) {
             captureViewport(screen, state, page)
