@@ -89,4 +89,25 @@ class SettingsPresentationTest {
         compose.onNode(radio and hasText("British")).performClick()
         compose.onNode(radio and hasText("British")).assertIsSelected()
     }
+
+    @Test fun paragraphNotesUseJustificationButCompactNotesRemainStartAligned() {
+        val paragraph = "A long explanation fills the available card width and wraps naturally across several lines without changing its wording."
+        val compact = "Match phone follows the system setting."
+        activity.get().setContent { MaterialTheme {
+            androidx.compose.foundation.layout.Column {
+                Note(paragraph, paragraph = true)
+                Note(compact)
+            }
+        } }
+        fun alignment(text: String): androidx.compose.ui.text.style.TextAlign {
+            val layouts = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
+            compose.onNodeWithText(text).performSemanticsAction(
+                androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult,
+            ) { it(layouts) }
+            return layouts.single().layoutInput.style.textAlign
+        }
+        org.junit.Assert.assertEquals(androidx.compose.ui.text.style.TextAlign.Justify, alignment(paragraph))
+        org.junit.Assert.assertEquals(androidx.compose.ui.text.style.TextAlign.Start, alignment(compact))
+    }
+
 }
