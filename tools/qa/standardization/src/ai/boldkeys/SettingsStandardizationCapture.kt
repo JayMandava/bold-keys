@@ -1,7 +1,9 @@
 package ai.boldkeys
 
 import android.graphics.Bitmap
-import android.os.SystemClock
+import android.os.Handler
+import android.os.Looper
+import android.view.PixelCopy
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
@@ -11,6 +13,9 @@ import androidx.compose.ui.text.TextLayoutResult
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -127,13 +132,45 @@ class SettingsStandardizationCapture {
         out.resolve("screens.tsv").appendText("Licenses & credits\t11 section starts + final boundary\t12\n")
     }
 
-    /** Semantics idle can precede SurfaceFlinger presenting the newly drawn frame. */
+    /** Wait for a newly invalidated hardware frame to be submitted, not just semantics idle. */
     private fun settleFrame() {
         compose.waitForIdle()
         instrumentation.waitForIdleSync()
-        SystemClock.sleep(250)
-        instrumentation.waitForIdleSync()
-        compose.waitForIdle()
+        val committed = CountDownLatch(1)
+        instrumentation.runOnMainSync {
+            val view = compose.activity.window.decorView
+            check(view.isAttachedToWindow && view.isHardwareAccelerated) {
+                "Window must be attached and hardware accelerated for frame-commit capture"
+            }
+            check(view.width > 0 && view.height > 0) { "Window has no drawable size" }
+            view.viewTreeObserver.registerFrameCommitCallback { committed.countDown() }
+            view.invalidate()
+        }
+        check(committed.await(10, TimeUnit.SECONDS)) { "Timed out waiting for hardware frame commit" }
+    }
+
+    /** PixelCopy reads the committed app-window buffer, including the AndroidView preview. */
+    private fun captureWindow(stem: String): Bitmap {
+        settleFrame()
+        val copied = CountDownLatch(1)
+        val status = AtomicInteger(-1)
+        lateinit var bitmap: Bitmap
+        instrumentation.runOnMainSync {
+            val window = compose.activity.window
+            bitmap = Bitmap.createBitmap(window.decorView.width, window.decorView.height, Bitmap.Config.ARGB_8888)
+            PixelCopy.request(window, bitmap, { result ->
+                status.set(result)
+                copied.countDown()
+            }, Handler(Looper.getMainLooper()))
+        }
+        // Do not recycle a bitmap while an outstanding PixelCopy might still write into it.
+        check(copied.await(10, TimeUnit.SECONDS)) { "PixelCopy timed out for $stem" }
+        if (status.get() != PixelCopy.SUCCESS) {
+            bitmap.recycle()
+            error("PixelCopy failed for $stem with status ${status.get()}")
+        }
+        out.resolve("capture-method.tsv").appendText("$stem\twindow-pixelcopy\tframe-commit=true\tstatus=${status.get()}\n")
+        return bitmap
     }
 
     private fun checkTextLayout(stem: String, result: TextLayoutResult) {
@@ -186,7 +223,7 @@ class SettingsStandardizationCapture {
             }
         }
         out.resolve("$stem.txt").writeText(compose.onRoot(useUnmergedTree = true).printToString(maxDepth = 100))
-        val bitmap = requireNotNull(instrumentation.uiAutomation.takeScreenshot()) { "Screenshot failed: $stem" }
+        val bitmap = captureWindow(stem)
         out.resolve("$stem.png").outputStream().use { stream ->
             check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream))
         }
