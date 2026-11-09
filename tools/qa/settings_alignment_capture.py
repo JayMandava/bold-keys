@@ -43,17 +43,26 @@ for width, scale, label in [(720,"1.0","normal"),(640,"1.3","narrow"),(720,"2.0"
         adb("shell","am","start","-W","-n","ai.boldkeys/.SetupActivity")
         time.sleep(10)
         tap(screen)
+        # Settings shares its list across destinations. Always return to the top
+        # before looking for help or starting ordered visual coverage.
+        for _ in range(12):
+            adb("shell","input","swipe","300","350","300","1100","150")
+        time.sleep(2)
         # Save the initial screen before attempting expansion for failure diagnosis.
         (out/f"{label}-{screen.lower()}-initial.png").write_bytes(adb("exec-out","screencap","-p"))
         if screen == "Typing":
             tap("Layout and accents")
-        for page in range(6):
+        previous_xml = None
+        for page in range(20):
             stem = f"{label}-{screen.lower()}-{page}"
             xml = dump()
             if b"ai.boldkeys" not in xml:
                 raise RuntimeError("Expected Bold Keys foreground UI")
             (out / (stem+".xml")).write_bytes(xml)
             (out / (stem+".png")).write_bytes(adb("exec-out","screencap","-p"))
+            if xml == previous_xml:
+                break
+            previous_xml = xml
             adb("shell","input","swipe","300","1000","300","400","450")
             time.sleep(1)
     adb("shell","input","keyevent","KEYCODE_BACK")
