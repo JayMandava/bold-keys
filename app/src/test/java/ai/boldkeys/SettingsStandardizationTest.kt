@@ -97,13 +97,16 @@ class SettingsStandardizationTest {
 
     @Test fun modelDescriptionsUseFullWidthWithoutLosingRadioHierarchy() {
         val entry = ContextModels.catalogue.first()
+        var selections = 0
         activity.get().setContent { MaterialTheme { Column(Modifier.fillMaxWidth()) {
             Note("Reference explanation")
             ModelOptionRow(entry, true, true, "unavailable-model", false,
                 details = { SettingsDescription(entry.note) },
-                onSelect = {}, onDownload = {}, onCancel = {}, onDelete = {})
+                onSelect = { selections++ }, onDownload = {}, onCancel = {}, onDelete = {})
         } } }
         val fallback = "Saved model unavailable. Using temporarily; tap to save this choice."
+        node(fallback).performTouchInput { click() }
+        assertEquals(1, selections)
         assertJustified(fallback)
         assertSameEdges("Reference explanation", fallback)
         assertJustified(entry.note)
