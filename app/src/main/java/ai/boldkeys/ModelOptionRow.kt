@@ -1,5 +1,8 @@
 package ai.boldkeys
 
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -10,8 +13,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
@@ -45,16 +47,16 @@ internal fun ModelOptionRow(
         Column(Modifier.fillMaxWidth()
                 .selectable(selected = effective, enabled = installed && !busy, role = Role.RadioButton, onClick = onSelect)
                 .semantics { stateDescription = state }) {
-        ListItem(
-            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-            leadingContent = { RadioButton(selected = effective, enabled = installed && !busy, onClick = null) },
-            headlineContent = { Text(entry.name) },
-        )
-        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
-            SettingsDescription(state)
-            details()
-        }
+            Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                RadioButton(selected = effective, enabled = installed && !busy, onClick = null)
+                Spacer(Modifier.width(16.dp))
+                Text(entry.name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+            }
+            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
+                SettingsDescription(state)
+                details()
+            }
         }
         when {
             busy -> OutlinedButton(onClick = onCancel, modifier = Modifier.padding(horizontal = 16.dp).semantics { contentDescription = "Cancel ${entry.name}" }) { Text("Cancel") }
