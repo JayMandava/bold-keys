@@ -30,6 +30,9 @@ jobs:
         run: |
           python3 -m unittest discover -s tests -p 'test_release_workflow.py' -v
           ./gradlew --no-daemon --max-workers=2 -PunsignedRelease=true -Pkotlin.compiler.execution.strategy=in-process testDebugUnitTest testReleaseUnitTest lintDebug lintRelease assembleDebug
+          if [[ -f tools/qa/standardization/init.gradle ]]; then
+            ./gradlew --no-daemon --max-workers=2 -I tools/qa/standardization/init.gradle -PunsignedRelease=true -Pkotlin.compiler.execution.strategy=in-process assembleDebugAndroidTest
+          fi
       - name: Upload one-day QA evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9

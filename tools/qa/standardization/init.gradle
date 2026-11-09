@@ -1,0 +1,13 @@
+// Opt-in only. Does not alter the shipped source, manifest, or default build graph.
+allprojects { p ->
+    p.plugins.withId('com.android.application') {
+        def android = p.extensions.getByName('android')
+        android.defaultConfig.testInstrumentationRunner = 'androidx.test.runner.AndroidJUnitRunner'
+        android.sourceSets.getByName('androidTest').java.srcDir(
+            new File(p.rootDir, 'tools/qa/standardization/src'))
+        p.dependencies.add('androidTestImplementation', p.dependencies.platform('androidx.compose:compose-bom:2025.09.00'))
+        p.dependencies.add('androidTestImplementation', 'androidx.compose.ui:ui-test-junit4')
+        p.dependencies.add('androidTestImplementation', 'androidx.test:runner:1.6.2')
+        p.dependencies.add('androidTestImplementation', 'androidx.test.ext:junit:1.2.1')
+    }
+}

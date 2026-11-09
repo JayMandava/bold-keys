@@ -36,11 +36,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -203,13 +203,14 @@ private fun androidx.compose.foundation.lazy.LazyListScope.homeItems(context: Co
 
 @Composable
 private fun NavRow(title: String, subtitle: String, onClick: () -> Unit) {
-    ListItem(
-        modifier = Modifier.clickable(onClick = onClick),
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        headlineContent = { Text(title) },
-        supportingContent = { Text(subtitle) },
-        trailingContent = { Text("›", fontSize = 22.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) },
-    )
+    Column(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
+        ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            headlineContent = { Text(title) },
+            trailingContent = { Text("›", fontSize = 22.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) },
+        )
+        Note(subtitle)
+    }
 }
 
 @Composable
@@ -226,18 +227,17 @@ private fun StatusCards() {
     val bg by animateColorAsState(if (ready) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.tertiaryContainer, label = "hero")
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(32.dp), colors = CardDefaults.cardColors(containerColor = bg)) {
-            Row(Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.padding(vertical = 12.dp)) {
+            Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(64.dp).background(MaterialTheme.colorScheme.primary, MaterialShapes.Cookie9Sided.toShape()), contentAlignment = Alignment.Center) {
                     Text(if (ready) "✓" else "⌨", fontSize = 26.sp, color = MaterialTheme.colorScheme.onPrimary)
                 }
                 Spacer(Modifier.width(16.dp))
                 Column {
                     Text(if (ready) "All set" else "Almost there", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
-                    Text(
-                        when { ready -> "This is your keyboard now. Open any text box and type."; !enabled -> "Turn the keyboard on, then switch to it."; else -> "Switch to it to start typing." },
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
                 }
+            }
+            Note(when { ready -> "This is your keyboard now. Open any text box and type."; !enabled -> "Turn the keyboard on, then switch to it."; else -> "Switch to it to start typing." })
             }
         }
         if (!ready) Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp)) {
@@ -283,14 +283,16 @@ private fun TryCard() {
 // ---------------------------------------------------------------- small building blocks
 
 @Composable
-private fun SwitchRow(title: String, subtitle: String? = null, checked: Boolean, onChange: (Boolean) -> Unit) {
-    ListItem(
-        modifier = Modifier.clickable { onChange(!checked) },
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        headlineContent = { Text(title) },
-        supportingContent = subtitle?.let { { Text(it) } },
-        trailingContent = { Switch(checked = checked, onCheckedChange = onChange) },
-    )
+internal fun SwitchRow(title: String, subtitle: String? = null, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Column(Modifier.fillMaxWidth().toggleable(value = checked, role = Role.Switch, onValueChange = onChange)) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            Text(title, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+            Spacer(Modifier.width(16.dp))
+            Switch(checked = checked, onCheckedChange = null)
+        }
+        subtitle?.let { Note(it) }
+    }
 }
 
 @Composable
@@ -303,40 +305,36 @@ private fun Section(title: String, content: @Composable () -> Unit) {
     }
 }
 
-@Composable
-internal fun Note(text: String, paragraph: Boolean = false) {
-    Text(
-        text,
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        // Large accessibility text leaves too few words per line for readable justification.
-        textAlign = if (paragraph && androidx.compose.ui.platform.LocalDensity.current.fontScale <= 1.3f) TextAlign.Justify else TextAlign.Start,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-    )
-}
-
 /** Keeps optional instructions available without hiding safety and privacy notices. */
 @Composable
 internal fun ExpandableHelp(label: String, summary: String, details: String) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     Column {
         Note(summary)
-        TextButton(
+        SettingsLink(
             onClick = { expanded = !expanded },
-            modifier = Modifier.padding(horizontal = 8.dp).semantics {
+            modifier = Modifier.semantics {
                 contentDescription = "$label: ${if (expanded) "hide full instructions" else "show full instructions"}"
                 stateDescription = if (expanded) "Expanded" else "Collapsed"
             },
         ) { Text(if (expanded) "Hide $label" else label) }
-        if (expanded) Note(details, paragraph = true)
+        if (expanded) Note(details)
     }
 }
 
 @Composable
 internal fun <T> ChoiceFlow(options: List<Pair<T, String>>, selected: T, onSelect: (T) -> Unit) {
-    val fontScale = androidx.compose.ui.platform.LocalDensity.current.fontScale
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val textMeasurer = androidx.compose.ui.text.rememberTextMeasurer()
+    val labelStyle = MaterialTheme.typography.labelLarge
+    val widestLabel = options.maxOfOrNull { (_, label) ->
+        textMeasurer.measure(label, style = labelStyle, softWrap = false, maxLines = 1).size.width
+    } ?: 0
+    // Each equal-width segment needs its complete label plus Material's internal spacing.
+    val minimumSegmentWidth = with(density) { widestLabel.toDp() } + 40.dp
     androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
-        if (options.size <= 6 && maxWidth >= 280.dp && fontScale <= 1.15f) {
+        if (options.size <= 6 && maxWidth >= 280.dp && density.fontScale <= 1.15f &&
+            maxWidth / options.size.coerceAtLeast(1) >= minimumSegmentWidth) {
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                 options.forEachIndexed { index, (value, label) ->
                     SegmentedButton(selected = selected == value, onClick = { onSelect(value) }, shape = SegmentedButtonDefaults.itemShape(index, options.size), icon = {}) { Text(label, maxLines = 1, softWrap = false) }
@@ -398,11 +396,11 @@ private fun androidx.compose.foundation.lazy.LazyListScope.typingItems(context: 
         Section("English spelling") {
             val options = listOf("us" to "American", "uk" to "British")
             ChoiceFlow(options, spelling) { key -> spelling = key; Prefs.put(context, "spelling", key) }
-            Note("Words like colour/color, realise/realize and centre/center are corrected to the one you choose, and only that one is suggested.", paragraph = true)
+            Note("Words like colour/color, realise/realize and centre/center are corrected to the one you choose, and only that one is suggested.")
         }
         }
     }
-    item(key = "typing-note") { Note("Password and email fields suppress correction and suggestions. Web addresses are never automatically rewritten, but suggestions may appear. These protections depend on the editor reporting its input type correctly.", paragraph = true) }
+    item(key = "typing-note") { Note("Password and email fields suppress correction and suggestions. Web addresses are never automatically rewritten, but suggestions may appear. These protections depend on the editor reporting its input type correctly.") }
 }
 
 // ---------------------------------------------------------------- appearance
@@ -442,7 +440,7 @@ private fun AppearanceContent(context: Context) {
         Section("Key size") {
             val options = listOf("small" to "Small", "normal" to "Normal", "large" to "Large", "xlarge" to "XL")
             ChoiceFlow(options, keySize) { key -> keySize = key; Prefs.put(context, "keySize", key); version++ }
-            Note("How tall the keys are. Large and XL make bigger buttons for big thumbs; the keyboard takes more of the screen.", paragraph = true)
+            Note("How tall the keys are. Large and XL make bigger buttons for big thumbs; the keyboard takes more of the screen.")
         }
         Section("Backlight") {
             val options = listOf("off" to "Off", "on" to "On", "auto" to "Auto")
@@ -582,7 +580,7 @@ private fun DictionaryContent(context: Context) {
             if (!confirmClear) OutlinedButton(onClick = { confirmClear = true }, modifier = Modifier.fillMaxWidth()) { Text("Clear all learning") }
             else Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
                 Column(Modifier.padding(16.dp)) {
-                    Text("Remove all learned words, preferences and word pairs?", fontWeight = FontWeight.SemiBold)
+                    SettingsDescription("Remove all learned words, preferences and word pairs?")
                     Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(onClick = { writeDictionary(context) { it.clear() }; confirmClear = false; refresh() }) { Text("Remove all") }
                         OutlinedButton(onClick = { confirmClear = false }) { Text("Keep them") }
@@ -601,16 +599,16 @@ private fun androidx.compose.foundation.lazy.LazyListScope.aboutItems(context: C
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Section("Privacy") {
                 ExpandableHelp("Privacy details", "Typed text, learning and context inference stay on this phone. Voice audio is discarded after use. Optional downloads contact Hugging Face and delivery providers with your IP address and requested model; no audio or typed text is attached.", "Experimental voice typing records only while activated and transcribes locally with Whisper; audio is held in memory and discarded after transcription or cancellation, with no online fallback. Typing, learning and context-model inference happen on this phone; typed text is not sent to a server, and learned words stay in this app's private storage. Model downloads contact Hugging Face over HTTPS only when you tap Download. Android's emoji support may request a font from a system provider. Opening the privacy policy or a Speed-key link hands that link to another app, which may use the internet. Importing a model uses a document provider that may be cloud-backed. When an editor requests no personalized learning, the keyboard does not update learned words, word preferences, word pairs or emoji history/tone preferences; password, email and web-address fields also do not update these records.")
-                TextButton(onClick = {
+                SettingsLink(onClick = {
                     try { context.startActivity(Intent(Intent.ACTION_VIEW, "https://jay-mandava-dev.web.app/privacy.html".toUri())) }
                     catch (_: ActivityNotFoundException) { Toast.makeText(context, "No browser is available to open the privacy policy.", Toast.LENGTH_LONG).show() }
                 }) { Text("Privacy policy (opens in browser)") }
             }
             Section("Version $version") { Note("Bold Keys works offline by default.") }
             Section("Credits") {
-                TextButton(onClick = openLicenses) { Text("Licenses & credits (available offline)") }
-                Note("English, French and German word frequencies come from FrequencyWords/OpenSubtitles (CC BY-SA 4.0); Next-word hints use only Common Voice text (CC0); spelling dictionaries retain CC BY-SA 4.0 terms. Nunito uses the SIL Open Font License. The offline credits include source details and separate third-party terms.", paragraph = true)
-                Note("Inspired by the classic BlackBerry Bold 9900 keyboard. BlackBerry is a trademark of its owner; this app is independent and is not affiliated with or endorsed by BlackBerry.", paragraph = true)
+                SettingsLink(onClick = openLicenses) { Text("Licenses & credits (available offline)") }
+                Note("English, French and German word frequencies come from FrequencyWords/OpenSubtitles (CC BY-SA 4.0); Next-word hints use only Common Voice text (CC0); spelling dictionaries retain CC BY-SA 4.0 terms. Nunito uses the SIL Open Font License. The offline credits include source details and separate third-party terms.")
+                Note("Inspired by the classic BlackBerry Bold 9900 keyboard. BlackBerry is a trademark of its owner; this app is independent and is not affiliated with or endorsed by BlackBerry.")
             }
         }
     }
@@ -634,7 +632,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.licenseItems(context:
     files.forEach { (title, file) ->
         item(key = file) {
             val text = remember(file) { context.assets.open("licenses/$file").bufferedReader().use { it.readText() } }
-            Section(title) { SelectionContainer { Text(text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) } }
+            Section(title) { SelectionContainer { Note(text) } }
         }
     }
 }
@@ -672,7 +670,7 @@ private fun ContextContent(context: Context) {
             SwitchRow("Use a context model", "Checks each word against the sentence around it: picks the right fix for a misspelling, and catches real words used for another (their/there, your/you're).", on) {
                 on = it; Prefs.put(context, "contextModel", it)
             }
-            Note("Local scoring is English-only; it stays off in other languages. QAT has limited smoke testing, not a quality or speed benchmark.", paragraph = true)
+            Note("Local scoring is English-only; it stays off in other languages. QAT has limited smoke testing, not a quality or speed benchmark.")
             ExpandableHelp("How context scoring works", "Uses a local model to score dictionary suggestions; it never writes text or sends it away.", "Switch it off any time to go back to dictionary-only correction. The context feature has only been measured on English; it stays off in other languages. QAT has only had limited smoke testing, not a quality or speed benchmark.")
             if (on && chosen == null) Note("Download or import a model below to start using it.")
         }
@@ -690,16 +688,16 @@ private fun ContextContent(context: Context) {
                         onCancel = { ContextModels.cancel(e) },
                         onDelete = { ContextModels.delete(e); tick++ },
                         details = {
-                            Text(human(e.bytes))
-                            Text(if (e.custom) "Imported from a file." else e.note)
-                            if (entries.count { it.file == e.file } > 1) Text("Shares its local file with another entry. Removing either entry removes that file.")
+                            SettingsDescription(human(e.bytes))
+                            SettingsDescription(if (e.custom) "Imported from a file." else e.note)
+                            if (entries.count { it.file == e.file } > 1) SettingsDescription("Shares its local file with another entry. Removing either entry removes that file.")
                             when (st) {
                                 is Transfer.Downloading -> {
                                     androidx.compose.material3.LinearProgressIndicator(progress = { if (st.total > 0) st.done.toFloat() / st.total else 0f }, modifier = Modifier.fillMaxWidth().padding(top = 6.dp))
-                                    Text("${human(st.done)} of ${human(st.total)}", style = MaterialTheme.typography.bodySmall)
+                                    SettingsDescription("${human(st.done)} of ${human(st.total)}")
                                 }
-                                Transfer.Verifying -> Text("Checking the download…", style = MaterialTheme.typography.bodySmall)
-                                is Transfer.Failed -> Text(st.reason, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                                Transfer.Verifying -> SettingsDescription("Checking the download…")
+                                is Transfer.Failed -> SettingsDescription(st.reason, color = MaterialTheme.colorScheme.error)
                                 null -> Unit
                             }
                         },
@@ -712,13 +710,13 @@ private fun ContextContent(context: Context) {
             note?.let { Note(it) }
         }
         Section("Downloads") {
-            Note("Optional Gemma models have their own terms and use restrictions; they are not licensed under the app's Apache license.", paragraph = true)
-            TextButton(onClick = {
+            Note("Optional Gemma models have their own terms and use restrictions; they are not licensed under the app's Apache license.")
+            SettingsLink(onClick = {
                 try { context.startActivity(Intent(Intent.ACTION_VIEW, "https://ai.google.dev/gemma/terms".toUri())) }
                 catch (_: ActivityNotFoundException) { Toast.makeText(context, "No browser is available to open the model terms.", Toast.LENGTH_LONG).show() }
             }) { Text("Gemma terms and use restrictions (opens in browser)") }
             SwitchRow("Wi-Fi only", "Models are a few hundred megabytes. Downloads are checked against a fixed checksum, and a file that does not match is thrown away.", wifiOnly) { wifiOnly = it; Prefs.put(context, "modelWifiOnly", it) }
-            Note("A model download sends an HTTPS request to Hugging Face and potentially its delivery providers; they can see normal request metadata such as IP address and the model requested. No typed text is attached. Wi-Fi only checks whether Android marks the connection as metered. Android emoji font providers, opened links and cloud-backed document providers can also use the network.", paragraph = true)
+            Note("A model download sends an HTTPS request to Hugging Face and potentially its delivery providers; they can see normal request metadata such as IP address and the model requested. No typed text is attached. Wi-Fi only checks whether Android marks the connection as metered. Android emoji font providers, opened links and cloud-backed document providers can also use the network.")
         }
     }
 }
@@ -739,19 +737,27 @@ private fun ShortcutsContent(context: Context) {
         Section("Letters") {
             ('A'..'Z').forEach { ch ->
                 val sc = assigned[ch]
-                ListItem(
-                    modifier = Modifier.clickable { editing = ch },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    leadingContent = { Text(ch.toString(), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium) },
-                    headlineContent = { Text(sc?.label?.ifBlank { sc.value } ?: "Not set", color = if (sc == null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface) },
-                    supportingContent = sc?.let { { Text(when (it.type) { Shortcut.APP -> "App"; Shortcut.LINK -> "Link: ${it.value}"; else -> "Text" }) } },
-                    trailingContent = if (sc != null) {{ IconButton(onClick = { Shortcuts.set(context, ch, null); version++ }) { Icon(Icons.Default.Close, contentDescription = "Clear $ch") } }} else null,
-                )
+                ShortcutSettingRow(ch, sc, onEdit = { editing = ch }, onClear = {
+                    Shortcuts.set(context, ch, null); version++
+                })
             }
         }
     }
     editing?.let { ch ->
         ShortcutDialog(context, ch, assigned[ch], onDismiss = { editing = null }) { Shortcuts.set(context, ch, it); version++; editing = null }
+    }
+}
+
+@Composable
+internal fun ShortcutSettingRow(letter: Char, shortcut: Shortcut?, onEdit: () -> Unit, onClear: () -> Unit) {
+    Column(Modifier.fillMaxWidth().clickable(onClick = onEdit)) {
+        ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            leadingContent = { Text(letter.toString(), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium) },
+            headlineContent = { Text(shortcut?.label?.ifBlank { shortcut.value } ?: "Not set", color = if (shortcut == null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface) },
+            trailingContent = if (shortcut != null) {{ IconButton(onClick = onClear) { Icon(Icons.Default.Close, contentDescription = "Clear $letter") } }} else null,
+        )
+        shortcut?.let { Note(when (it.type) { Shortcut.APP -> "App"; Shortcut.LINK -> "Link: ${it.value}"; else -> "Text" }) }
     }
 }
 
@@ -830,7 +836,7 @@ private fun VoiceSettings(context: Context) {
                 if (!want) { enabled = false; Prefs.put(context, "voiceTyping", false) }
                 else permission.launch(android.Manifest.permission.RECORD_AUDIO)
             }
-            Note("Audio stays in memory on this device and is discarded after transcription or cancellation. There is no online recognition fallback. Voice is disabled in password fields.", paragraph = true)
+            Note("Audio stays in memory on this device and is discarded after transcription or cancellation. There is no online recognition fallback. Voice is disabled in password fields.")
         }
         Section("Voice model") {
             Note("Optional 32.2 MB multilingual Whisper Tiny Q5 model. Recordings are limited to 30 seconds.")
@@ -845,7 +851,7 @@ private fun VoiceSettings(context: Context) {
             message?.let { Note(it) }
         }
         Section("Privacy") {
-            Note("Only the model download contacts Hugging Face and its delivery providers over HTTPS; they can see your IP address and the requested model. No audio or typed text is included. The model is optional and MIT licensed.", paragraph = true)
+            Note("Only the model download contacts Hugging Face and its delivery providers over HTTPS; they can see your IP address and the requested model. No audio or typed text is included. The model is optional and MIT licensed.")
         }
         Section("Optional instructions") {
             ExpandableHelp("Voice controls", "Hold Space to speak; release to transcribe and insert.", "The spacebar glows green while recording and slowly flashes while transcribing. Slide off Space to discard before releasing; typing or leaving the editor discards unfinished voice input. Nothing is sent automatically. The keyboard language selects English, French or German recognition.")
@@ -853,7 +859,7 @@ private fun VoiceSettings(context: Context) {
         }
         if (message?.contains("denied") == true) Section("Microphone permission") {
             Note("If Android no longer shows a permission prompt, allow Microphone in the app's Android settings.")
-            TextButton(onClick = { context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, "package:${context.packageName}".toUri())) }) { Text("Open Android app settings") }
+            SettingsLink(onClick = { context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, "package:${context.packageName}".toUri())) }) { Text("Open Android app settings") }
         }
     }
 }
