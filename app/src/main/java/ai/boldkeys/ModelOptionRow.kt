@@ -42,10 +42,11 @@ internal fun ModelOptionRow(
         else -> "Available"
     }
     Column(Modifier.fillMaxWidth()) {
-        ListItem(
-            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+        Column(Modifier.fillMaxWidth()
                 .selectable(selected = effective, enabled = installed && !busy, role = Role.RadioButton, onClick = onSelect)
-                .semantics { stateDescription = state },
+                .semantics { stateDescription = state }) {
+        ListItem(
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             leadingContent = { RadioButton(selected = effective, enabled = installed && !busy, onClick = null) },
             headlineContent = { Text(entry.name) },
@@ -53,6 +54,7 @@ internal fun ModelOptionRow(
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
             SettingsDescription(state)
             details()
+        }
         }
         when {
             busy -> OutlinedButton(onClick = onCancel, modifier = Modifier.padding(horizontal = 16.dp).semantics { contentDescription = "Cancel ${entry.name}" }) { Text("Cancel") }
