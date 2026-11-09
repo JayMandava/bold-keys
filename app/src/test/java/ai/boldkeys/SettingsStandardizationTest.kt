@@ -54,7 +54,10 @@ class SettingsStandardizationTest {
         } } }
         assertJustified("Its explanation shares the entire content width.")
         assertSameEdges("Reference explanation", "Its explanation shares the entire content width.")
-        compose.onNodeWithText("A switch").performClick()
+        compose.onNodeWithText("A switch")
+            .assert(SemanticsMatcher.expectValue(androidx.compose.ui.semantics.SemanticsProperties.Role, androidx.compose.ui.semantics.Role.Switch))
+            .assertIsOff().performClick()
+        compose.onNodeWithText("A switch").assertIsOn()
         assertTrue(checked.value)
     }
 
@@ -74,14 +77,35 @@ class SettingsStandardizationTest {
         assertSameEdges("Reference explanation", "Expanded explanation")
     }
 
+    @Test fun assignedShortcutDescriptionsUseFullWidthAndKeepEditAndClearActions() {
+        val shortcut = Shortcut(Shortcut.LINK, "https://example.com/a/long/saved/link", "Example")
+        var edits = 0
+        var clears = 0
+        activity.get().setContent { MaterialTheme { Column(Modifier.fillMaxWidth()) {
+            Note("Reference explanation")
+            ShortcutSettingRow('A', shortcut, onEdit = { edits++ }, onClear = { clears++ })
+        } } }
+        val description = "Link: ${shortcut.value}"
+        assertJustified(description)
+        assertSameEdges("Reference explanation", description)
+        compose.onNodeWithText("Example").performClick()
+        assertEquals(1, edits)
+        compose.onNodeWithContentDescription("Clear A").performClick()
+        assertEquals(1, clears)
+        assertEquals(1, edits)
+    }
+
     @Test fun modelDescriptionsUseFullWidthWithoutLosingRadioHierarchy() {
         val entry = ContextModels.catalogue.first()
         activity.get().setContent { MaterialTheme { Column(Modifier.fillMaxWidth()) {
             Note("Reference explanation")
-            ModelOptionRow(entry, false, false, null, false,
+            ModelOptionRow(entry, true, true, "unavailable-model", false,
                 details = { SettingsDescription(entry.note) },
                 onSelect = {}, onDownload = {}, onCancel = {}, onDelete = {})
         } } }
+        val fallback = "Saved model unavailable. Using temporarily; tap to save this choice."
+        assertJustified(fallback)
+        assertSameEdges("Reference explanation", fallback)
         assertJustified(entry.note)
         assertSameEdges("Reference explanation", entry.note)
         val title = node(entry.name).fetchSemanticsNode().boundsInRoot
