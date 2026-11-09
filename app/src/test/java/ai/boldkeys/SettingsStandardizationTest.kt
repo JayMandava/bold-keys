@@ -96,6 +96,23 @@ class SettingsStandardizationTest {
         assertTrue("Button contains full multiline label", text.top > button.top && text.bottom < button.bottom)
     }
 
+    @Test fun normalSizeChoicesDoNotTruncateLongLanguageOrThemeLabels() {
+        val languages = listOf("Auto", "English", "Français", "Deutsch")
+        val themes = listOf("Black", "White", "Match phone")
+        activity.get().setContent { MaterialTheme { Column(Modifier.fillMaxWidth()) {
+            ChoiceFlow(languages.map { it to it }, "Auto") {}
+            ChoiceFlow(themes.map { it to it }, "Black") {}
+        } } }
+        for (label in languages + themes) {
+            val layouts = mutableListOf<TextLayoutResult>()
+            node(label).performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+            val result = layouts.single()
+            assertFalse("No truncated choice: $label", result.multiParagraph.didExceedMaxLines)
+            assertEquals(label.length, result.getLineEnd(result.lineCount - 1))
+            assertFalse(result.isLineEllipsized(result.lineCount - 1))
+        }
+    }
+
     @Test fun assignedShortcutDescriptionsUseFullWidthAndKeepEditAndClearActions() {
         val shortcut = Shortcut(Shortcut.LINK, "https://example.com/a/long/saved/link", "Example")
         var edits = 0
