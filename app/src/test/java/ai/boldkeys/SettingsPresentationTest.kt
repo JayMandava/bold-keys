@@ -110,4 +110,20 @@ class SettingsPresentationTest {
         org.junit.Assert.assertEquals(androidx.compose.ui.text.style.TextAlign.Start, alignment(compact))
     }
 
+    @Test fun paragraphNotesStayStartAlignedWithLargeAccessibilityText() {
+        val text = "Long explanatory paragraphs should retain natural word spacing when accessibility text is enlarged."
+        activity.get().setContent { MaterialTheme {
+            androidx.compose.runtime.CompositionLocalProvider(
+                androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(1f, 2f),
+            ) { Note(text, paragraph = true) }
+        } }
+        val layouts = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
+        compose.onNodeWithText(text).performSemanticsAction(
+            androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult,
+        ) { it(layouts) }
+        org.junit.Assert.assertEquals(
+            androidx.compose.ui.text.style.TextAlign.Start, layouts.single().layoutInput.style.textAlign,
+        )
+    }
+
 }
