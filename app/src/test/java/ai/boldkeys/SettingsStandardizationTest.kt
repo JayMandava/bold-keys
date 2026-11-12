@@ -98,7 +98,7 @@ class SettingsStandardizationTest {
 
     @Test fun normalSizeChoicesDoNotTruncateLongLanguageOrThemeLabels() {
         val languages = listOf("Auto", "English", "Français", "Deutsch")
-        val themes = listOf("Black", "White", "Match phone")
+        val themes = KeyColour.choices.map { it.second }
         activity.get().setContent { MaterialTheme { Column(Modifier.fillMaxWidth()) {
             ChoiceFlow(languages.map { it to it }, "Auto") {}
             ChoiceFlow(themes.map { it to it }, "Black") {}

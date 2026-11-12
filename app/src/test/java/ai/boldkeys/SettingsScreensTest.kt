@@ -55,6 +55,27 @@ class SettingsScreensTest {
         compose.onAllNodes(hasText("Z and Y swap places", substring = true)).assertCountEquals(0)
     }
 
+    @Test fun appearanceOffersEveryColourAndPreservesIndependentBacklightChoice() {
+        Prefs.put(activity.get(), "backlight", "on")
+        Prefs.put(activity.get(), "backlightColor", "amber")
+        open("Appearance")
+        for ((id, label) in KeyColour.choices) {
+            compose.onNodeWithText(label).performScrollTo().performClick()
+            compose.onNodeWithText(label).assertIsSelected()
+            assertEquals(id, Prefs.theme(activity.get()))
+            assertEquals("on", Prefs.backlightMode(activity.get()))
+            assertEquals("amber", Prefs.backlightColor(activity.get()))
+        }
+        compose.onNodeWithText("White & Gold").performScrollTo().performClick()
+        assertEquals(false, Prefs.isDark(activity.get()))
+        compose.onNode(hasText("Choose Black, Red or Black & Gold", substring = true))
+            .performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Red").performScrollTo().performClick()
+        compose.onNodeWithText("Glows all the time.").performScrollTo().assertIsDisplayed()
+        compose.onAllNodes(hasText("Choose Black, Red or Black & Gold", substring = true))
+            .assertCountEquals(0)
+    }
+
     @Test fun aboutDisclosesNetworkExceptionBeforePrivacyHelpIsExpanded() {
         open("About")
         compose.onNode(hasText("Optional downloads contact Hugging Face", substring = true))
