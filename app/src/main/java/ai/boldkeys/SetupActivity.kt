@@ -417,7 +417,12 @@ private fun AppearanceContent(context: Context) {
     var color by remember { mutableStateOf(Prefs.backlightColor(context)) }
     var level by remember { mutableStateOf(Prefs.backlightLevel(context)) }
     var version by remember { mutableIntStateOf(0) }
-    val dark = Prefs.isDark(context)
+    // Observe the selected Compose state here, not only inside the colour card.
+    // A preference-only read can leave the separate backlight card's guidance stale.
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val systemDark = configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK ==
+        android.content.res.Configuration.UI_MODE_NIGHT_YES
+    val dark = KeyColour.resolve(theme, systemDark).dark
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp)) {
             AndroidView(

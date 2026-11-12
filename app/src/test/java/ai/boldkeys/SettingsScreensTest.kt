@@ -70,6 +70,10 @@ class SettingsScreensTest {
         assertEquals(false, Prefs.isDark(activity.get()))
         compose.onNode(hasText("Choose Black, Red or Black & Gold", substring = true))
             .performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Red").performScrollTo().performClick()
+        compose.onNodeWithText("Glows all the time.").performScrollTo().assertIsDisplayed()
+        compose.onAllNodes(hasText("Choose Black, Red or Black & Gold", substring = true))
+            .assertCountEquals(0)
     }
 
     @Test fun aboutDisclosesNetworkExceptionBeforePrivacyHelpIsExpanded() {
