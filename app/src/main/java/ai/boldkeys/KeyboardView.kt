@@ -106,7 +106,8 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
     /** Reads the look and behaviour the user chose; called whenever the keyboard is shown. */
     fun applySettings() {
         val c = context
-        th = KeyTheme(Prefs.isDark(c))
+        th = Prefs.keyTheme(c)
+        updateFrameShader()
         emojiKey = Prefs.emojiPages(c)
         currency = Prefs.currency(c)
         volumeSlide = Prefs.volumeSlide(c)
@@ -221,24 +222,36 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), h)
     }
 
-    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) { faces.clear(); buildBody(); rebuild() }
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) { faces.clear(); buildBody(); updateFrameShader(); rebuild() }
 
     /** The keyboard's body: it ends in the same smile as the rows, with rounded corners, so it meets the black navigation bar as one curved shape. */
     private val body = Path()
+    private val frame = Path()
+    private var frameShader: Shader? = null
+    private fun updateFrameShader() {
+        frameShader = if (th.hasColouredFrame && height > 0)
+            LinearGradient(0f, 0f, 0f, height.toFloat(), th.trimHighlight, th.trimShadow, Shader.TileMode.CLAMP)
+        else null
+    }
     private fun ridgeY(y0: Float, x: Float): Float { val t = x / width; return y0 + 4f * smile * t * (1f - t) }
 
     private fun buildBody() {
         body.reset()
+        frame.reset()
         if (width == 0) return
         val w = width.toFloat()
         val y0 = padTop + 4 * (keyH + rowGap) - rowGap / 2 + dp(2.5f) // just under the last silver ridge
         val r = dp(20f)
-        body.moveTo(0f, 0f); body.lineTo(w, 0f)
+        body.moveTo(w, 0f)
         body.lineTo(w, y0 - r)
         body.quadTo(w, ridgeY(y0, w - r * 0.35f), w - r, ridgeY(y0, w - r))
         var x = w - r
         while (x > r) { x -= w / 24f; body.lineTo(x.coerceAtLeast(r), ridgeY(y0, x.coerceAtLeast(r))) }
         body.quadTo(0f, ridgeY(y0, r * 0.35f), 0f, y0 - r)
+        body.lineTo(0f, 0f)
+        // Keep the coloured sides and curved bottom, without an extra straight
+        // border below the trackpad. The shared row ridge is the top separator.
+        frame.set(body)
         body.close()
     }
 
@@ -275,7 +288,13 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         canvas.drawColor(0xFF000000.toInt()) // below the curve: the same black as the navigation bar
         fill.shader = null; fill.color = th.bg
         canvas.drawPath(body, fill)
-        if (picker != Picker.NONE) { drawPicker(canvas); accessibility.drawFocus(canvas); return } // the picker covers the keys: they are not drawn at all, so scrolling it costs only the picker
+        if (th.hasColouredFrame) {
+            line.strokeWidth = dp(2.2f)
+            line.shader = frameShader
+            canvas.drawPath(frame, line)
+            line.shader = null
+        }
+        if (picker != Picker.NONE) { drawPicker(canvas); accessibility.drawFocus(canvas); return } // picker replaces keys, preserving accessibility focus
         // the silver ridges above, between and below the rows, following the same smile as the keys
         canvas.save(); canvas.clipPath(body)
         for (r in 0..cells.size) if (r < cells.size || th.dark) drawRidge(canvas, padTop + r * (keyH + rowGap) - rowGap / 2)
@@ -307,8 +326,8 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         line.shader = null
         line.strokeWidth = dp(1.6f); line.color = 0xFF000000.toInt()
         canvas.save(); canvas.translate(0f, dp(1.5f)); canvas.drawPath(p, line); canvas.restore()
-        line.strokeWidth = dp(1.5f)
-        line.shader = LinearGradient(0f, 0f, width.toFloat(), 0f, intArrayOf(0xFF8d9197.toInt(), 0xFFf2f4f6.toInt(), 0xFFa9adb3.toInt(), 0xFFf2f4f6.toInt(), 0xFF8d9197.toInt()), null, Shader.TileMode.CLAMP)
+        line.strokeWidth = dp(th.ridgeWidth)
+        line.shader = LinearGradient(0f, 0f, width.toFloat(), 0f, th.ridgeColours, null, Shader.TileMode.CLAMP)
         canvas.drawPath(p, line)
         line.shader = null
     }
@@ -338,7 +357,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
      * slope toward the middle of the keyboard (the Bold's sculpted facet). The light and shade on that shape is what makes it look solid; nothing
      * is drawn on top of it. Rendered once per key size and kept.
      */
-    private fun keyFace(w: Int, h: Int, mirror: Boolean, facet: Boolean, special: Boolean): Bitmap = faces.getOrPut("$w,$h,$mirror,$facet,$special,${th.dark}") {
+    private fun keyFace(w: Int, h: Int, mirror: Boolean, facet: Boolean, special: Boolean): Bitmap = faces.getOrPut("$w,$h,$mirror,$facet,$special,${th.colour.id}") {
         val rad = dp(5f); val bevel = dp(3.6f); val hk = dp(4.6f); val hd = dp(2.6f); val af = dp(7.5f)
         val z = FloatArray(w * h); val alpha = FloatArray(w * h); val dist = FloatArray(w * h)
         val hw = w / 2f; val hh = h / 2f
@@ -727,7 +746,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         drawSpeaker(canvas, left + dp(12f), top + h / 2f)
         val bar = RectF(left + dp(40f), top + h / 2f - dp(3f), left + w - dp(14f), top + h / 2f + dp(3f))
         accentPaint.color = (th.legend and 0x00FFFFFF) or 0x55000000; canvas.drawRoundRect(bar, dp(3f), dp(3f), accentPaint)
-        accentPaint.color = 0xFF2f8fe8.toInt()
+        accentPaint.color = th.indicator
         canvas.drawRoundRect(RectF(bar.left, bar.top, bar.left + bar.width() * now / max, bar.bottom), dp(3f), dp(3f), accentPaint)
     }
 
@@ -818,7 +837,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         canvas.drawRoundRect(l, t, r, b, dp(10f), dp(10f), accentPaint)
         accentPaint.shader = null
         accentRects.forEachIndexed { i, rc ->
-            if (i == accentIndex) { accentPaint.color = 0xFF2f8fe8.toInt(); canvas.drawRoundRect(rc, dp(7f), dp(7f), accentPaint) }
+            if (i == accentIndex) { accentPaint.color = th.selection; canvas.drawRoundRect(rc, dp(7f), dp(7f), accentPaint) }
             legend.color = if (i == accentIndex) 0xFFFFFFFF.toInt() else th.legend
             legend.textSize = dp(24f)
             canvas.drawText(accentChoices[i], rc.centerX(), rc.centerY() + dp(8f), legend)
@@ -1023,7 +1042,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
     /** Each symbol or emoji painted once into a small picture, and each tile's background once per size: scrolling then only moves pictures, and no text is laid out or shaped on any frame. */
     private val glyphs = android.util.LruCache<String, Bitmap>(300)
 
-    private fun glyph(text: String, emoji: Boolean): Bitmap = glyphs.get("$text|$emoji|${th.dark}") ?: run {
+    private fun glyph(text: String, emoji: Boolean): Bitmap = glyphs.get("$text|$emoji|${th.colour.id}") ?: run {
         val box = dp(36f).toInt()
         val bmp = Bitmap.createBitmap(box, box, Bitmap.Config.ARGB_8888)
         val c = Canvas(bmp)
@@ -1034,14 +1053,14 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
             legend.color = th.legend; legend.textSize = dp(21f)
             drawInk(c, text, box / 2f, box / 2f)
         }
-        bmp.also { glyphs.put("$text|$emoji|${th.dark}", it) }
+        bmp.also { glyphs.put("$text|$emoji|${th.colour.id}", it) }
     }
 
-    private fun tileBackground(w: Int, h: Int): Bitmap = glyphs.get("tile|$w|$h|${th.dark}") ?: run {
+    private fun tileBackground(w: Int, h: Int): Bitmap = glyphs.get("tile|$w|$h|${th.colour.id}") ?: run {
         val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
         val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { shader = LinearGradient(0f, 0f, 0f, h.toFloat(), th.padTop, th.padBottom, Shader.TileMode.CLAMP) }
         Canvas(bmp).drawRoundRect(0f, 0f, w.toFloat(), h.toFloat(), dp(7f), dp(7f), p)
-        bmp.also { glyphs.put("tile|$w|$h|${th.dark}", it) }
+        bmp.also { glyphs.put("tile|$w|$h|${th.colour.id}", it) }
     }
 
     private fun drawPicker(canvas: Canvas) {
@@ -1254,7 +1273,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         accentPaint.shader = null
         emojiPaint.textSize = dp(24f)
         toneRects.forEachIndexed { i, rc ->
-            if (i == toneIndex) { accentPaint.color = 0xFF2f8fe8.toInt(); canvas.drawRoundRect(rc, dp(7f), dp(7f), accentPaint) }
+            if (i == toneIndex) { accentPaint.color = th.selection; canvas.drawRoundRect(rc, dp(7f), dp(7f), accentPaint) }
             canvas.drawText(toneChoices[i], rc.centerX(), rc.centerY() - (emojiPaint.ascent() + emojiPaint.descent()) / 2f, emojiPaint)
         }
     }

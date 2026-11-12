@@ -188,7 +188,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.homeItems(context: Co
         Card(shape = RoundedCornerShape(28.dp)) {
             Column(Modifier.padding(vertical = 6.dp)) {
                 NavRow("Typing", "Autocorrect, suggestions and capitals") { open(Screen.TYPING) }
-                NavRow("Appearance", "Black or white keys, and the backlight") { open(Screen.LOOK) }
+                NavRow("Appearance", "Key colours, size and backlight") { open(Screen.LOOK) }
                 NavRow("Key feel", "How hard each key press buzzes") { open(Screen.FEEL) }
                 NavRow("Symbols & emoji", "The emoji key, skin tone, and the sym key") { open(Screen.SYMBOLS) }
                 NavRow("Personal dictionary", "${readDictionary(context).size} words you have taught it") { open(Screen.DICTIONARY) }
@@ -432,10 +432,13 @@ private fun AppearanceContent(context: Context) {
                 update = { v -> version; v.applySettings() },
             )
         }
-        Section("Keys") {
-            val options = listOf("dark" to "Black", "light" to "White", "auto" to "Match phone")
-            ChoiceFlow(options, theme) { key -> theme = key; Prefs.put(context, "theme", key); version++ }
-            Note("Match phone follows the system's light or dark setting.")
+        Section("Key colour") {
+            ChoiceFlow(KeyColour.choices, theme) { key -> theme = key; Prefs.put(context, "theme", key); version++ }
+            Note(if (theme == "auto") "Match phone follows the system's light or dark setting."
+                else KeyColour.resolve(theme).inspiration)
+            if (theme in setOf("red", "black_gold", "white_gold")) {
+                Note("Independent colour tribute; not affiliated with or endorsed by BlackBerry.")
+            }
         }
         Section("Key size") {
             val options = listOf("small" to "Small", "normal" to "Normal", "large" to "Large", "xlarge" to "XL")
@@ -472,7 +475,7 @@ private fun AppearanceContent(context: Context) {
             )
             Note(
                 when {
-                    !dark -> "The backlight glows on the black keys. Switch to Black to see it."
+                    !dark -> "The backlight glows on dark keys. Choose Black, Red or Black & Gold to see it."
                     mode == "auto" -> "Glows in the dark and fades in bright light, using the phone's light sensor."
                     mode == "on" -> "Glows all the time."
                     else -> "The letters and the gaps between keys stay unlit."
