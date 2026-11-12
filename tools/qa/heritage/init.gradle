@@ -1,0 +1,13 @@
+// Opt-in genuine IME fixture, absent from normal and release builds.
+allprojects { p ->
+    p.plugins.withId('com.android.application') {
+        def android = p.extensions.getByName('android')
+        android.defaultConfig.testInstrumentationRunner = 'androidx.test.runner.AndroidJUnitRunner'
+        android.sourceSets.getByName('debug').java.srcDir(new File(p.rootDir, 'tools/qa/heritage/debug'))
+        android.sourceSets.getByName('debug').manifest.srcFile(new File(p.rootDir, 'tools/qa/heritage/AndroidManifest.xml'))
+        android.sourceSets.getByName('androidTest').java.srcDir(new File(p.rootDir, 'tools/qa/heritage/src'))
+        p.dependencies.add('androidTestImplementation', 'androidx.test:runner:1.6.2')
+        p.dependencies.add('androidTestImplementation', 'androidx.test.ext:junit:1.2.1')
+        p.dependencies.add('androidTestImplementation', 'androidx.test.uiautomator:uiautomator:2.3.0')
+    }
+}
