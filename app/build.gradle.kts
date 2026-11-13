@@ -88,8 +88,8 @@ android {
         applicationId = "ai.boldkeys"
         minSdk = 33
         targetSdk = 36
-        versionCode = 17
-        versionName = "0.7.0"
+        versionCode = 18
+        versionName = "0.7.1"
         ndk { abiFilters += providers.gradleProperty("testAbi").orElse("arm64-v8a").get() }
         externalNativeBuild {
             cmake {
@@ -159,6 +159,7 @@ android {
 }
 
 dependencies {
+    implementation("androidx.autofill:autofill:1.1.0")
     implementation(platform("androidx.compose:compose-bom:2025.09.00"))
     implementation("androidx.compose.material3:material3:1.5.0-alpha04")
     implementation("androidx.compose.ui:ui")
