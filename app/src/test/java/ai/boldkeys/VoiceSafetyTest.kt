@@ -64,7 +64,12 @@ class VoiceSafetyTest {
         val s = service(); ready(s)
         val root = ReflectionHelpers.getField<android.widget.LinearLayout>(s, "root")
         assertEquals(2, root.childCount)
-        assertTrue(root.getChildAt(0) is SuggestionBar); assertTrue(root.getChildAt(1) is KeyboardView)
+        // Inline autofill now shares the existing fixed-height suggestion row (owner-approved structural update).
+        val strip = root.getChildAt(0) as InlineAutofillStrip
+        assertTrue(strip.getChildAt(0) is SuggestionBar)
+        strip.measure(View.MeasureSpec.makeMeasureSpec(360, View.MeasureSpec.EXACTLY), 0)
+        assertEquals((52 * s.resources.displayMetrics.density).toInt(), strip.measuredHeight)
+        assertTrue(root.getChildAt(1) is KeyboardView)
         for (type in listOf(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD,
             InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD,
             InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD,

@@ -31,6 +31,9 @@ class SuggestionBar(context: Context, private val feedback: Feedback, private va
     private var th = KeyTheme(true)
     fun applyTheme(theme: KeyTheme) { th = theme; invalidate() }
 
+    internal var inlineAutofillVisible = false
+        set(value) { field = value; accessibilityGeneration++; invalidate() }
+
     private var words: List<String> = emptyList()
     fun setSuggestions(w: List<String>) { if (w.take(2) != words) { words = w.take(2).toList(); accessibilityGeneration++; invalidate() } }
 
@@ -62,7 +65,7 @@ class SuggestionBar(context: Context, private val feedback: Feedback, private va
     private fun slotAt(x: Float, y: Float): Int {
         val p = padRect()
         if (p.contains(x, y)) return -2
-        return if (x < p.left) 0 else if (x > p.right) 1 else -1
+        return if (x < p.left) 0 else if (x > p.right && !inlineAutofillVisible) 1 else -1
     }
 
     override fun onTouchEvent(e: MotionEvent): Boolean {
@@ -100,6 +103,7 @@ class SuggestionBar(context: Context, private val feedback: Feedback, private va
         // the words
         val slotW = p.left - dp(8f)
         for (i in 0 until 2) {
+            if (i == 1 && inlineAutofillVisible) continue
             val w = words.getOrNull(i) ?: continue
             text.typeface = if (i == 0) face else Typeface.create(face, Typeface.NORMAL)
             text.color = if (i == 0) th.barText else th.barText2
@@ -142,6 +146,7 @@ class SuggestionBar(context: Context, private val feedback: Feedback, private va
         if (width <= 0 || height <= 0) return emptyList()
         val p = padRect(); val out = ArrayList<AccessibleControl>()
         words.forEachIndexed { i, word ->
+            if (i == 1 && inlineAutofillVisible) return@forEachIndexed
             val r = if (i == 0) Rect(0, 0, p.left.toInt(), height) else Rect(p.right.toInt(), 0, width, height)
             out.add(AccessibleControl(1000 + accessibilityGeneration * 2 + i, r, "Suggestion ${i + 1}: $word", sensitive = true,
                 actions = mapOf(AccessibilityNodeInfo.ACTION_CLICK to "Use suggestion")) { feedback.key(); listener.onPick(i); true })

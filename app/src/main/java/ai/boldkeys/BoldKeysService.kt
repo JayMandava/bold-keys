@@ -19,6 +19,7 @@ import java.util.concurrent.Executors
 class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionBar.Listener {
     private lateinit var kb: KeyboardView
     private lateinit var bar: SuggestionBar
+    private var inlineAutofill: InlineAutofillStrip? = null
     private lateinit var feedback: Feedback
 
     private val ui = Handler(Looper.getMainLooper())
@@ -236,6 +237,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
     }
 
     override fun onCreateInputView(): View {
+        inlineAutofill?.clear()
         watchOutsideTouches()
         feedback = Feedback(this)
         kb = KeyboardView(this, feedback, this).apply { personalizedLearningAllowed = learningAllowed }
@@ -245,12 +247,20 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
             root = this
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(0xFF000000.toInt())
-            addView(bar, LinearLayout.LayoutParams(-1, -2))
+            val strip = InlineAutofillStrip(this@BoldKeysService, bar)
+            inlineAutofill = strip
+            addView(strip, LinearLayout.LayoutParams(-1, -2))
             addView(kb, LinearLayout.LayoutParams(-1, -2))
             // The keyboard is drawn edge to edge: keep the keys clear of the system's navigation bar.
             setOnApplyWindowInsetsListener { v, insets -> applyBarInsets(v, insets); insets }
         }
     }
+
+    override fun onCreateInlineSuggestionsRequest(uiExtras: android.os.Bundle): android.view.inputmethod.InlineSuggestionsRequest? =
+        InlineAutofillStrip.request(this, uiExtras)
+
+    override fun onInlineSuggestionsResponse(response: android.view.inputmethod.InlineSuggestionsResponse): Boolean =
+        inlineAutofill?.show(response.inlineSuggestions) ?: false
 
     private var root: View? = null
 
@@ -273,6 +283,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
     override fun onEvaluateFullscreenMode() = false
 
     override fun onStartInput(info: EditorInfo, restarting: Boolean) {
+        inlineAutofill?.clear()
         // Flush the previous ordinary editor before changing policy. Incognito text is never added.
         cancelVoice()
         saveLearned()
@@ -325,9 +336,10 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         refreshInsets()
     }
 
-    override fun onFinishInputView(finishingInput: Boolean) { cancelVoice(); super.onFinishInputView(finishingInput) }
-    override fun onWindowHidden() { cancelVoice(); super.onWindowHidden() }
+    override fun onFinishInputView(finishingInput: Boolean) { inlineAutofill?.clear(); cancelVoice(); super.onFinishInputView(finishingInput) }
+    override fun onWindowHidden() { inlineAutofill?.clear(); cancelVoice(); super.onWindowHidden() }
     override fun onFinishInput() {
+        inlineAutofill?.clear()
         cancelVoice(); voiceEditor = false; updateVoice()
         super.onFinishInput()
         saveLearned()
