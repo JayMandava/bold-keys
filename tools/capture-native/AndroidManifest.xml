@@ -1,0 +1,7 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="demo.draft">
+  <uses-sdk android:minSdkVersion="33" android:targetSdkVersion="34"/>
+  <application android:label="Draft" android:theme="@android:style/Theme.Material.Light.NoActionBar" android:debuggable="true" android:allowBackup="false">
+    <activity android:name=".DraftActivity" android:exported="true" android:windowSoftInputMode="adjustResize|stateAlwaysVisible"/>
+  </application>
+  <instrumentation android:name=".Capture" android:targetPackage="demo.draft" android:label="Genuine keyboard capture"/>
+</manifest>
