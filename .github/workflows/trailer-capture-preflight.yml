@@ -1,0 +1,32 @@
+name: Read-only capture acceleration preflight
+on:
+  push:
+    branches: [qa/trailer-capture-preflight-20261115]
+permissions:
+  contents: read
+jobs:
+  preflight:
+    if: github.repository == 'JayMandava/bold-keys' && github.event.repository.private == false && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check existing device access without changes
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os, stat, fcntl, json
+          p='/dev/kvm'
+          result={'uid':os.getuid(),'groups':os.getgroups(),'exists':os.path.exists(p),'no_permission_changes':True}
+          if os.path.exists(p):
+              s=os.stat(p)
+              result.update(mode=oct(stat.S_IMODE(s.st_mode)),owner=s.st_uid,group=s.st_gid,read_write=os.access(p,os.R_OK|os.W_OK))
+          try:
+              fd=os.open(p,os.O_RDWR)
+              result['kvm_api_version']=fcntl.ioctl(fd,0xAE00,0)
+              os.close(fd)
+          except OSError as e:
+              result['blocked']=str(e)
+          print(json.dumps(result,indent=2))
+          if result.get('kvm_api_version') != 12:
+              raise SystemExit('STOP: accelerated capture unavailable without a security permission change; no changes made.')
+          PY
