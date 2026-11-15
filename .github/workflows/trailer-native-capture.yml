@@ -1,0 +1,70 @@
+name: One approved native trailer capture
+on:
+  push:
+    branches: [qa/trailer-native-capture-20261115]
+permissions:
+  contents: read
+concurrency:
+  group: trailer-native-capture-20261115
+  cancel-in-progress: false
+jobs:
+  capture:
+    if: github.repository == 'JayMandava/bold-keys' && github.event.repository.private == false && github.event.created == true && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Install official tools without new license acceptance
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v setfacl >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends acl
+          fi
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install 'platforms;android-35' 'build-tools;36.0.0' 'platform-tools' 'emulator' 'system-images;android-35;google_apis;x86_64' </dev/null
+      - name: Verify official unchanged app and build disposable editor
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p capture-output
+          curl --fail --location --proto '=https' --tlsv1.2 'https://github.com/JayMandava/bold-keys/releases/download/v0.7.1/bold-keys-0.7.1.apk' -o "$RUNNER_TEMP/bold-keys-0.7.1.apk"
+          echo "174d30ce6a457b5f358e718c78a22264dbebf0f561e89f235912b02db91f33fc  $RUNNER_TEMP/bold-keys-0.7.1.apk" | sha256sum --check
+          bash tools/capture-native/build.sh
+          python3 -m py_compile tools/capture-native/kvm.py
+          bash -n tools/capture-native/run.sh tools/capture-native/capture.sh
+          printf 'Official Bold Keys v0.7.1, unmodified production APK. Native local draft editor. Real key/pointer events. No external message or voice recognition claim.\n' > capture-output/provenance.txt
+          sha256sum "$RUNNER_TEMP/bold-keys-0.7.1.apk" >> capture-output/provenance.txt
+          git rev-parse HEAD >> capture-output/provenance.txt
+      - name: Single approved runner-only KVM grant and genuine capture
+        timeout-minutes: 20
+        run: bash tools/capture-native/run.sh
+      - name: Always restore exact KVM baseline
+        if: always()
+        run: python3 tools/capture-native/kvm.py cleanup
+      - name: Validate bounded media-only export
+        if: always()
+        id: export
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          p=Path('capture-output'); p.mkdir(exist_ok=True)
+          files=list(p.rglob('*'))
+          assert not any(f.is_symlink() for f in files)
+          files=[f for f in files if f.is_file()]
+          assert all(f.suffix in {'.mp4','.png','.txt','.json','.xml','.tsv'} for f in files)
+          assert sum(f.stat().st_size for f in files)<80*1024*1024
+          (p/'manifest.json').write_text(json.dumps([{ 'file':str(f.relative_to(p)), 'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in files],indent=2))
+          PY
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always() && steps.export.outcome == 'success'
+        with:
+          name: bold-native-capture-${{ github.run_id }}
+          path: capture-output/
+          retention-days: 1
+          compression-level: 0
+          if-no-files-found: error
