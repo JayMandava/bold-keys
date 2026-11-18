@@ -30,6 +30,8 @@ class KeyboardViewTest {
     private lateinit var keyboard: KeyboardView
     private val typed = mutableListOf<String>()
     private val shortcuts = mutableListOf<Char>()
+    private var callGuard: DirectCallGuard? = null
+    private var calls = 0
     private var deletes = 0
     private var voiceStarts = 0
     private var voiceStops = 0
@@ -46,7 +48,8 @@ class KeyboardViewTest {
             override fun onText(text: String) { typed += text }
             override fun onDelete() { deletes++ }
             override fun onEnter() {}
-            override fun onShortcut(letter: Char): Boolean { shortcuts += letter; return true }
+            override fun onShortcutGestureStart() { callGuard?.beginGesture() }
+            override fun onShortcut(letter: Char): Boolean { shortcuts += letter; if (callGuard?.acquire() == true) calls++; return true }
         })
         activity.setContentView(keyboard)
         keyboard.measure(View.MeasureSpec.makeMeasureSpec(400, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED))
@@ -204,6 +207,25 @@ class KeyboardViewTest {
         event(MotionEvent.ACTION_UP, speed)
         assertEquals(listOf('Q'), shortcuts)
         assertEquals(KeyboardView.Shift.OFF, keyboard.shift)
+        assertFalse(keyboard.pickerOpen())
+    }
+
+    @Test fun directCallGuardScopesAllLetterTapsInOneSpeedHold() {
+        callGuard = DirectCallGuard()
+        event(MotionEvent.ACTION_DOWN, speed)
+        repeat(2) {
+            multi(MotionEvent.ACTION_POINTER_DOWN or (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT), speed, q)
+            multi(MotionEvent.ACTION_POINTER_UP or (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT), speed, q)
+            advance(4000)
+        }
+        assertEquals(1, calls)
+        event(MotionEvent.ACTION_UP, speed)
+        event(MotionEvent.ACTION_DOWN, speed)
+        multi(MotionEvent.ACTION_POINTER_DOWN or (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT), speed, q)
+        multi(MotionEvent.ACTION_POINTER_UP or (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT), speed, q)
+        event(MotionEvent.ACTION_UP, speed)
+        assertEquals(2, calls)
+        assertTrue(typed.isEmpty())
         assertFalse(keyboard.pickerOpen())
     }
 

@@ -444,11 +444,16 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         return false
     }
 
+    private val directCallGuard = DirectCallGuard()
+    override fun onShortcutGestureStart() { directCallGuard.beginGesture() }
+
     override fun onShortcut(letter: Char): Boolean {
         if (voicePhase != KeyboardView.VoiceState.IDLE) cancelVoice()
         val sc = Shortcuts.get(this, letter) ?: return false
-        val typed = runCatching { Shortcuts.run(this, sc) }.getOrNull()
-        if (typed != null) onText(typed)
+        if (sc.type == Shortcut.DIRECT_CALL && !directCallGuard.acquire()) return true
+        val result = Shortcuts.execute(this, sc)
+        result.text?.let { onText(it) }
+        result.error?.let { android.widget.Toast.makeText(this, it, android.widget.Toast.LENGTH_LONG).show() }
         return true
     }
 

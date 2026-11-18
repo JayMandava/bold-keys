@@ -20,8 +20,8 @@ follow the two steps on screen to turn the keyboard on. Needs Android 13 or newe
   back and teaches it. Prefix suggestions use the preceding word, with bounded conversational and technical candidates.
   Typed words and chosen suggestions teach local word preferences and adjacent word pairs. You can add, remove and clear all learning in Settings.
 - **Emoji:** tap the right-hand key (the grid of dots, as on the original's Speed key) for every emoji your phone can show, in Unicode's groups, with skin tones (hold an emoji with a dot and slide to a tone; set a default in Settings). "more" jumps to the next group. The picker stays open after each emoji (so a run of them is one visit) and has a delete arrow of its own; its first row, "Recent", holds the seven you use most and most lately.
-- **Speed key:** hold the right-hand key and tap a letter to open an app, a link or type a snippet you set in Settings. Nothing is
-  shown on the keys; a plain tap opens the emoji picker (or acts as Shift if that picker is disabled).
+- **Speed key:** hold the right-hand key and tap a letter to open an app, a link, a chosen contact card, call a chosen phone number, or type a snippet you set in Settings. Nothing is
+  shown on the keys; a plain tap opens the emoji picker (or acts as Shift if that picker is disabled). Direct Call requires explicit Phone permission, uses the saved number until re-selected, and may show a SIM choice. Denial or revocation does nothing; there is no dialer fallback.
 - **QWERTY, QWERTZ or AZERTY:** choose the layout in Settings > Typing. AZERTY swaps A and Z with Q and W and moves M beside N; QWERTZ swaps Z and Y. The spelling model follows the layout, so
   a slip to a neighbouring key still counts as a slip. Choose the dictionary separately under Language (Automatic gives French with AZERTY, German with QWERTZ, English with QWERTY).
 - **Key size:** Small, Normal, Large or XL in Settings > Appearance, for bigger buttons (or a shorter keyboard). The keys get taller; the width is always the screen's.
@@ -42,6 +42,8 @@ follow the two steps on screen to turn the keyboard on. Needs Android 13 or newe
 Model downloads contact Hugging Face over HTTPS only after you tap Download, and may follow delivery redirects. No typed text is attached; servers can see normal request metadata such as IP address, request time, headers and model path. Downloads are checked against a fixed SHA-256 and size. “Wi-Fi only” uses Android's metered-network status.
 
 AndroidX EmojiCompat may ask a system provider for an emoji font. That provider may use cached data or networking depending on the device; the keyboard does not supply typed text in that request. Opening a Speed-key link or the privacy policy hands the link to another app. Model import uses Android's document picker; the selected provider may be cloud-backed. Those providers have their own network behavior and policies.
+
+Contact shortcuts store a selected lookup URI and display name; Direct Call stores the selected phone number and display name. Selection uses Android pickers without address-book permission. The app does not upload or log these values. Opening a card hands its URI to the contacts app; an explicitly invoked Direct Call hands its saved number to Android telephony.
 
 Learned words, preferences, shortcuts and emoji history are kept in app-private storage, without app-level file encryption. Password/email/web-address and no-personalized-learning protection depends on the editor reporting its input type/flags correctly. Settings > About contains the privacy-policy link and offline Licenses & credits. No analytics, ads, billing or crash-upload SDK is included in the resolved production dependencies.
 

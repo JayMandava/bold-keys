@@ -16,6 +16,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.core.net.toUri
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -267,7 +269,7 @@ private fun StatusCards() {
 
 @Composable
 private fun TryCard() {
-    var text by remember { mutableStateOf("") }
+    var text by rememberSaveable { mutableStateOf("") }
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp)) {
         Column(Modifier.padding(16.dp)) {
             Text("Try it", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
@@ -735,12 +737,12 @@ private fun ContextContent(context: Context) {
 @Composable
 private fun ShortcutsContent(context: Context) {
     var version by remember { mutableIntStateOf(0) }
-    var editing by remember { mutableStateOf<Char?>(null) }
+    var editing by rememberSaveable { mutableStateOf<Char?>(null) }
     val assigned = remember(version) { Shortcuts.all(context) }
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Section("How it works") {
             ExpandableHelp("Speed key behavior", "Hold the right-hand key and tap a letter to run its shortcut.", "The right-hand key is the grid of dots at bottom right. The keys show nothing: it is there for you to remember. Tapping that key on its own opens the emoji picker (or acts as Shift when the emoji key is off in Symbols & emoji).")
-            ExpandableHelp("Shortcut types", "Shortcuts can open an app, link, action, or type text.", "Links and actions can be a web page, tel:, mailto:, or geo:. A shortcut only runs while this keyboard is on screen.")
+            ExpandableHelp("Shortcut types", "Shortcuts can open an app, link, contact, call a chosen number, or type text.", "Links and actions can be a web page, tel:, mailto:, or geo:. Contact opens the selected card; deleted or unavailable cards may need re-selection. Direct Call uses a saved number, which does not follow contact edits. Re-select to update it. Calls require Phone permission and may show a SIM choice. A shortcut only runs while this keyboard is on screen.")
         }
         Section("Letters") {
             ('A'..'Z').forEach { ch ->
@@ -765,26 +767,54 @@ internal fun ShortcutSettingRow(letter: Char, shortcut: Shortcut?, onEdit: () ->
             headlineContent = { Text(shortcut?.label?.ifBlank { shortcut.value } ?: "Not set", color = if (shortcut == null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface) },
             trailingContent = if (shortcut != null) {{ IconButton(onClick = onClear) { Icon(Icons.Default.Close, contentDescription = "Clear $letter") } }} else null,
         )
-        shortcut?.let { Note(when (it.type) { Shortcut.APP -> "App"; Shortcut.LINK -> "Link: ${it.value}"; else -> "Text" }) }
+        shortcut?.let { Note(when (it.type) { Shortcut.APP -> "App"; Shortcut.LINK -> "Link: ${it.value}"; Shortcut.CONTACT -> "Contact"; Shortcut.DIRECT_CALL -> "Direct Call: ${it.value}"; else -> "Text" }) }
     }
 }
 
 @Composable
-private fun ShortcutDialog(context: Context, letter: Char, current: Shortcut?, onDismiss: () -> Unit, onSave: (Shortcut) -> Unit) {
-    var type by remember { mutableStateOf(current?.type ?: Shortcut.APP) }
+internal fun ShortcutDialog(context: Context, letter: Char, current: Shortcut?, onDismiss: () -> Unit, onSave: (Shortcut) -> Unit) {
+    var type by rememberSaveable { mutableStateOf(current?.type ?: Shortcut.APP) }
     var query by remember { mutableStateOf("") }
-    var link by remember { mutableStateOf(if (current?.type == Shortcut.LINK) current.value else "") }
-    var text by remember { mutableStateOf(if (current?.type == Shortcut.TEXT) current.value else "") }
+    var link by rememberSaveable { mutableStateOf(if (current?.type == Shortcut.LINK) current.value else "") }
+    var text by rememberSaveable { mutableStateOf(if (current?.type == Shortcut.TEXT) current.value else "") }
+    var chosenValue by rememberSaveable { mutableStateOf(if (current?.type == Shortcut.CONTACT || current?.type == Shortcut.DIRECT_CALL) current.value else "") }
+    var chosenLabel by rememberSaveable { mutableStateOf(current?.label ?: "") }
+    var chosenType by rememberSaveable { mutableStateOf(current?.type ?: "") }
+    var pickerType by rememberSaveable { mutableStateOf("") }
+    var message by rememberSaveable { mutableStateOf<String?>(null) }
+    var phoneAllowed by remember { mutableStateOf(DirectCalls.hasPermission(context)) }
+    val owner = LocalLifecycleOwner.current
+    DisposableEffect(owner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) phoneAllowed = DirectCalls.hasPermission(context)
+        }
+        owner.lifecycle.addObserver(observer)
+        onDispose { owner.lifecycle.removeObserver(observer) }
+    }
+    val permission = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { granted ->
+        phoneAllowed = granted
+        message = if (granted) "Phone permission enabled. Review the number and tap Save. No call has been made."
+            else "Phone permission denied. Direct Call will do nothing. You can enable Phone in Android app permissions and return here."
+    }
+    val picker = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val selected = result.data?.data?.let { SelectedContacts.read(context, it, pickerType == Shortcut.DIRECT_CALL) }
+            if (selected == null) message = "Selection unavailable or number unsafe for Direct Call. Choose again."
+            else { chosenValue = selected.value; chosenLabel = selected.label; chosenType = selected.type; message = null }
+        }
+    }
     val apps = remember { Shortcuts.launchableApps(context) }
     val shown = apps.filter { query.isBlank() || it.first.contains(query, ignoreCase = true) }
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Speed key + $letter") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    listOf(Shortcut.APP to "App", Shortcut.LINK to "Link", Shortcut.TEXT to "Text").forEachIndexed { i, (t, l) ->
-                        SegmentedButton(selected = type == t, onClick = { type = t }, shape = SegmentedButtonDefaults.itemShape(i, 3), icon = {}) { Text(l) }
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(Shortcut.APP to "App", Shortcut.LINK to "Link", Shortcut.TEXT to "Text", Shortcut.CONTACT to "Contact", Shortcut.DIRECT_CALL to "Direct Call").forEach { (t, l) ->
+                        FilterChip(selected = type == t, onClick = { type = t; message = null }, label = { Text(l) })
                     }
                 }
                 when (type) {
@@ -805,15 +835,43 @@ private fun ShortcutDialog(context: Context, letter: Char, current: Shortcut?, o
                             label = { Text("Link or action") }, placeholder = { Text("example.com, tel:+1555…, mailto:me@…") },
                             keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, capitalization = KeyboardCapitalization.None))
                     }
+                    Shortcut.CONTACT, Shortcut.DIRECT_CALL -> {
+                        val call = type == Shortcut.DIRECT_CALL
+                        Text(if (call) "Calls this exact saved number when you use Speed key + $letter. Contact edits do not update it. Re-select to change it. SIM selection may still appear. Emergency and service codes are blocked."
+                            else "Opens the selected contact card. If it is deleted or unavailable, choose it again. No address-book permission is requested.")
+                        if (chosenType == type && chosenValue.isNotEmpty()) {
+                            Text(chosenLabel)
+                            if (call) Text(chosenValue)
+                        }
+                        OutlinedButton(onClick = {
+                            pickerType = type
+                            try { picker.launch(SelectedContacts.picker(call)) }
+                            catch (_: ActivityNotFoundException) { message = "No contact picker is available on this device." }
+                            catch (_: SecurityException) { message = "Contact selection is unavailable on this device." }
+                        }) { Text(if (call) "Choose phone number" else "Choose contact") }
+                        if (call && !phoneAllowed) {
+                            Text("Allow Phone permission only if you want direct calling. Denying or revoking it makes Direct Call do nothing. Granting permission never places a call.")
+                            OutlinedButton(enabled = chosenType == Shortcut.DIRECT_CALL && chosenValue.isNotEmpty(), onClick = { permission.launch(android.Manifest.permission.CALL_PHONE) }) { Text("Enable Direct Call permission") }
+                        }
+                    }
                     else -> {
                         OutlinedTextField(value = text, onValueChange = { text = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Text to type") },
                             keyboardOptions = KeyboardOptions(autoCorrectEnabled = false))
                     }
                 }
+                message?.let { Text(it) }
             }
         },
         confirmButton = {
-            if (type != Shortcut.APP) TextButton(
+            if (type == Shortcut.CONTACT || type == Shortcut.DIRECT_CALL) TextButton(
+                enabled = chosenType == type && chosenValue.isNotEmpty() && (type != Shortcut.DIRECT_CALL || phoneAllowed),
+                onClick = {
+                    if (type != Shortcut.DIRECT_CALL || (DirectCalls.hasPermission(context) && DirectCalls.safeNumber(context, chosenValue) != null))
+                        onSave(Shortcut(type, chosenValue, chosenLabel))
+                    else { phoneAllowed = DirectCalls.hasPermission(context); message = "Direct Call unavailable. Review permission and choose the number again." }
+                },
+            ) { Text("Save") }
+            else if (type != Shortcut.APP) TextButton(
                 enabled = if (type == Shortcut.LINK) link.isNotBlank() else text.isNotEmpty(),
                 onClick = { onSave(if (type == Shortcut.LINK) Shortcut(Shortcut.LINK, link.trim(), link.trim().removePrefix("https://").take(12)) else Shortcut(Shortcut.TEXT, text, text.take(12))) },
             ) { Text("Save") }

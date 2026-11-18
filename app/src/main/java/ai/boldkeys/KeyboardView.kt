@@ -49,7 +49,9 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         fun onText(text: String)
         fun onDelete()
         fun onEnter()
-        /** A letter was tapped while the Speed key is held; true if it had a shortcut and ran it. */
+        /** Starts one held-Speed gesture or one accessibility shortcut activation. */
+        fun onShortcutGestureStart() {}
+        /** A letter was tapped while the Speed key is held; true if the assignment was consumed. */
         fun onShortcut(letter: Char): Boolean = false
         /** A letter was held and an accented form chosen: it replaces the plain letter typed when the key went down. */
         fun onAccent(accent: String) {}
@@ -619,7 +621,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                     val wasCaps = shift == Shift.CAPS
                     val plain = altMode == Shift.OFF && !altHeld && !speedHeld
                     if (c.key.kind == Kind.LAYER) { altHeld = true; altUsedWhileHeld = false; altDownAt = SystemClock.uptimeMillis() }
-                    if (c.key.kind == Kind.SPEED) { speedHeld = true; speedUsed = false; speedShiftLocked = false; speedDownAt = SystemClock.uptimeMillis() }
+                    if (c.key.kind == Kind.SPEED) { if (!speedHeld) listener.onShortcutGestureStart(); speedHeld = true; speedUsed = false; speedShiftLocked = false; speedDownAt = SystemClock.uptimeMillis() }
                     else if (speedHeld && c.key.kind == Kind.CHAR && c.key.label.length == 1 && c.key.label[0].isLetter()) {
                         speedUsed = true
                         listener.onShortcut(c.key.label[0])
@@ -1417,7 +1419,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
                     a == hold && isShift -> { shift = if (shift == Shift.CAPS) Shift.OFF else Shift.CAPS; lastShiftTap = 0 }
                     a == hold && k.kind == Kind.LAYER -> { altMode = if (altMode == Shift.CAPS) Shift.OFF else Shift.CAPS; lastAltTap = 0 }
                     a == hold -> { accentFor = cell; accentUpper = shift != Shift.OFF; showAccents.run(); accessibilityAccent = true }
-                    (accessibilityShortcut || speedHeld) && k.kind == Kind.CHAR && k.label.firstOrNull()?.isLetter() == true -> { accessibilityShortcut = false; accessibilityEpoch++; listener.onShortcut(k.label[0]) }
+                    (accessibilityShortcut || speedHeld) && k.kind == Kind.CHAR && k.label.firstOrNull()?.isLetter() == true -> { accessibilityShortcut = false; accessibilityEpoch++; if (!speedHeld) listener.onShortcutGestureStart(); listener.onShortcut(k.label[0]) }
                     k.kind == Kind.SPEED -> if (emojiKey) openPicker(Picker.EMOJI) else fire(Key("shift", "", kind = Kind.SHIFT))
                     else -> fire(k)
                 }; invalidate(); true
