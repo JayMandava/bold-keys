@@ -29,10 +29,21 @@ jobs:
       - name: Test and lint exact source and build emulator variant
         run: |
           python3 -m unittest discover -s tests -p 'test_release_workflow.py' -v
-          ./gradlew --no-daemon --max-workers=2 -PunsignedRelease=true -Pkotlin.compiler.execution.strategy=in-process testDebugUnitTest testReleaseUnitTest lintDebug lintRelease assembleDebug
+          ./gradlew --no-daemon --max-workers=2 -PunsignedRelease=true -Pkotlin.compiler.execution.strategy=in-process testDebugUnitTest testReleaseUnitTest lintDebug lintRelease assembleDebug 2>&1 | tee qa-artifacts/android-build.log
           if [[ -f tools/qa/standardization/init.gradle ]]; then
             ./gradlew --no-daemon --max-workers=2 -I tools/qa/standardization/init.gradle -PunsignedRelease=true -Pkotlin.compiler.execution.strategy=in-process assembleDebugAndroidTest
           fi
+      - name: Surface Android build failure for review
+        if: failure()
+        run: |
+          python3 - <<'PYLOG'
+          from pathlib import Path
+          log = Path("qa-artifacts/android-build.log")
+          if log.exists():
+              excerpt = "\n".join(log.read_text(errors="replace").splitlines()[-80:])[-12000:]
+              escaped = excerpt.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+              print(f"::error title=Android build failure::{escaped}")
+          PYLOG
       - name: Upload one-day QA evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
