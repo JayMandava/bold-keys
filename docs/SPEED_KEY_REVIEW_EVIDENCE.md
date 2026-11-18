@@ -15,19 +15,20 @@ Provider rows and telephone targets are synthetic. The provider double asserts a
 
 ## Rendered evidence
 
-`ShortcutEditorCaptureTest` runs the actual `SetupActivity` and production `BoldTheme`/`ShortcutDialog` with Robolectric API 33 native graphics. It captures the dialog's initial window by drawing its attached decor view into an ARGB bitmap. Profiles are 360 × 800 dp at 100% font size and 320 × 640 dp at 200%; individual dialog images can be shorter than the display. It asserts that scrolling reaches the selection/permission controls and that Save/Cancel remain displayed.
+`ShortcutEditorLayoutTest` drives the actual settings editor and checks control reachability on API 33 at 360 × 800 dp / 100% text and 320 × 640 dp / 200% text. The production theme, wrapping choices and scrollable editor are used without layout substitutions.
 
-Reproduce PNGs and full semantics:
+The opt-in instrumentation class `SpeedKeyEditorCapture` in `tools/qa/standardization/src` captures actual emulator dialog windows using Compose's frame-commit/PixelCopy capture path. It never opens a picker, requests Phone permission or calls. It uses only Synthetic Person and a synthetic number. Both editors are captured at their initial viewport and scrolled controls; Direct Call also captures the selected number. Each PNG has matching full Compose semantics. These are private review artifacts, not a release.
+
+Build the isolated x86 QA artifacts:
 
 ```sh
-SPEED_KEY_CAPTURE_DIR=/workspace/speed-key-final-evidence \
-./gradlew --no-daemon -PunsignedRelease=true :app:testDebugUnitTest \
-  --tests ai.boldkeys.ShortcutEditorCaptureTest
+./gradlew --no-daemon --max-workers=4 -I tools/qa/standardization/init.gradle \
+  -PunsignedRelease=true -PtestAbi=x86_64 :app:assembleDebug :app:assembleDebugAndroidTest
 ```
 
-Four initial-viewport PNGs cover Contact and Direct Call at each profile. At large text, clipping at the scroll viewport boundary is intentional; lower content is reached by scrolling. These are native-rendered test screenshots, not emulator/device window captures. System picker and permission overlays, OEM colors and real telephone behavior are not represented.
+On an authorized disposable API 33 emulator, install both debug APKs and run only `ai.boldkeys.SpeedKeyEditorCapture`. Capture profiles use display 720 × 1600 at density 320 / font scale 1.0, and 640 × 1280 at density 320 / font scale 2.0. Outputs are app-private `files/speed-key-captures`; retrieve using `adb exec-out run-as ai.boldkeys ...`. The accompanying deliverable records the exact candidate, APK checksum, emulator fingerprint, capture settings and limitations. This harness can also be used on an emulator with hardware acceleration; the cloud review emulator uses software acceleration.
 
-Experimental repeated/scrolled native snapshots produced stale clipping despite unchanged title layout bounds. Compose's frame-commit capture also timed out in this environment. Those experimental captures are excluded from the deliverable. No product layout change was made to compensate for a test-renderer artifact. The final initial-viewport captures must be inspected as pixels, alongside the reachability assertions.
+Robolectric native snapshots were investigated but excluded: repeated/scrolled captures could retain stale clipping despite correct title layout bounds, and isolated captures could be blank. No product layout change was made to compensate for this test-renderer behavior. The unit tests retain reachability assertions; rendered screenshot evidence comes from the emulator harness.
 
 ## Checks and CI investigation
 
