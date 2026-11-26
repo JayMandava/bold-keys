@@ -190,7 +190,15 @@ class KeyThemeTest {
                         Prefs.keyTheme(activity).bg, bmp.getPixel(x, bar.height))
                 }
                 val ridgeY = bar.height + (key(keyboard, 3, 2).bottom + 5.5f).toInt()
-                assertEquals("${colour.id} has no rim under the bottom row", theme.bg, bmp.getPixel(width / 2, ridgeY))
+                val baseSamples = (ridgeY - 1..ridgeY + 1).map { bmp.getPixel(width / 2, it) }
+                if (theme.bodyBottom == theme.bg) {
+                    assertEquals("${colour.id} has a flat base under the bottom row", listOf(theme.bg, theme.bg, theme.bg), baseSamples)
+                } else {
+                    assertNotEquals("${colour.id} has a visible base below the keys", theme.bg, baseSamples.last())
+                    for (channel in listOf(Color::red, Color::green, Color::blue)) {
+                        assertTrue("${colour.id} base has a continuous fill, not a rim", baseSamples.map(channel).zipWithNext().all { (a, b) -> b - a in 0..5 })
+                    }
+                }
                 val middleOfKey = bar.height + key(keyboard, 0, 0).centerY().toInt()
                 assertEquals("${colour.id} has no left border", theme.bg, bmp.getPixel(0, middleOfKey))
                 assertEquals("${colour.id} has no right border", theme.bg, bmp.getPixel(width - 1, middleOfKey))

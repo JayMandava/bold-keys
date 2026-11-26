@@ -117,6 +117,7 @@ class KeyboardView(
         if (theme.colour != th.colour) {
             th = theme
             faces.clear()
+            updateBodyShade()
         }
         emojiKey = Prefs.emojiPages(c)
         currency = Prefs.currency(c)
@@ -236,11 +237,20 @@ class KeyboardView(
         faces.clear()
         lighting.clear()
         buildBody()
+        updateBodyShade()
         rebuild()
     }
 
     /** The keyboard's body: it ends in the same smile as the rows, with rounded corners, so it meets the black navigation bar as one curved shape. */
     private val body = Path()
+    private var bodyShade: Shader? = null
+
+    private fun updateBodyShade() {
+        bodyShade = if (th.bodyBottom != th.bg && height > 0) {
+            LinearGradient(0f, height - dp(24f), 0f, height - dp(2f), th.bg, th.bodyBottom, Shader.TileMode.CLAMP)
+        } else null
+    }
+
     private fun ridgeY(y0: Float, x: Float): Float { val t = x / width; return y0 + 4f * smile * t * (1f - t) }
 
     private fun buildBody() {
@@ -293,8 +303,9 @@ class KeyboardView(
     override fun onDraw(canvas: Canvas) {
         // The live keyboard meets the black navigation bar. The preview sits on the card's surface.
         if (!preview) canvas.drawColor(0xFF000000.toInt())
-        fill.shader = null; fill.color = th.bg
+        fill.shader = bodyShade; fill.color = th.bg
         canvas.drawPath(body, fill)
+        fill.shader = null
         if (picker != Picker.NONE) { drawPicker(canvas); accessibility.drawFocus(canvas); return } // picker replaces keys, preserving accessibility focus
         // The rounded body also contains the key shadows and backlight at both bottom corners.
         canvas.save(); canvas.clipPath(body)
