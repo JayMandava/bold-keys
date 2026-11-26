@@ -30,8 +30,8 @@ class KeyThemeTest {
         assertEquals(KeyColour.BLACK, KeyColour.resolve("auto", true))
         assertEquals(KeyColour.WHITE, KeyColour.resolve("auto", false))
         assertEquals(KeyColour.BLACK, KeyColour.resolve("missing", false))
-        assertEquals(6, KeyColour.choices.size)
-        assertEquals(6, KeyColour.choices.map { it.first }.toSet().size)
+        assertEquals(KeyColour.entries.map { it.id }.toSet() + "auto", KeyColour.choices.map { it.first }.toSet())
+        assertEquals(KeyColour.entries.size + 1, KeyColour.choices.size)
         val c = RuntimeEnvironment.getApplication()
         c.getSharedPreferences("bk", 0).edit().clear().commit()
         assertEquals("dark", Prefs.theme(c))
@@ -79,7 +79,7 @@ class KeyThemeTest {
     private fun contrast(a: Int, b: Int): Double = listOf(luminance(a), luminance(b)).sorted().let { (it[1] + 0.05) / (it[0] + 0.05) }
 
     @Test fun heritageLegendsAndSuggestionsHaveReadableContrast() {
-        for (colour in listOf(KeyColour.RED, KeyColour.BLACK_GOLD, KeyColour.WHITE_GOLD)) {
+        for (colour in listOf(KeyColour.RED, KeyColour.BLACK_GOLD, KeyColour.WHITE_GOLD, KeyColour.OCEAN_DRIVE)) {
             val th = KeyTheme(colour)
             val base = Color.rgb(th.base[0].toInt(), th.base[1].toInt(), th.base[2].toInt())
             assertTrue("${colour.id} legends", contrast(th.legend, base) >= 4.5)
@@ -174,7 +174,7 @@ class KeyThemeTest {
                     assertEquals(Triple(2, 0, selecting), moves.last())
                 }
             }
-            assertEquals("Each palette and orientation must produce a distinct rendering", 10, images.size)
+            assertEquals("Each palette and orientation must produce a distinct rendering", 2 * KeyColour.entries.size, images.size)
         } finally { controller.pause().stop().destroy() }
     }
 }

@@ -416,7 +416,6 @@ private fun AppearanceContent(context: Context) {
     var theme by remember { mutableStateOf(Prefs.theme(context)) }
     var keySize by remember { mutableStateOf(Prefs.keySize(context)) }
     var mode by remember { mutableStateOf(Prefs.backlightMode(context)) }
-    var color by remember { mutableStateOf(Prefs.backlightColor(context)) }
     var level by remember { mutableStateOf(Prefs.backlightLevel(context)) }
     var version by remember { mutableIntStateOf(0) }
     // Observe the selected Compose state here, not only inside the colour card.
@@ -424,7 +423,8 @@ private fun AppearanceContent(context: Context) {
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
     val systemDark = configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK ==
         android.content.res.Configuration.UI_MODE_NIGHT_YES
-    val dark = KeyColour.resolve(theme, systemDark).dark
+    val colour = KeyColour.resolve(theme, systemDark)
+    val color = remember(colour, version) { Prefs.backlightColor(context, colour) }
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp)) {
             AndroidView(
@@ -456,10 +456,10 @@ private fun AppearanceContent(context: Context) {
             val options = listOf("off" to "Off", "on" to "On", "auto" to "Auto")
             ChoiceFlow(options, mode) { key -> mode = key; Prefs.put(context, "backlight", key); version++ }
             Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                for ((key, rgb) in Prefs.BACKLIGHT_COLORS) {
+                for ((key, rgb) in Prefs.backlightColors(colour)) {
                     Box(
                         Modifier.size(48.dp).clip(CircleShape).background(Color(rgb))
-                            .clickable { color = key; Prefs.put(context, "backlightColor", key); version++ }
+                            .clickable { Prefs.setBacklightColor(context, colour, key); version++ }
                             .semantics {
                                 contentDescription = "$key backlight color"
                                 stateDescription = if (color == key) "Selected" else "Not selected"
@@ -482,7 +482,7 @@ private fun AppearanceContent(context: Context) {
             )
             Note(
                 when {
-                    !dark -> "The backlight glows on dark keys. Choose Black, Red or Black & Gold to see it."
+                    !colour.dark -> "The backlight glows on dark keys. Choose a dark colour to see it."
                     mode == "auto" -> "Glows in the dark and fades in bright light, using the phone's light sensor."
                     mode == "on" -> "Glows all the time."
                     else -> "The letters and the gaps between keys stay unlit."

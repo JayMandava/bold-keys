@@ -114,7 +114,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         currency = Prefs.currency(c)
         volumeSlide = Prefs.volumeSlide(c)
         glowMode = Prefs.backlightMode(c)
-        glowRgb = Prefs.BACKLIGHT_COLORS[Prefs.backlightColor(c)] ?: 0xFFEAF2FF.toInt()
+        glowRgb = Prefs.backlightColors(th.colour).getValue(Prefs.backlightColor(c, th.colour))
         glowSetting = Prefs.backlightLevel(c)
         val scale = Prefs.keyScale(c)
         if (scale != sizeScale) { sizeScale = scale; faces.clear(); requestLayout() } // a new height measures again, and the keys are laid out afresh with it
@@ -132,7 +132,8 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         if (g != glow) { glow = g; invalidate() }
     }
 
-    private fun glowArgb(alpha: Float) = (glowRgb and 0x00FFFFFF) or ((alpha.coerceIn(0f, 1f) * 255f).toInt() shl 24)
+    private fun glowArgb(alpha: Float, rgb: Int = glowRgb) =
+        (rgb and 0x00FFFFFF) or ((alpha.coerceIn(0f, 1f) * 255f).toInt() shl 24)
 
     // the phone's light sensor drives the backlight on Auto, as the original's did
     private val sensors by lazy { context.getSystemService(Context.SENSOR_SERVICE) as android.hardware.SensorManager }
@@ -306,7 +307,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         if (picker != Picker.NONE) drawPicker(canvas)
         val voiceLevel = voiceBacklightLevelAt(SystemClock.uptimeMillis())
         if (voiceLevel > 0f) cells.flatten().firstOrNull { it.key.kind == Kind.SPACE }?.let { c ->
-            voiceOutline.color = ((255 * voiceLevel).toInt() shl 24) or 0x005CF29A
+            voiceOutline.color = glowArgb(voiceLevel, th.voiceGlow)
             voiceOutline.strokeWidth = dp(3f)
             canvas.drawRoundRect(RectF(c.rect).apply { inset(-dp(2f), -dp(2f)) }, dp(7f), dp(7f), voiceOutline)
         }
@@ -429,7 +430,7 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
             surf.shader = null
             for (i in 4 downTo 1) {
                 val grow = dp(1.5f) * i
-                surf.color = if (voiceLight) (((0x66 * voiceLevel / i).toInt()) shl 24) or 0x005CF29A else glowArgb(glow * 0.20f / i)
+                surf.color = if (voiceLight) glowArgb(0.4f * voiceLevel / i, th.voiceGlow) else glowArgb(glow * 0.20f / i)
                 canvas.drawRoundRect(RectF(r.left - grow, r.top - grow, r.right + grow, r.bottom + grow), rad + grow, rad + grow, surf)
             }
         }
@@ -462,11 +463,12 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
             }
             Kind.SPACE -> fitWord(canvas, "space", acx, cy - dp(2f), dp(13f), maxW)
             Kind.SPEED -> { clearShadow(); if (emojiKey) drawDotGrid(canvas, acx, cy) else drawShiftKey(canvas, acx, cy, false, maxW) }
-            Kind.SYM -> fitWord(canvas, "sym", acx, cy, dp(13f), maxW)
+            Kind.SYM -> if (th.oceanDrive) drawFlamingo(canvas, acx, cy, maxW) else fitWord(canvas, "sym", acx, cy, dp(13f), maxW)
             Kind.LAYER -> {
-                fitWord(canvas, "alt", acx, cy, dp(13f), maxW)
-                if (altMode == Shift.CAPS) { // locked: a thin bar under the word, same white
-                    clearShadow(); line.shader = null; line.strokeWidth = dp(1.2f); line.color = th.legend
+                val color = if (th.oceanDrive && altMode != Shift.OFF) th.indicator else th.legend
+                fitWord(canvas, "alt", acx, cy, dp(13f), maxW, color)
+                if (altMode == Shift.CAPS) { // locked: a thin bar in the legend colour
+                    clearShadow(); line.shader = null; line.strokeWidth = dp(1.2f); line.color = color
                     canvas.drawLine(acx - dp(7f), cy + dp(10f), acx + dp(7f), cy + dp(10f), line)
                 }
             }
@@ -527,9 +529,10 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         drawInk(canvas, w, cx, cy)
     }
 
-    /** The Bold's shift key: "aA" with a small outlined arrow standing over the "a" (left key) or the "A" (right key). Caps lock adds a bar; the colour never changes. */
+    /** The Bold's shift key: "aA" with a small outlined arrow and a bar for Caps Lock. */
     private fun drawShiftKey(canvas: Canvas, cx: Float, cy: Float, left: Boolean, maxW: Float) {
-        legend.textSize = dp(13f); legend.color = th.legend
+        val color = if (th.oceanDrive && shift != Shift.OFF) th.indicator else th.legend
+        legend.textSize = dp(13f); legend.color = color
         while (legend.measureText("aA") > maxW && legend.textSize > dp(8f)) legend.textSize -= dp(0.5f)
         val tw = legend.measureText("aA")
         legendShadow()
@@ -539,13 +542,50 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         val s = dp(4.6f)
         val ax = cx - tw / 2f + legend.measureText("a") / 2f // always over the small a, which is the first letter of "aA"
         val ay = cy - dp(5.5f)
-        icon.color = th.legend; icon.style = Paint.Style.STROKE; icon.strokeWidth = dp(1.2f)
+        icon.color = color; icon.style = Paint.Style.STROKE; icon.strokeWidth = dp(1.2f)
         canvas.drawPath(Path().apply {
             moveTo(ax, ay - s); lineTo(ax + s, ay); lineTo(ax + s * 0.45f, ay); lineTo(ax + s * 0.45f, ay + s * 0.85f)
             lineTo(ax - s * 0.45f, ay + s * 0.85f); lineTo(ax - s * 0.45f, ay); lineTo(ax - s, ay); close()
         }, icon)
         if (shift == Shift.CAPS) canvas.drawLine(ax - s * 0.7f, ay + s * 1.3f, ax + s * 0.7f, ay + s * 1.3f, icon)
         icon.strokeWidth = dp(1.8f)
+    }
+
+    private val flamingoBody = Path().apply {
+        moveTo(-10.5f, 0.5f)
+        cubicTo(-6f, -0.5f, -4f, -2.5f, 0.5f, -0.5f)
+        cubicTo(2.5f, 0.5f, 5f, 0.5f, 5f, -1.5f)
+        cubicTo(5f, -3f, 1.5f, -4f, 1.5f, -7.5f)
+        cubicTo(1.5f, -11f, 6.5f, -12.5f, 9f, -9.5f)
+        lineTo(7.5f, -7.5f)
+        cubicTo(6f, -9.5f, 4f, -9.5f, 4f, -7.5f)
+        cubicTo(4f, -5.5f, 8f, -5f, 8f, -1.5f)
+        cubicTo(8f, 3.5f, 2.5f, 5.5f, -3f, 5f)
+        quadTo(-8f, 4.5f, -10.5f, 0.5f)
+        close()
+    }
+    private val flamingoLegs = Path().apply {
+        moveTo(-0.5f, 4f); lineTo(-0.5f, 11.5f); lineTo(2f, 11.5f)
+        moveTo(2f, 4f); lineTo(5f, 7f); lineTo(1.5f, 8.5f)
+    }
+
+    /** A small flamingo silhouette sized to the Sym key's flat face. */
+    private fun drawFlamingo(canvas: Canvas, cx: Float, cy: Float, maxW: Float) {
+        val scale = min(dp(1f), maxW / 24f)
+        if (scale <= 0f) return
+        canvas.save()
+        canvas.translate(cx, cy)
+        canvas.scale(scale, scale)
+        icon.color = th.trimHighlight
+        icon.style = Paint.Style.FILL
+        canvas.drawPath(flamingoBody, icon)
+        icon.style = Paint.Style.STROKE
+        icon.strokeWidth = 1.5f
+        canvas.drawPath(flamingoLegs, icon)
+        icon.color = th.legend
+        canvas.drawLine(8.5f, -9f, 10.5f, -7f, icon)
+        icon.strokeWidth = dp(1.8f)
+        canvas.restore()
     }
 
     /** The Speed key as printed on the Key2: a grid of nine dots. */

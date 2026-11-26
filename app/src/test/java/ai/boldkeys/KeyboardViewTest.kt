@@ -1,6 +1,9 @@
 package ai.boldkeys
 
 import android.app.Activity
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.RectF
 import android.os.Looper
 import android.os.SystemClock
@@ -390,6 +393,35 @@ class KeyboardViewTest {
         assertEquals(1, voiceCancels); assertTrue(typed.isEmpty())
         keyboard.voiceState = KeyboardView.VoiceState.IDLE
     }
+    @Test
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun oceanDriveUsesNeonBacklightAndCoralVoiceOutlineEvenWithBacklightOff() {
+        Prefs.put(activity, "theme", KeyColour.OCEAN_DRIVE.id)
+        Prefs.put(activity, "backlightColor", "amber")
+        Prefs.put(activity, "oceanDriveBacklightColor", "amber")
+        Prefs.put(activity, "backlight", "off")
+        keyboard.applySettings()
+        val palette = Prefs.backlightColors(KeyColour.OCEAN_DRIVE)
+        assertEquals(palette.getValue("Neon aqua"), field(keyboard, "glowRgb"))
+        Prefs.setBacklightColor(activity, KeyColour.OCEAN_DRIVE, "Neon violet")
+        keyboard.applySettings()
+        assertEquals(palette.getValue("Neon violet"), field(keyboard, "glowRgb"))
+        assertEquals("amber", Prefs.backlightColor(activity))
+
+        val space = key(3, 2)
+        fun renderedOutline(): Int {
+            val bitmap = Bitmap.createBitmap(keyboard.width, keyboard.height, Bitmap.Config.ARGB_8888)
+            keyboard.draw(Canvas(bitmap))
+            return bitmap.getPixel((space.left - 2).toInt(), space.centerY().toInt())
+        }
+        val idle = renderedOutline()
+        keyboard.voiceState = KeyboardView.VoiceState.RECORDING
+        val recording = renderedOutline()
+        assertTrue("The spacebar should glow even with regular backlighting off", Color.red(recording) > Color.red(idle) + 60)
+        assertTrue("The voice outline should be coral", Color.red(recording) > Color.green(recording) + 40)
+        assertTrue("The voice outline should be coral", Color.green(recording) > Color.blue(recording) + 15)
+    }
+
     @Test
     @GraphicsMode(GraphicsMode.Mode.NATIVE)
     fun transcriptionBacklightPulsesSlowlyWithoutChangingKeyboardSize() {

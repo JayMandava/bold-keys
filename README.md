@@ -10,8 +10,9 @@ follow the two steps on screen to turn the keyboard on. Needs Android 13 or newe
 
 ## Features
 
-- **Keys that feel real:** each key is drawn as a lit 3D surface, with a haptic click, Black, White, Red, Black & Gold or White & Gold colours and an optional backlight
-  (white, amber, blue or green; on, off or following the light sensor).
+- **Keys that feel real:** each key is drawn as a lit 3D surface, with a haptic click and a choice of Black, White, Red, Black & Gold, White & Gold, or Ocean Drive.
+  Set the optional backlight to On, Off, or Auto. Choose white, amber, blue, or green on the classic palettes and neon aqua, pink, or violet on Ocean Drive.
+- **Ocean Drive:** plum keys, pink trim, an aqua trackpad ring, and a flamingo on the Symbols key. Voice typing lights the spacebar in sunset coral.
 - **Four rows, no number row:** every key has a second symbol, reached by holding or tapping alt (tap it for one symbol; double-tap, or hold it for half a second and let go, to keep it on for a run of numbers). The sym key opens a picker of symbols (three pages), and the right-hand key opens the emoji picker; both stay open until you close them, and scroll with the trackpad or your finger. A new text field always starts on the letter keys.
 - **Trackpad:** drag on the bar to move the cursor. Hold shift and drag to select. A quick tap takes the first suggestion.
 - **Caps lock:** hold Shift for about half a second, or double-tap it, to keep letters capitalised. The bar under its arrow shows the lock; tap Shift to turn it off. A quick single tap still capitalises just the next letter.

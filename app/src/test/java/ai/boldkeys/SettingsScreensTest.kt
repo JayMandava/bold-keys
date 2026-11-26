@@ -68,12 +68,30 @@ class SettingsScreensTest {
         }
         compose.onNodeWithText("White & Gold").performScrollTo().performClick()
         assertEquals(false, Prefs.isDark(activity.get()))
-        compose.onNode(hasText("Choose Black, Red or Black & Gold", substring = true))
+        compose.onNode(hasText("Choose a dark colour", substring = true))
             .performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Red").performScrollTo().performClick()
         compose.onNodeWithText("Glows all the time.").performScrollTo().assertIsDisplayed()
-        compose.onAllNodes(hasText("Choose Black, Red or Black & Gold", substring = true))
+        compose.onAllNodes(hasText("Choose a dark colour", substring = true))
             .assertCountEquals(0)
+    }
+
+    @Test fun oceanDriveOnlyOffersNeonAndRestoresEachPaletteSelection() {
+        val context = activity.get()
+        Prefs.put(context, "backlightColor", "amber")
+        open("Appearance")
+        val oceanDrive = compose.onNodeWithText("Ocean Drive")
+        oceanDrive.performScrollTo().performClick()
+        compose.onNodeWithContentDescription("amber backlight color").assertDoesNotExist()
+        val violet = compose.onNodeWithContentDescription("Neon violet backlight color")
+        violet.performScrollTo().performClick()
+        assertEquals("Neon violet", Prefs.backlightColor(context, KeyColour.OCEAN_DRIVE))
+        compose.onNodeWithText("Black").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Neon aqua backlight color").assertDoesNotExist()
+        compose.onNodeWithContentDescription("amber backlight color").performScrollTo()
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Selected"))
+        oceanDrive.performScrollTo().performClick()
+        violet.performScrollTo().assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Selected"))
     }
 
     @Test fun aboutDisclosesNetworkExceptionBeforePrivacyHelpIsExpanded() {

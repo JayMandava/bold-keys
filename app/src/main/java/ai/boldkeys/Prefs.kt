@@ -28,7 +28,14 @@ object Prefs {
     fun keySize(c: Context) = string(c, "keySize", "normal")
     fun keyScale(c: Context) = when (keySize(c)) { "small" -> 0.9f; "large" -> 1.12f; "xlarge" -> 1.25f; else -> 1f }
     fun backlightMode(c: Context) = string(c, "backlight", "auto") // off, on, auto (follows the phone's light sensor)
-    fun backlightColor(c: Context) = string(c, "backlightColor", "white")
+    fun backlightColor(c: Context, colour: KeyColour = KeyColour.BLACK): String {
+        val palette = backlightColors(colour)
+        val default = palette.keys.first()
+        return string(c, backlightColorKey(colour), default).takeIf { it in palette } ?: default
+    }
+    fun setBacklightColor(c: Context, colour: KeyColour, color: String) {
+        if (color in backlightColors(colour)) put(c, backlightColorKey(colour), color)
+    }
     fun backlightLevel(c: Context) = float(c, "backlightLevel", 0.6f)
 
     // typing
@@ -60,8 +67,16 @@ object Prefs {
     /** Hold the $ key and slide up or down to change the volume (a quick tap still types the currency sign). */
     fun volumeSlide(c: Context) = bool(c, "volumeSlide", true)
 
-    /** The glow colours the backlight can use, as RGB. */
-    val BACKLIGHT_COLORS = linkedMapOf(
+    fun backlightColors(colour: KeyColour): Map<String, Int> =
+        if (colour == KeyColour.OCEAN_DRIVE) neonBacklightColors else classicBacklightColors
+
+    private fun backlightColorKey(colour: KeyColour) =
+        if (colour == KeyColour.OCEAN_DRIVE) "oceanDriveBacklightColor" else "backlightColor"
+
+    private val classicBacklightColors = linkedMapOf(
         "white" to 0xFFEAF2FF.toInt(), "amber" to 0xFFFFB347.toInt(), "blue" to 0xFF4DA3FF.toInt(), "green" to 0xFF5CF29A.toInt(),
+    )
+    private val neonBacklightColors = linkedMapOf(
+        "Neon aqua" to 0xFF50E6DD.toInt(), "Neon pink" to 0xFFFF51AA.toInt(), "Neon violet" to 0xFFAE83FF.toInt(),
     )
 }
