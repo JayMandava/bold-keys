@@ -552,26 +552,33 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
     }
 
     private val flamingoBody = Path().apply {
-        moveTo(-10.5f, 0.5f)
-        cubicTo(-6f, -0.5f, -4f, -2.5f, 0.5f, -0.5f)
-        cubicTo(2.5f, 0.5f, 5f, 0.5f, 5f, -1.5f)
-        cubicTo(5f, -3f, 1.5f, -4f, 1.5f, -7.5f)
-        cubicTo(1.5f, -11f, 6.5f, -12.5f, 9f, -9.5f)
-        lineTo(7.5f, -7.5f)
-        cubicTo(6f, -9.5f, 4f, -9.5f, 4f, -7.5f)
-        cubicTo(4f, -5.5f, 8f, -5f, 8f, -1.5f)
-        cubicTo(8f, 3.5f, 2.5f, 5.5f, -3f, 5f)
-        quadTo(-8f, 4.5f, -10.5f, 0.5f)
+        moveTo(-11.5f, -1.5f)
+        cubicTo(-8f, -0.5f, -7f, -2.5f, -3.5f, -2.5f)
+        cubicTo(0.5f, -2.5f, 2.5f, 0.5f, 4.5f, -1f)
+        cubicTo(7f, -3f, 1f, -4.5f, 1f, -8.5f)
+        cubicTo(1f, -12.5f, 6.5f, -14.5f, 9.5f, -11.5f)
+        quadTo(10.5f, -9.5f, 8f, -8.5f)
+        cubicTo(6f, -9.5f, 5.5f, -11f, 4.5f, -9.5f)
+        cubicTo(2.5f, -6.5f, 9f, -6f, 9f, -2f)
+        cubicTo(9f, 2.5f, 4f, 5f, -2f, 5f)
+        quadTo(-8.5f, 5f, -11.5f, -1.5f)
         close()
     }
     private val flamingoLegs = Path().apply {
-        moveTo(-0.5f, 4f); lineTo(-0.5f, 11.5f); lineTo(2f, 11.5f)
-        moveTo(2f, 4f); lineTo(5f, 7f); lineTo(1.5f, 8.5f)
+        moveTo(-1.5f, 4f); lineTo(-1f, 12.5f); lineTo(2f, 12.5f)
+        moveTo(1.5f, 4f); lineTo(5f, 7f); lineTo(0.5f, 9.5f)
+    }
+    private val flamingoWing = Path().apply {
+        moveTo(-8f, 0f); quadTo(-4f, 3.25f, 0.5f, 2f)
+    }
+    private val flamingoBeak = Path().apply {
+        moveTo(8.75f, -11.5f); quadTo(12f, -11.5f, 12f, -8f)
+        quadTo(10.5f, -7.5f, 9f, -9f); close()
     }
 
     /** A small flamingo silhouette sized to the Sym key's flat face. */
     private fun drawFlamingo(canvas: Canvas, cx: Float, cy: Float, maxW: Float) {
-        val scale = min(dp(1f), maxW / 24f)
+        val scale = min(dp(1f), maxW / 26f)
         if (scale <= 0f) return
         canvas.save()
         canvas.translate(cx, cy)
@@ -580,10 +587,17 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         icon.style = Paint.Style.FILL
         canvas.drawPath(flamingoBody, icon)
         icon.style = Paint.Style.STROKE
-        icon.strokeWidth = 1.5f
+        icon.strokeWidth = 1.65f
         canvas.drawPath(flamingoLegs, icon)
         icon.color = th.legend
-        canvas.drawLine(8.5f, -9f, 10.5f, -7f, icon)
+        icon.alpha = 185
+        icon.strokeWidth = 1.1f
+        canvas.drawPath(flamingoWing, icon)
+        icon.alpha = 255
+        icon.style = Paint.Style.FILL
+        canvas.drawPath(flamingoBeak, icon)
+        canvas.drawCircle(7.3f, -11.1f, 0.7f, icon)
+        icon.style = Paint.Style.STROKE
         icon.strokeWidth = dp(1.8f)
         canvas.restore()
     }
