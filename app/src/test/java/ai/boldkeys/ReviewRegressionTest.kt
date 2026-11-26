@@ -48,6 +48,15 @@ class ReviewRegressionTest {
         service.onPick(0)
     }
 
+    @Test fun onlyTheAppAppearanceEditorKeepsTheKeyboardOpenOnOutsideTaps() {
+        val editor = EditorInfo().apply { packageName = service.packageName }
+        assertFalse(service.isAppearanceTestEditor(editor))
+        editor.privateImeOptions = APPEARANCE_TEST_IME_OPTION
+        assertTrue(service.isAppearanceTestEditor(editor))
+        editor.packageName = "other.app"
+        assertFalse(service.isAppearanceTestEditor(editor))
+    }
+
     @Test fun privateEditorSuggestionTapsDoNotLearnWordsOrPairsEvenWithStaleSmartState() {
         val cases = listOf(
             InputType.TYPE_CLASS_TEXT to EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING,

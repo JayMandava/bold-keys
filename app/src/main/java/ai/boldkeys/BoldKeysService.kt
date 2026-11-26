@@ -53,8 +53,11 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
     private class Undo(val typed: String, val fixed: String, val sep: String)
     private var undo: Undo? = null
 
-    private val voicePreferenceListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        if (key == "voiceTyping") ui.post { if (!Prefs.voiceTyping(this)) cancelVoice() else updateVoice() }
+    private val preferenceListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        when (key) {
+            "voiceTyping" -> ui.post { if (!Prefs.voiceTyping(this)) cancelVoice() else updateVoice() }
+            Prefs.THEME -> if (isInputViewShown && ::kb.isInitialized && ::bar.isInitialized) applyKeyboardAppearance()
+        }
     }
     private var voiceCapture: VoiceCapture? = null
     private var voiceEpoch = 0
@@ -126,7 +129,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
 
     override fun onCreate() {
         super.onCreate()
-        getSharedPreferences("bk", MODE_PRIVATE).registerOnSharedPreferenceChangeListener(voicePreferenceListener)
+        getSharedPreferences("bk", MODE_PRIVATE).registerOnSharedPreferenceChangeListener(preferenceListener)
         loadEngine(Prefs.language(this))
     }
 
@@ -155,7 +158,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         }
     }
 
-    override fun onDestroy() { getSharedPreferences("bk", MODE_PRIVATE).unregisterOnSharedPreferenceChangeListener(voicePreferenceListener); cancelVoice(); saveLearned(); lmWorker.execute { lm?.close(); lm = null }; super.onDestroy() }
+    override fun onDestroy() { getSharedPreferences("bk", MODE_PRIVATE).unregisterOnSharedPreferenceChangeListener(preferenceListener); cancelVoice(); saveLearned(); lmWorker.execute { lm?.close(); lm = null }; super.onDestroy() }
 
     /** Loads the chosen model when the setting is on (and one is installed), and lets go of it when it is off or changed. */
     private fun syncContextModel() {
@@ -206,6 +209,9 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
     private val hideRunnable = Runnable { requestHideSelf(0) }
     private var watchingOutside = false
 
+    internal fun isAppearanceTestEditor(info: EditorInfo?): Boolean =
+        info != null && info.packageName == packageName && info.privateImeOptions == APPEARANCE_TEST_IME_OPTION
+
     /**
      * Asks Android to report touches that land outside the keyboard (the touch still goes on to the app underneath). A tap in the text field
      * you are typing in moves the cursor or restarts input, and that cancels the hide, so tapping back into the field keeps the keyboard up.
@@ -217,7 +223,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         val inner = w.callback
         w.callback = object : Window.Callback by inner {
             override fun dispatchTouchEvent(event: MotionEvent): Boolean {
-                if (event.actionMasked == MotionEvent.ACTION_OUTSIDE) {
+                if (event.actionMasked == MotionEvent.ACTION_OUTSIDE && !isAppearanceTestEditor(currentInputEditorInfo)) {
                     val field = editorOnScreen
                     val slop = 12 * resources.displayMetrics.density // the field's position lags a few pixels while the page shifts
                     val inField = field != null && event.rawX in field.left - slop..field.right + slop && event.rawY in field.top - slop..field.bottom + slop
@@ -263,6 +269,11 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         inlineAutofill?.show(response.inlineSuggestions) ?: false
 
     private var root: View? = null
+
+    private fun applyKeyboardAppearance() {
+        kb.applySettings()
+        bar.applyTheme(Prefs.keyTheme(this))
+    }
 
     private fun applyBarInsets(v: View, insets: android.view.WindowInsets) {
         val bars = insets.getInsets(android.view.WindowInsets.Type.systemBars())
@@ -317,7 +328,7 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         engine?.british = Prefs.spelling(this) == "uk"; engine?.setLayout(Prefs.layout(this))
         contextOn = Prefs.contextModel(this) && lang == "en"; syncContextModel() // the context model has only been measured on English
         if (!restarting) kb.resetPicker() // a new text field starts on the letter keys, even if the last one left the emoji picker open (a restart in the same field leaves it alone)
-        kb.applySettings(); bar.applyTheme(Prefs.keyTheme(this))
+        applyKeyboardAppearance()
         reloadLearnedIfChanged()
         currentInputConnection?.requestCursorUpdates(android.view.inputmethod.InputConnection.CURSOR_UPDATE_MONITOR or android.view.inputmethod.InputConnection.CURSOR_UPDATE_FILTER_EDITOR_BOUNDS)
         val cls = info.inputType and InputType.TYPE_MASK_CLASS

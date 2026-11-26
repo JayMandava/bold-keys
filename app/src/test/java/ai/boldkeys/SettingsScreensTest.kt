@@ -108,6 +108,18 @@ class SettingsScreensTest {
         compose.onNodeWithText("Enable keyboard").assertDoesNotExist()
     }
 
+    @Test fun selectingAnotherThemeKeepsTheAppearanceEditorFocused() {
+        val context = activity.get()
+        Settings.Secure.putString(context.contentResolver, Settings.Secure.DEFAULT_INPUT_METHOD, "${context.packageName}/ai.boldkeys.BoldKeysService")
+        open("Appearance")
+        val editor = compose.onNode(hasSetTextAction())
+        editor.performScrollTo().performClick().performTextInput("draft")
+        editor.assertIsFocused()
+        compose.onNodeWithText("Ocean Drive").performScrollTo().performClick()
+        editor.assertIsFocused().assertTextEquals("draft", includeEditableText = true)
+        assertEquals("ocean_drive", Prefs.theme(context))
+    }
+
     @Test fun aboutDisclosesNetworkExceptionBeforePrivacyHelpIsExpanded() {
         open("About")
         compose.onNode(hasText("Optional downloads contact Hugging Face", substring = true))

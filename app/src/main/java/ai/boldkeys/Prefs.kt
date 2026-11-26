@@ -5,6 +5,7 @@ import android.content.res.Configuration
 
 /** Everything the user can change, kept in one small preferences file on the phone. */
 object Prefs {
+    internal const val THEME = "theme"
     private fun sp(c: Context) = c.getSharedPreferences("bk", Context.MODE_PRIVATE)
 
     fun string(c: Context, key: String, def: String) = sp(c).getString(key, def) ?: def
@@ -17,7 +18,7 @@ object Prefs {
     }
 
     // keyboard look
-    fun theme(c: Context) = string(c, "theme", "dark").let { id ->
+    fun theme(c: Context) = string(c, THEME, "dark").let { id ->
         if (KeyColour.choices.any { it.first == id }) id else "dark"
     }
     fun keyTheme(c: Context) = KeyTheme(KeyColour.resolve(

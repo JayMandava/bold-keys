@@ -232,7 +232,12 @@ class KeyboardView(
         setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), h)
     }
 
-    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) { faces.clear(); buildBody(); rebuild() }
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        faces.clear()
+        lighting.clear()
+        buildBody()
+        rebuild()
+    }
 
     /** The keyboard's body: it ends in the same smile as the rows, with rounded corners, so it meets the black navigation bar as one curved shape. */
     private val body = Path()
@@ -242,14 +247,16 @@ class KeyboardView(
         body.reset()
         if (width == 0) return
         val w = width.toFloat()
-        val y0 = padTop + 4 * (keyH + rowGap) - rowGap / 2 + dp(2.5f) // just under the last silver ridge
-        val r = dp(20f)
+        val y0 = padTop + 4 * (keyH + rowGap) - rowGap / 2 + dp(2.5f)
+        val r = min(dp(20f), w / 2f)
+        val cornerY = ridgeY(y0, r)
+        val centreY = y0 + smile
         body.moveTo(w, 0f)
         body.lineTo(w, y0 - r)
-        body.quadTo(w, ridgeY(y0, w - r * 0.35f), w - r, ridgeY(y0, w - r))
-        var x = w - r
-        while (x > r) { x -= w / 24f; body.lineTo(x.coerceAtLeast(r), ridgeY(y0, x.coerceAtLeast(r))) }
-        body.quadTo(0f, ridgeY(y0, r * 0.35f), 0f, y0 - r)
+        val cornerControlY = ridgeY(y0, r * 0.35f)
+        body.quadTo(w, cornerControlY, w - r, cornerY)
+        body.quadTo(w / 2f, 2 * centreY - cornerY, r, cornerY)
+        body.quadTo(0f, cornerControlY, 0f, y0 - r)
         body.lineTo(0f, 0f)
         body.close()
     }
@@ -289,11 +296,9 @@ class KeyboardView(
         fill.shader = null; fill.color = th.bg
         canvas.drawPath(body, fill)
         if (picker != Picker.NONE) { drawPicker(canvas); accessibility.drawFocus(canvas); return } // picker replaces keys, preserving accessibility focus
-        // Dark themes follow the original Black separator layout, light themes follow White.
+        // The rounded body also contains the key shadows and backlight at both bottom corners.
         canvas.save(); canvas.clipPath(body)
-        val ridgeCount = cells.size + if (th.dark) 1 else 0
-        for (r in 0 until ridgeCount) drawRidge(canvas, padTop + r * (keyH + rowGap) - rowGap / 2)
-        canvas.restore()
+        for (r in cells.indices) drawRidge(canvas, padTop + r * (keyH + rowGap) - rowGap / 2)
         val down = pressed.values.toSet()
         for (row in cells) for (c in row) drawKey(canvas, c, c in down || latched(c.key))
         if (picker != Picker.NONE) drawPicker(canvas)
@@ -303,6 +308,7 @@ class KeyboardView(
             voiceOutline.strokeWidth = dp(3f)
             canvas.drawRoundRect(RectF(c.rect).apply { inset(-dp(2f), -dp(2f)) }, dp(7f), dp(7f), voiceOutline)
         }
+        canvas.restore()
         if (voiceState == VoiceState.TRANSCRIBING && android.animation.ValueAnimator.areAnimatorsEnabled() && isShown) postInvalidateOnAnimation()
         drawAccents(canvas)
         drawVolume(canvas)
@@ -343,6 +349,13 @@ class KeyboardView(
     }
 
     private val faces = HashMap<String, Bitmap>()
+    private class KeyLighting(size: Int) {
+        val alpha = ByteArray(size)
+        val diffuse = FloatArray(size)
+        val specular = FloatArray(size)
+        val occlusion = FloatArray(size)
+    }
+    private val lighting = HashMap<String, KeyLighting>()
     private val pressFilter = LightingColorFilter(0xFFB4B4B4.toInt(), 0)
 
     private fun smooth(e0: Float, e1: Float, x: Float): Float { val t = ((x - e0) / (e1 - e0)).coerceIn(0f, 1f); return t * t * (3f - 2f * t) }
@@ -350,11 +363,12 @@ class KeyboardView(
     /**
      * The top of a key, worked out as a real surface and lit from the top-left, pixel by pixel: a rounded edge, a gently domed top, and a smooth
      * slope toward the middle of the keyboard (the Bold's sculpted facet). The light and shade on that shape is what makes it look solid; nothing
-     * is drawn on top of it. Rendered once per key size and kept.
+     * is drawn on top of it. The geometry's lighting is reused when the palette changes.
      */
-    private fun keyFace(w: Int, h: Int, mirror: Boolean, facet: Boolean, special: Boolean): Bitmap = faces.getOrPut("$w,$h,$mirror,$facet,$special,${th.colour.id}") {
+    private fun keyLighting(w: Int, h: Int, mirror: Boolean, facet: Boolean): KeyLighting {
         val rad = dp(5f); val bevel = dp(3.6f); val hk = dp(4.6f); val hd = dp(2.6f); val af = dp(7.5f)
-        val z = FloatArray(w * h); val alpha = FloatArray(w * h); val dist = FloatArray(w * h)
+        val z = FloatArray(w * h); val dist = FloatArray(w * h)
+        val samples = KeyLighting(w * h)
         val hw = w / 2f; val hh = h / 2f
         for (y in 0 until h) for (x in 0 until w) {
             val px = x + 0.5f - hw; val py = y + 0.5f - hh
@@ -363,7 +377,7 @@ class KeyboardView(
             val d = -(outside + min(max(qx, qy), 0f) - rad)
             val i = y * w + x
             dist[i] = d
-            alpha[i] = (d + 0.5f).coerceIn(0f, 1f)
+            samples.alpha[i] = ((d + 0.5f).coerceIn(0f, 1f) * 255f).toInt().toByte()
             val u = (x + 0.5f) / w; val v = (y + 0.5f) / h
             val edge = sin((Math.PI / 2).toFloat() * (d / bevel).coerceIn(0f, 1f))
             val dome = hd * (1f - ((2f * u - 1f).pow(2) + (2f * v - 1f).pow(2)) / 2f)
@@ -376,30 +390,43 @@ class KeyboardView(
             }
             z[i] = zz
         }
-        val base = if (special) th.baseSpecial else th.base
         val lx = -0.12f; val ly = -0.70f; val lz = 0.72f // light from nearly overhead, a little from the left, so both halves of the board match
         val ll = sqrt(lx * lx + ly * ly + lz * lz)
         val hx = lx / ll; val hy = ly / ll; val hz = lz / ll + 1f
         val hl = sqrt(hx * hx + hy * hy + hz * hz)
-        val out = IntArray(w * h)
         for (y in 0 until h) for (x in 0 until w) {
             val i = y * w + x
-            if (alpha[i] <= 0f) continue
+            if (samples.alpha[i] == 0.toByte()) continue
             val xm = max(x - 1, 0); val xp = min(x + 1, w - 1); val ym = max(y - 1, 0); val yp = min(y + 1, h - 1)
             val dzx = (z[y * w + xp] - z[y * w + xm]) / (xp - xm).coerceAtLeast(1)
             val dzy = (z[yp * w + x] - z[ym * w + x]) / (yp - ym).coerceAtLeast(1)
             val nl = sqrt(dzx * dzx + dzy * dzy + 1f)
             val nx = -dzx / nl; val ny = -dzy / nl; val nz = 1f / nl
-            val diff = max(0f, nx * lx / ll + ny * ly / ll + nz * lz / ll)
-            val spec = max(0f, nx * hx / hl + ny * hy / hl + nz * hz / hl).pow(26f) * th.specular
-            val ao = 0.80f + 0.20f * smooth(0f, bevel * 1.4f, dist[i])
-            val k = (th.ambient + th.diffuse * diff) * ao
-            val r = (base[0] * k + spec * 255f).coerceIn(0f, 255f).toInt()
-            val g = (base[1] * k + spec * 255f).coerceIn(0f, 255f).toInt()
-            val b = (base[2] * k + spec * 255f).coerceIn(0f, 255f).toInt()
-            out[i] = ((alpha[i] * 255f).toInt() shl 24) or (r shl 16) or (g shl 8) or b
+            samples.diffuse[i] = max(0f, nx * lx / ll + ny * ly / ll + nz * lz / ll)
+            samples.specular[i] = max(0f, nx * hx / hl + ny * hy / hl + nz * hz / hl).pow(26f)
+            samples.occlusion[i] = 0.80f + 0.20f * smooth(0f, bevel * 1.4f, dist[i])
         }
-        Bitmap.createBitmap(out, w, h, Bitmap.Config.ARGB_8888)
+        return samples
+    }
+
+    private fun keyFace(w: Int, h: Int, mirror: Boolean, facet: Boolean, special: Boolean): Bitmap {
+        val geometry = "$w,$h,$mirror,$facet"
+        return faces.getOrPut("$geometry,$special,${th.colour.id}") {
+            val samples = lighting.getOrPut(geometry) { keyLighting(w, h, mirror, facet) }
+            val base = if (special) th.baseSpecial else th.base
+            val out = IntArray(w * h)
+            for (i in out.indices) {
+                val alpha = samples.alpha[i].toInt() and 0xFF
+                if (alpha == 0) continue
+                val light = (th.ambient + th.diffuse * samples.diffuse[i]) * samples.occlusion[i]
+                val sheen = samples.specular[i] * th.specular * 255f
+                val r = (base[0] * light + sheen).coerceIn(0f, 255f).toInt()
+                val g = (base[1] * light + sheen).coerceIn(0f, 255f).toInt()
+                val b = (base[2] * light + sheen).coerceIn(0f, 255f).toInt()
+                out[i] = (alpha shl 24) or (r shl 16) or (g shl 8) or b
+            }
+            Bitmap.createBitmap(out, w, h, Bitmap.Config.ARGB_8888)
+        }
     }
 
     /** A key: a soft shadow, the dark wall it stands on, and its lit top. Pressing drops the top onto the wall. */

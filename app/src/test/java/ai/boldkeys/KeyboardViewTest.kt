@@ -403,6 +403,8 @@ class KeyboardViewTest {
         keyboard.draw(canvas)
         val faces = field(keyboard, "faces") as Map<*, *>
         val original = faces.toMap()
+        val lighting = field(keyboard, "lighting") as Map<*, *>
+        val originalLighting = lighting.toMap()
         assertTrue(original.isNotEmpty())
 
         Prefs.put(activity, "backlightLevel", 0.9f)
@@ -416,6 +418,8 @@ class KeyboardViewTest {
         assertTrue(faces.isEmpty())
         keyboard.draw(canvas)
         assertTrue(faces.isNotEmpty())
+        assertEquals(originalLighting.keys, lighting.keys)
+        for ((key, samples) in originalLighting) assertSame(samples, lighting[key])
     }
 
     @Test

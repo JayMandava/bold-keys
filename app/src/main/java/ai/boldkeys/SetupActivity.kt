@@ -31,14 +31,12 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -93,7 +91,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -102,12 +99,15 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.PlatformImeOptions
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import java.io.File
+
+internal const val APPEARANCE_TEST_IME_OPTION = "ai.boldkeys.appearance_test"
 
 class SetupActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -303,7 +303,11 @@ private fun TryCard(requireThisKeyboard: Boolean = false) {
             if (current) {
                 OutlinedTextField(
                     value = text, onValueChange = { text = it }, modifier = Modifier.fillMaxWidth(), minLines = 3, shape = RoundedCornerShape(20.dp),
-                    placeholder = { Text("Type here") }, keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                    placeholder = { Text("Type here") },
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Sentences,
+                        platformImeOptions = if (requireThisKeyboard) PlatformImeOptions(APPEARANCE_TEST_IME_OPTION) else null,
+                    ),
                 )
             } else {
                 val name = remember(context) { context.applicationInfo.loadLabel(context.packageManager) }
@@ -487,8 +491,6 @@ private fun AppearanceContent(context: Context) {
         android.content.res.Configuration.UI_MODE_NIGHT_YES
     val colour = KeyColour.resolve(theme, systemDark)
     val color = remember(colour, version) { Prefs.backlightColor(context, colour) }
-    val focus = LocalFocusManager.current
-    val imeVisible = WindowInsets.isImeVisible
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -504,9 +506,8 @@ private fun AppearanceContent(context: Context) {
         }
         Section("Key colour") {
             ChoiceFlow(KeyColour.choices, theme) { key ->
-                if (key != theme && imeVisible) focus.clearFocus()
                 theme = key
-                Prefs.put(context, "theme", key)
+                Prefs.put(context, Prefs.THEME, key)
                 version++
             }
             Note(if (theme == "auto") "Match phone follows the system's light or dark setting."

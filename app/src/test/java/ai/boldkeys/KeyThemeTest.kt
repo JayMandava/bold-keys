@@ -110,12 +110,14 @@ class KeyThemeTest {
     @Test @GraphicsMode(GraphicsMode.Mode.NATIVE)
     fun appearancePreviewShowsTheCardSurfaceOutsideTheKeyboardOutline() {
         val context = RuntimeEnvironment.getApplication()
+        Prefs.put(context, "backlight", "on")
+        Prefs.put(context, "backlightLevel", 1f)
         val listener = object : KeyboardView.Listener {
             override fun onText(text: String) = Unit
             override fun onDelete() = Unit
             override fun onEnter() = Unit
         }
-        for (colour in listOf(KeyColour.BLACK, KeyColour.WHITE, KeyColour.OCEAN_DRIVE)) {
+        for (colour in KeyColour.entries) {
             Prefs.put(context, "theme", colour.id)
             for (preview in listOf(false, true)) {
                 val keyboard = KeyboardView(context, Feedback(context), listener, preview = preview)
@@ -130,6 +132,14 @@ class KeyThemeTest {
                 val corner = if (preview) Color.TRANSPARENT else Color.BLACK
                 assertEquals(corner, bitmap.getPixel(0, keyboard.height - 1))
                 assertEquals(corner, bitmap.getPixel(keyboard.width - 1, keyboard.height - 1))
+                if (preview) {
+                    for (y in keyboard.height - 16 until keyboard.height) for (x in 0..4) {
+                        val left = Color.alpha(bitmap.getPixel(x, y))
+                        val right = Color.alpha(bitmap.getPixel(keyboard.width - 1 - x, y))
+                        // Skia can round fractional edge coverage differently on a mirrored path.
+                        assertTrue("${colour.id} bottom corners are symmetric at $x,$y ($left and $right)", kotlin.math.abs(left - right) <= 8)
+                    }
+                }
             }
         }
     }
@@ -180,9 +190,7 @@ class KeyThemeTest {
                         Prefs.keyTheme(activity).bg, bmp.getPixel(x, bar.height))
                 }
                 val ridgeY = bar.height + (key(keyboard, 3, 2).bottom + 5.5f).toInt()
-                val belowSpace = bmp.getPixel(width / 2, ridgeY)
-                if (theme.dark) assertNotEquals("${colour.id} follows Black's final ridge", theme.bg, belowSpace)
-                else assertEquals("${colour.id} follows White's open bottom", theme.bg, belowSpace)
+                assertEquals("${colour.id} has no rim under the bottom row", theme.bg, bmp.getPixel(width / 2, ridgeY))
                 val middleOfKey = bar.height + key(keyboard, 0, 0).centerY().toInt()
                 assertEquals("${colour.id} has no left border", theme.bg, bmp.getPixel(0, middleOfKey))
                 assertEquals("${colour.id} has no right border", theme.bg, bmp.getPixel(width - 1, middleOfKey))
