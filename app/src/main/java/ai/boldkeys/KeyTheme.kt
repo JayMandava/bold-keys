@@ -74,6 +74,7 @@ class KeyTheme(val colour: KeyColour) {
     val padBottom = when { oceanDrive -> 0xFF1B1531.toInt(); ivory -> 0xFFE6DFCF.toInt(); colouredFrame -> 0xFF19191C.toInt(); dark -> 0xFF171c22.toInt(); else -> 0xFFe3e6ea.toInt() }
     val pillTop = when { oceanDrive -> 0xFF302544.toInt(); ivory -> 0xFFF8F4EA.toInt(); colouredFrame -> 0xFF303033.toInt(); dark -> 0xFF2b323b.toInt(); else -> 0xFFf6f7f9.toInt() }
     val pillBottom = when { oceanDrive -> 0xFF1A132B.toInt(); ivory -> 0xFFE4DDCC.toInt(); colouredFrame -> 0xFF141416.toInt(); dark -> 0xFF12161b.toInt(); else -> 0xFFdde0e5.toInt() }
+    val barBackground = if (oceanDrive) pillTop else bg
     val barText = legend
     val barText2 = when { oceanDrive -> 0xFFD0BBD9.toInt(); ivory -> 0xFF5E5748.toInt(); dark -> 0xFFB4B8BE.toInt(); else -> 0xFF565c64.toInt() }
     val divider = if (dark) 0x22FFFFFF else 0x26000000

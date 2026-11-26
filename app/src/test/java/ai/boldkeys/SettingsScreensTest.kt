@@ -1,6 +1,7 @@
 package ai.boldkeys
 
 import android.content.Context
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
@@ -92,6 +93,19 @@ class SettingsScreensTest {
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Selected"))
         oceanDrive.performScrollTo().performClick()
         violet.performScrollTo().assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Selected"))
+    }
+
+    @Test fun appearanceOffersAnEditorAsSoonAsThisBuildIsSelected() {
+        val context = activity.get()
+        val resolver = context.contentResolver
+        Settings.Secure.putString(resolver, Settings.Secure.DEFAULT_INPUT_METHOD, "other.keyboard/.Service")
+        open("Appearance")
+        compose.onNodeWithText("Enable keyboard").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Type here").assertDoesNotExist()
+
+        Settings.Secure.putString(resolver, Settings.Secure.DEFAULT_INPUT_METHOD, "${context.packageName}/ai.boldkeys.BoldKeysService")
+        compose.onNodeWithText("Type here").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Enable keyboard").assertDoesNotExist()
     }
 
     @Test fun aboutDisclosesNetworkExceptionBeforePrivacyHelpIsExpanded() {

@@ -7,7 +7,10 @@ import android.widget.LinearLayout
 import android.widget.Toast
 import android.content.Context
 import android.content.Intent
+import android.database.ContentObserver
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.view.inputmethod.InputMethodManager
 import androidx.activity.ComponentActivity
@@ -28,12 +31,14 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -88,6 +93,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -116,6 +122,29 @@ private fun imeState(context: Context): Pair<Boolean, Boolean> {
     val enabled = imm.enabledInputMethodList.any { it.packageName == context.packageName }
     val current = Settings.Secure.getString(context.contentResolver, Settings.Secure.DEFAULT_INPUT_METHOD)?.startsWith(context.packageName + "/") == true
     return enabled to current
+}
+
+@Composable
+private fun rememberImeState(): Pair<Boolean, Boolean> {
+    val context = LocalContext.current
+    val owner = LocalLifecycleOwner.current
+    var state by remember(context) { mutableStateOf(imeState(context)) }
+    DisposableEffect(context, owner) {
+        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) { state = imeState(context) }
+        }
+        val lifecycleObserver = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) state = imeState(context)
+        }
+        val resolver = context.contentResolver
+        resolver.registerContentObserver(Settings.Secure.getUriFor(Settings.Secure.DEFAULT_INPUT_METHOD), false, observer)
+        owner.lifecycle.addObserver(lifecycleObserver)
+        onDispose {
+            resolver.unregisterContentObserver(observer)
+            owner.lifecycle.removeObserver(lifecycleObserver)
+        }
+    }
+    return state
 }
 
 // ---- the personal dictionary lives in one small file the keyboard reads: word, a tab, how many times it was typed
@@ -219,13 +248,7 @@ private fun NavRow(title: String, subtitle: String, onClick: () -> Unit) {
 @Composable
 private fun StatusCards() {
     val context = LocalContext.current
-    var tick by remember { mutableIntStateOf(0) }
-    val owner = LocalLifecycleOwner.current
-    DisposableEffect(owner) {
-        val o = LifecycleEventObserver { _, e -> if (e == Lifecycle.Event.ON_RESUME) tick++ }
-        owner.lifecycle.addObserver(o); onDispose { owner.lifecycle.removeObserver(o) }
-    }
-    val (enabled, current) = remember(tick) { imeState(context) }
+    val (enabled, current) = rememberImeState()
     val ready = enabled && current
     val bg by animateColorAsState(if (ready) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.tertiaryContainer, label = "hero")
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -260,7 +283,7 @@ private fun StatusCards() {
                     headlineContent = { Text(if (current) "This keyboard is selected" else "Switch to this keyboard") },
                     trailingContent = {
                         if (current) Text("✓", color = MaterialTheme.colorScheme.primary, fontSize = 20.sp)
-                        else FilledTonalButton(enabled = enabled, onClick = { (context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).showInputMethodPicker(); tick++ }) { Text("Switch") }
+                        else FilledTonalButton(enabled = enabled, onClick = { context.getSystemService(InputMethodManager::class.java)?.showInputMethodPicker() }) { Text("Switch") }
                     },
                 )
             }
@@ -269,16 +292,28 @@ private fun StatusCards() {
 }
 
 @Composable
-private fun TryCard() {
+private fun TryCard(requireThisKeyboard: Boolean = false) {
+    val context = LocalContext.current
+    val (enabled, current) = if (requireThisKeyboard) rememberImeState() else true to true
     var text by rememberSaveable { mutableStateOf("") }
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp)) {
         Column(Modifier.padding(16.dp)) {
             Text("Try it", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(8.dp))
-            OutlinedTextField(
-                value = text, onValueChange = { text = it }, modifier = Modifier.fillMaxWidth(), minLines = 3, shape = RoundedCornerShape(20.dp),
-                placeholder = { Text("Type here") }, keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-            )
+            if (current) {
+                OutlinedTextField(
+                    value = text, onValueChange = { text = it }, modifier = Modifier.fillMaxWidth(), minLines = 3, shape = RoundedCornerShape(20.dp),
+                    placeholder = { Text("Type here") }, keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                )
+            } else {
+                val name = remember(context) { context.applicationInfo.loadLabel(context.packageManager) }
+                Text("Select $name to type with this theme.", style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.height(8.dp))
+                FilledTonalButton(onClick = {
+                    if (enabled) context.getSystemService(InputMethodManager::class.java)?.showInputMethodPicker()
+                    else context.startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
+                }) { Text(if (enabled) "Switch keyboard" else "Enable keyboard") }
+            }
         }
     }
 }
@@ -452,6 +487,8 @@ private fun AppearanceContent(context: Context) {
         android.content.res.Configuration.UI_MODE_NIGHT_YES
     val colour = KeyColour.resolve(theme, systemDark)
     val color = remember(colour, version) { Prefs.backlightColor(context, colour) }
+    val focus = LocalFocusManager.current
+    val imeVisible = WindowInsets.isImeVisible
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -466,13 +503,19 @@ private fun AppearanceContent(context: Context) {
             )
         }
         Section("Key colour") {
-            ChoiceFlow(KeyColour.choices, theme) { key -> theme = key; Prefs.put(context, "theme", key); version++ }
+            ChoiceFlow(KeyColour.choices, theme) { key ->
+                if (key != theme && imeVisible) focus.clearFocus()
+                theme = key
+                Prefs.put(context, "theme", key)
+                version++
+            }
             Note(if (theme == "auto") "Match phone follows the system's light or dark setting."
                 else KeyColour.resolve(theme).inspiration)
             if (theme in setOf("red", "black_gold", "white_gold")) {
                 Note("Independent colour tribute; not affiliated with or endorsed by BlackBerry.")
             }
         }
+        TryCard(requireThisKeyboard = true)
         Section("Key size") {
             val options = listOf("small" to "Small", "normal" to "Normal", "large" to "Large", "xlarge" to "XL")
             ChoiceFlow(options, keySize) { key -> keySize = key; Prefs.put(context, "keySize", key); version++ }

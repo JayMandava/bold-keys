@@ -83,8 +83,8 @@ class KeyThemeTest {
             val th = KeyTheme(colour)
             val base = Color.rgb(th.base[0].toInt(), th.base[1].toInt(), th.base[2].toInt())
             assertTrue("${colour.id} legends", contrast(th.legend, base) >= 4.5)
-            assertTrue("${colour.id} primary suggestions", contrast(th.barText, th.bg) >= 4.5)
-            assertTrue("${colour.id} secondary suggestions", contrast(th.barText2, th.bg) >= 4.5)
+            assertTrue("${colour.id} primary suggestions", contrast(th.barText, th.barBackground) >= 4.5)
+            assertTrue("${colour.id} secondary suggestions", contrast(th.barText2, th.barBackground) >= 4.5)
             assertTrue("${colour.id} selected accent", contrast(Color.WHITE, th.selection) >= 4.5)
             assertTrue("${colour.id} picker", contrast(th.legend, th.padTop) >= 4.5)
             assertTrue("${colour.id} volume indicator", contrast(th.indicator, if (th.dark) Color.BLACK else Color.WHITE) >= 3.0)
@@ -164,7 +164,8 @@ class KeyThemeTest {
             for (width in listOf(400, 800)) for (colour in KeyColour.entries) {
                 Prefs.put(activity, "theme", colour.id)
                 keyboard.applySettings(); keyboard.resetPicker()
-                bar.applyTheme(Prefs.keyTheme(activity))
+                val theme = Prefs.keyTheme(activity)
+                bar.applyTheme(theme)
                 layout(keyboard, width); layout(bar, width)
                 val bmp = Bitmap.createBitmap(width, keyboard.height + bar.height, Bitmap.Config.ARGB_8888)
                 val canvas = Canvas(bmp)
@@ -172,11 +173,16 @@ class KeyThemeTest {
                 canvas.save(); canvas.translate(0f, bar.height.toFloat())
                 // ViewGroup clips each child. drawColor ignores translation without this clip.
                 canvas.clipRect(0, 0, width, keyboard.height); keyboard.draw(canvas); canvas.restore()
-                assertNotEquals("Trackpad must render above the keys", Prefs.keyTheme(activity).bg, bmp.getPixel(width / 2, bar.height / 2))
+                assertEquals("The suggestion strip uses the theme's surface", theme.barBackground, bmp.getPixel(1, 1))
+                assertNotEquals("Trackpad must render above the keys", theme.barBackground, bmp.getPixel(width / 2, bar.height / 2))
                 for (x in listOf(width / 4, width / 2, width * 3 / 4)) {
                     assertEquals("${colour.id}: no extra straight border below the trackpad",
                         Prefs.keyTheme(activity).bg, bmp.getPixel(x, bar.height))
                 }
+                val ridgeY = bar.height + (key(keyboard, 3, 2).bottom + 5.5f).toInt()
+                val belowSpace = bmp.getPixel(width / 2, ridgeY)
+                if (colour == KeyColour.BLACK) assertNotEquals("Black keeps its original bottom ridge", theme.bg, belowSpace)
+                else assertEquals("${colour.id} has no duplicate bottom ridge", theme.bg, belowSpace)
                 File(output, "${colour.id}-$width.png").outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
                 val pixels = IntArray(width * bmp.height); bmp.getPixels(pixels, 0, width, 0, 0, width, bmp.height)
                 images += pixels.contentHashCode()

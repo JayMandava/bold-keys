@@ -309,9 +309,10 @@ class KeyboardView(
             line.shader = null
         }
         if (picker != Picker.NONE) { drawPicker(canvas); accessibility.drawFocus(canvas); return } // picker replaces keys, preserving accessibility focus
-        // the silver ridges above, between and below the rows, following the same smile as the keys
+        // Framed palettes already have a bottom rim. The original black palette uses a final ridge.
         canvas.save(); canvas.clipPath(body)
-        for (r in 0..cells.size) if (r < cells.size || th.dark) drawRidge(canvas, padTop + r * (keyH + rowGap) - rowGap / 2)
+        val ridgeCount = if (th.dark && !th.hasColouredFrame) cells.size + 1 else cells.size
+        for (r in 0 until ridgeCount) drawRidge(canvas, padTop + r * (keyH + rowGap) - rowGap / 2)
         canvas.restore()
         val down = pressed.values.toSet()
         for (row in cells) for (c in row) drawKey(canvas, c, c in down || latched(c.key))

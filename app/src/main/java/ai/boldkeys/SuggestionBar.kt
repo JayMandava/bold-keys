@@ -102,7 +102,7 @@ class SuggestionBar(context: Context, private val feedback: Feedback, private va
     }
 
     override fun onDraw(canvas: Canvas) {
-        canvas.drawColor(th.bg)
+        canvas.drawColor(th.barBackground)
         val p = padRect()
         // the words
         val slotW = p.left - dp(8f)
