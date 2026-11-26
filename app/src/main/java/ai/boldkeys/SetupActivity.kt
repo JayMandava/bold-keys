@@ -3,6 +3,7 @@
 package ai.boldkeys
 
 import android.content.ActivityNotFoundException
+import android.widget.LinearLayout
 import android.widget.Toast
 import android.content.Context
 import android.content.Intent
@@ -411,6 +412,32 @@ private fun androidx.compose.foundation.lazy.LazyListScope.lookItems(context: Co
     item(key = "look") { AppearanceContent(context) }
 }
 
+/** The same trackpad and keys as the IME, with no editor or autofill session. */
+private class AppearanceKeyboard(context: Context) : LinearLayout(context), KeyboardView.Listener, SuggestionBar.Listener {
+    private val feedback = Feedback(context)
+    private val keys = KeyboardView(context, feedback, this, preview = true).apply { personalizedLearningAllowed = false }
+    private val bar = SuggestionBar(context, feedback, this, keys::isShiftHeld)
+
+    init {
+        orientation = VERTICAL
+        addView(bar, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
+        addView(keys, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
+    }
+
+    fun applySettings() {
+        keys.applySettings()
+        bar.applyTheme(Prefs.keyTheme(context))
+    }
+
+    override fun onText(text: String) = Unit
+    override fun onDelete() = Unit
+    override fun onEnter() = Unit
+    override fun onPick(index: Int) = Unit
+    override fun onMove(dx: Int, dy: Int, select: Boolean) {
+        if (keys.pickerOpen()) keys.pickerScroll(dx, dy)
+    }
+}
+
 @Composable
 private fun AppearanceContent(context: Context) {
     var theme by remember { mutableStateOf(Prefs.theme(context)) }
@@ -434,13 +461,7 @@ private fun AppearanceContent(context: Context) {
         ) {
             AndroidView(
                 modifier = Modifier.fillMaxWidth().padding(12.dp),
-                factory = { c ->
-                    KeyboardView(c, Feedback(c), object : KeyboardView.Listener {
-                        override fun onText(text: String) = Unit
-                        override fun onDelete() = Unit
-                        override fun onEnter() = Unit
-                    }, preview = true)
-                },
+                factory = ::AppearanceKeyboard,
                 update = { v -> version; v.applySettings() },
             )
         }

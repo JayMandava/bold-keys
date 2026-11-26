@@ -123,7 +123,10 @@ class KeyThemeTest {
                 layout(keyboard, 304)
                 val bitmap = Bitmap.createBitmap(keyboard.width, keyboard.height, Bitmap.Config.ARGB_8888)
                 keyboard.draw(Canvas(bitmap))
-                assertEquals(KeyTheme(colour).bg, bitmap.getPixel(keyboard.width / 2, 0))
+                val background = KeyTheme(colour).bg
+                assertEquals(background, bitmap.getPixel(keyboard.width / 2, 0))
+                assertEquals("The left trim starts at the first ridge", background, bitmap.getPixel(0, 0))
+                assertEquals("The right trim starts at the first ridge", background, bitmap.getPixel(keyboard.width - 1, 0))
                 val corner = if (preview) Color.TRANSPARENT else Color.BLACK
                 assertEquals(corner, bitmap.getPixel(0, keyboard.height - 1))
                 assertEquals(corner, bitmap.getPixel(keyboard.width - 1, keyboard.height - 1))

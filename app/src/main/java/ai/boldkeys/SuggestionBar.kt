@@ -29,7 +29,11 @@ class SuggestionBar(context: Context, private val feedback: Feedback, private va
     private fun dp(v: Float) = v * d
 
     private var th = KeyTheme(true)
-    fun applyTheme(theme: KeyTheme) { th = theme; invalidate() }
+    fun applyTheme(theme: KeyTheme) {
+        if (th.colour == theme.colour) return
+        th = theme
+        invalidate()
+    }
 
     internal var inlineAutofillVisible = false
         set(value) { field = value; accessibilityGeneration++; invalidate() }
