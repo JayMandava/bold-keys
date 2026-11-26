@@ -426,15 +426,20 @@ private fun AppearanceContent(context: Context) {
     val colour = KeyColour.resolve(theme, systemDark)
     val color = remember(colour, version) { Prefs.backlightColor(context, colour) }
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp)) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        ) {
             AndroidView(
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)),
+                modifier = Modifier.fillMaxWidth().padding(12.dp),
                 factory = { c ->
                     KeyboardView(c, Feedback(c), object : KeyboardView.Listener {
                         override fun onText(text: String) = Unit
                         override fun onDelete() = Unit
                         override fun onEnter() = Unit
-                    })
+                    }, preview = true)
                 },
                 update = { v -> version; v.applySettings() },
             )

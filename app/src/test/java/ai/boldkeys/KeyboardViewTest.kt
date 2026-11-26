@@ -395,6 +395,31 @@ class KeyboardViewTest {
     }
     @Test
     @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun changingBacklightReusesRenderedKeyFaces() {
+        Prefs.put(activity, "backlight", "on")
+        keyboard.applySettings()
+        val bitmap = Bitmap.createBitmap(keyboard.width, keyboard.height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        keyboard.draw(canvas)
+        val faces = field(keyboard, "faces") as Map<*, *>
+        val original = faces.toMap()
+        assertTrue(original.isNotEmpty())
+
+        Prefs.put(activity, "backlightLevel", 0.9f)
+        keyboard.applySettings()
+        keyboard.draw(canvas)
+        assertEquals(original.keys, faces.keys)
+        for ((key, face) in original) assertSame(face, faces[key])
+
+        Prefs.put(activity, "theme", KeyColour.OCEAN_DRIVE.id)
+        keyboard.applySettings()
+        assertTrue(faces.isEmpty())
+        keyboard.draw(canvas)
+        assertTrue(faces.isNotEmpty())
+    }
+
+    @Test
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
     fun oceanDriveUsesNeonBacklightAndCoralVoiceOutlineEvenWithBacklightOff() {
         Prefs.put(activity, "theme", KeyColour.OCEAN_DRIVE.id)
         Prefs.put(activity, "backlightColor", "amber")

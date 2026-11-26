@@ -38,7 +38,12 @@ private const val SHIFT_HOLD_MS = 450L
  * curve gently like a smile, thin silver ridges between the rows, light condensed legends with the Alt symbol printed small in the corner.
  * Keys act the moment a finger lands and several fingers can type at once, so quick typing never drops a letter.
  */
-class KeyboardView(context: Context, private val feedback: Feedback, private val listener: Listener) : View(context) {
+class KeyboardView(
+    context: Context,
+    private val feedback: Feedback,
+    private val listener: Listener,
+    private val preview: Boolean = false,
+) : View(context) {
     /** Controlled by the active editor: incognito and sensitive fields never update emoji history. */
     var personalizedLearningAllowed = true
 
@@ -108,8 +113,12 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
     /** Reads the look and behaviour the user chose; called whenever the keyboard is shown. */
     fun applySettings() {
         val c = context
-        th = Prefs.keyTheme(c)
-        updateFrameShader()
+        val theme = Prefs.keyTheme(c)
+        if (theme.colour != th.colour) {
+            th = theme
+            updateFrameShader()
+            faces.clear()
+        }
         emojiKey = Prefs.emojiPages(c)
         currency = Prefs.currency(c)
         volumeSlide = Prefs.volumeSlide(c)
@@ -122,7 +131,6 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
         accentMap = Layouts.accentsFor(Prefs.language(c))
         if (layout != layoutId) { layoutId = layout; rebuild() }
         updateGlow()
-        faces.clear()
         if (picker == Picker.EMOJI && !emojiKey) closePicker()
         invalidate()
     }
@@ -288,7 +296,8 @@ class KeyboardView(context: Context, private val feedback: Feedback, private val
     }
 
     override fun onDraw(canvas: Canvas) {
-        canvas.drawColor(0xFF000000.toInt()) // below the curve: the same black as the navigation bar
+        // The live keyboard meets the black navigation bar. The preview sits on the card's surface.
+        if (!preview) canvas.drawColor(0xFF000000.toInt())
         fill.shader = null; fill.color = th.bg
         canvas.drawPath(body, fill)
         if (th.hasColouredFrame) {

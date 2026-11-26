@@ -108,6 +108,30 @@ class KeyThemeTest {
     }
 
     @Test @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun appearancePreviewShowsTheCardSurfaceOutsideTheKeyboardOutline() {
+        val context = RuntimeEnvironment.getApplication()
+        val listener = object : KeyboardView.Listener {
+            override fun onText(text: String) = Unit
+            override fun onDelete() = Unit
+            override fun onEnter() = Unit
+        }
+        for (colour in listOf(KeyColour.BLACK, KeyColour.WHITE, KeyColour.OCEAN_DRIVE)) {
+            Prefs.put(context, "theme", colour.id)
+            for (preview in listOf(false, true)) {
+                val keyboard = KeyboardView(context, Feedback(context), listener, preview = preview)
+                keyboard.applySettings()
+                layout(keyboard, 304)
+                val bitmap = Bitmap.createBitmap(keyboard.width, keyboard.height, Bitmap.Config.ARGB_8888)
+                keyboard.draw(Canvas(bitmap))
+                assertEquals(KeyTheme(colour).bg, bitmap.getPixel(keyboard.width / 2, 0))
+                val corner = if (preview) Color.TRANSPARENT else Color.BLACK
+                assertEquals(corner, bitmap.getPixel(0, keyboard.height - 1))
+                assertEquals(corner, bitmap.getPixel(keyboard.width - 1, keyboard.height - 1))
+            }
+        }
+    }
+
+    @Test @GraphicsMode(GraphicsMode.Mode.NATIVE)
     fun everyPaletteRendersAndKeepsTypingModifiersDeletePickersAndTrackpad() {
         val controller = Robolectric.buildActivity(Activity::class.java).setup()
         val activity = controller.get()
