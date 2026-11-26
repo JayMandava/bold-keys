@@ -116,7 +116,6 @@ class KeyboardView(
         val theme = Prefs.keyTheme(c)
         if (theme.colour != th.colour) {
             th = theme
-            updateFrameShader()
             faces.clear()
         }
         emojiKey = Prefs.emojiPages(c)
@@ -233,38 +232,25 @@ class KeyboardView(
         setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), h)
     }
 
-    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) { faces.clear(); buildBody(); updateFrameShader(); rebuild() }
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) { faces.clear(); buildBody(); rebuild() }
 
     /** The keyboard's body: it ends in the same smile as the rows, with rounded corners, so it meets the black navigation bar as one curved shape. */
     private val body = Path()
-    private val frame = Path()
-    private var frameShader: Shader? = null
-    private fun updateFrameShader() {
-        frameShader = if (th.hasColouredFrame && height > 0)
-            LinearGradient(0f, 0f, 0f, height.toFloat(), th.trimHighlight, th.trimShadow, Shader.TileMode.CLAMP)
-        else null
-    }
     private fun ridgeY(y0: Float, x: Float): Float { val t = x / width; return y0 + 4f * smile * t * (1f - t) }
 
     private fun buildBody() {
         body.reset()
-        frame.reset()
         if (width == 0) return
         val w = width.toFloat()
         val y0 = padTop + 4 * (keyH + rowGap) - rowGap / 2 + dp(2.5f) // just under the last silver ridge
         val r = dp(20f)
-        val firstRidge = padTop - rowGap / 2
-        body.moveTo(w, firstRidge)
+        body.moveTo(w, 0f)
         body.lineTo(w, y0 - r)
         body.quadTo(w, ridgeY(y0, w - r * 0.35f), w - r, ridgeY(y0, w - r))
         var x = w - r
         while (x > r) { x -= w / 24f; body.lineTo(x.coerceAtLeast(r), ridgeY(y0, x.coerceAtLeast(r))) }
         body.quadTo(0f, ridgeY(y0, r * 0.35f), 0f, y0 - r)
-        body.lineTo(0f, firstRidge)
-        // The upper ridge closes the frame. Only the background continues to the trackpad strip.
-        frame.set(body)
         body.lineTo(0f, 0f)
-        body.lineTo(w, 0f)
         body.close()
     }
 
@@ -302,16 +288,10 @@ class KeyboardView(
         if (!preview) canvas.drawColor(0xFF000000.toInt())
         fill.shader = null; fill.color = th.bg
         canvas.drawPath(body, fill)
-        if (th.hasColouredFrame) {
-            line.strokeWidth = dp(2.2f)
-            line.shader = frameShader
-            canvas.drawPath(frame, line)
-            line.shader = null
-        }
         if (picker != Picker.NONE) { drawPicker(canvas); accessibility.drawFocus(canvas); return } // picker replaces keys, preserving accessibility focus
-        // Framed palettes already have a bottom rim. The original black palette uses a final ridge.
+        // Dark themes follow the original Black separator layout, light themes follow White.
         canvas.save(); canvas.clipPath(body)
-        val ridgeCount = if (th.dark && !th.hasColouredFrame) cells.size + 1 else cells.size
+        val ridgeCount = cells.size + if (th.dark) 1 else 0
         for (r in 0 until ridgeCount) drawRidge(canvas, padTop + r * (keyH + rowGap) - rowGap / 2)
         canvas.restore()
         val down = pressed.values.toSet()
@@ -341,7 +321,7 @@ class KeyboardView(
         line.shader = null
         line.strokeWidth = dp(1.6f); line.color = 0xFF000000.toInt()
         canvas.save(); canvas.translate(0f, dp(1.5f)); canvas.drawPath(p, line); canvas.restore()
-        line.strokeWidth = dp(th.ridgeWidth)
+        line.strokeWidth = dp(1.5f)
         line.shader = LinearGradient(0f, 0f, width.toFloat(), 0f, th.ridgeColours, null, Shader.TileMode.CLAMP)
         canvas.drawPath(p, line)
         line.shader = null

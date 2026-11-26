@@ -125,8 +125,8 @@ class KeyThemeTest {
                 keyboard.draw(Canvas(bitmap))
                 val background = KeyTheme(colour).bg
                 assertEquals(background, bitmap.getPixel(keyboard.width / 2, 0))
-                assertEquals("The left trim starts at the first ridge", background, bitmap.getPixel(0, 0))
-                assertEquals("The right trim starts at the first ridge", background, bitmap.getPixel(keyboard.width - 1, 0))
+                assertEquals("The left top corner has an open edge", background, bitmap.getPixel(0, 0))
+                assertEquals("The right top corner has an open edge", background, bitmap.getPixel(keyboard.width - 1, 0))
                 val corner = if (preview) Color.TRANSPARENT else Color.BLACK
                 assertEquals(corner, bitmap.getPixel(0, keyboard.height - 1))
                 assertEquals(corner, bitmap.getPixel(keyboard.width - 1, keyboard.height - 1))
@@ -181,8 +181,11 @@ class KeyThemeTest {
                 }
                 val ridgeY = bar.height + (key(keyboard, 3, 2).bottom + 5.5f).toInt()
                 val belowSpace = bmp.getPixel(width / 2, ridgeY)
-                if (colour == KeyColour.BLACK) assertNotEquals("Black keeps its original bottom ridge", theme.bg, belowSpace)
-                else assertEquals("${colour.id} has no duplicate bottom ridge", theme.bg, belowSpace)
+                if (theme.dark) assertNotEquals("${colour.id} follows Black's final ridge", theme.bg, belowSpace)
+                else assertEquals("${colour.id} follows White's open bottom", theme.bg, belowSpace)
+                val middleOfKey = bar.height + key(keyboard, 0, 0).centerY().toInt()
+                assertEquals("${colour.id} has no left border", theme.bg, bmp.getPixel(0, middleOfKey))
+                assertEquals("${colour.id} has no right border", theme.bg, bmp.getPixel(width - 1, middleOfKey))
                 File(output, "${colour.id}-$width.png").outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
                 val pixels = IntArray(width * bmp.height); bmp.getPixels(pixels, 0, width, 0, 0, width, bmp.height)
                 images += pixels.contentHashCode()
