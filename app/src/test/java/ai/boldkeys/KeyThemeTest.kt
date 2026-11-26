@@ -83,8 +83,8 @@ class KeyThemeTest {
             val th = KeyTheme(colour)
             val base = Color.rgb(th.base[0].toInt(), th.base[1].toInt(), th.base[2].toInt())
             assertTrue("${colour.id} legends", contrast(th.legend, base) >= 4.5)
-            assertTrue("${colour.id} primary suggestions", contrast(th.barText, th.barBackground) >= 4.5)
-            assertTrue("${colour.id} secondary suggestions", contrast(th.barText2, th.barBackground) >= 4.5)
+            assertTrue("${colour.id} primary suggestions", contrast(th.barText, th.bg) >= 4.5)
+            assertTrue("${colour.id} secondary suggestions", contrast(th.barText2, th.bg) >= 4.5)
             assertTrue("${colour.id} selected accent", contrast(Color.WHITE, th.selection) >= 4.5)
             assertTrue("${colour.id} picker", contrast(th.legend, th.padTop) >= 4.5)
             assertTrue("${colour.id} volume indicator", contrast(th.indicator, if (th.dark) Color.BLACK else Color.WHITE) >= 3.0)
@@ -132,7 +132,7 @@ class KeyThemeTest {
                 val corner = if (preview) Color.TRANSPARENT else Color.BLACK
                 assertEquals(corner, bitmap.getPixel(0, keyboard.height - 1))
                 assertEquals(corner, bitmap.getPixel(keyboard.width - 1, keyboard.height - 1))
-                if (preview) {
+                if (preview && !KeyTheme(colour).classic) {
                     for (y in keyboard.height - 16 until keyboard.height) for (x in 0..4) {
                         val left = Color.alpha(bitmap.getPixel(x, y))
                         val right = Color.alpha(bitmap.getPixel(keyboard.width - 1 - x, y))
@@ -183,21 +183,23 @@ class KeyThemeTest {
                 canvas.save(); canvas.translate(0f, bar.height.toFloat())
                 // ViewGroup clips each child. drawColor ignores translation without this clip.
                 canvas.clipRect(0, 0, width, keyboard.height); keyboard.draw(canvas); canvas.restore()
-                assertEquals("The suggestion strip uses the theme's surface", theme.barBackground, bmp.getPixel(1, 1))
-                assertNotEquals("Trackpad must render above the keys", theme.barBackground, bmp.getPixel(width / 2, bar.height / 2))
+                assertEquals("The suggestion strip uses the theme's surface", theme.bg, bmp.getPixel(1, 1))
+                assertNotEquals("Trackpad must render above the keys", theme.bg, bmp.getPixel(width / 2, bar.height / 2))
                 for (x in listOf(width / 4, width / 2, width * 3 / 4)) {
-                    assertEquals("${colour.id}: no extra straight border below the trackpad",
-                        Prefs.keyTheme(activity).bg, bmp.getPixel(x, bar.height))
+                    for (y in bar.height - 1..bar.height + 1) {
+                        assertEquals("${colour.id}: the suggestion strip meets the keys without a colour break", theme.bg, bmp.getPixel(x, y))
+                    }
+                }
+                if (colour == KeyColour.OCEAN_DRIVE) {
+                    for (x in listOf(width / 2 - 26, width / 2 + 26)) {
+                        assertEquals("Ocean Drive has a clean suggestion surface beside the trackpad", theme.bg, bmp.getPixel(x, bar.height / 2))
+                    }
                 }
                 val ridgeY = bar.height + (key(keyboard, 3, 2).bottom + 5.5f).toInt()
-                val baseSamples = (ridgeY - 1..ridgeY + 1).map { bmp.getPixel(width / 2, it) }
-                if (theme.bodyBottom == theme.bg) {
-                    assertEquals("${colour.id} has a flat base under the bottom row", listOf(theme.bg, theme.bg, theme.bg), baseSamples)
+                if (colour == KeyColour.BLACK) {
+                    assertNotEquals("Black retains its original bottom separator", theme.bg, bmp.getPixel(width / 2, ridgeY))
                 } else {
-                    assertNotEquals("${colour.id} has a visible base below the keys", theme.bg, baseSamples.last())
-                    for (channel in listOf(Color::red, Color::green, Color::blue)) {
-                        assertTrue("${colour.id} base has a continuous fill, not a rim", baseSamples.map(channel).zipWithNext().all { (a, b) -> b - a in 0..5 })
-                    }
+                    for (y in ridgeY - 1..ridgeY + 1) assertEquals("${colour.id} has a continuous base under the keys", theme.bg, bmp.getPixel(width / 2, y))
                 }
                 val middleOfKey = bar.height + key(keyboard, 0, 0).centerY().toInt()
                 assertEquals("${colour.id} has no left border", theme.bg, bmp.getPixel(0, middleOfKey))

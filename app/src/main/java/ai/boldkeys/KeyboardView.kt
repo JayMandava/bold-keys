@@ -115,9 +115,10 @@ class KeyboardView(
         val c = context
         val theme = Prefs.keyTheme(c)
         if (theme.colour != th.colour) {
+            val bodyChanges = theme.classic != th.classic
             th = theme
             faces.clear()
-            updateBodyShade()
+            if (bodyChanges) buildBody()
         }
         emojiKey = Prefs.emojiPages(c)
         currency = Prefs.currency(c)
@@ -237,20 +238,11 @@ class KeyboardView(
         faces.clear()
         lighting.clear()
         buildBody()
-        updateBodyShade()
         rebuild()
     }
 
     /** The keyboard's body: it ends in the same smile as the rows, with rounded corners, so it meets the black navigation bar as one curved shape. */
     private val body = Path()
-    private var bodyShade: Shader? = null
-
-    private fun updateBodyShade() {
-        bodyShade = if (th.bodyBottom != th.bg && height > 0) {
-            LinearGradient(0f, height - dp(24f), 0f, height - dp(2f), th.bg, th.bodyBottom, Shader.TileMode.CLAMP)
-        } else null
-    }
-
     private fun ridgeY(y0: Float, x: Float): Float { val t = x / width; return y0 + 4f * smile * t * (1f - t) }
 
     private fun buildBody() {
@@ -259,13 +251,22 @@ class KeyboardView(
         val w = width.toFloat()
         val y0 = padTop + 4 * (keyH + rowGap) - rowGap / 2 + dp(2.5f)
         val r = min(dp(20f), w / 2f)
-        val cornerY = ridgeY(y0, r)
-        val centreY = y0 + smile
         body.moveTo(w, 0f)
         body.lineTo(w, y0 - r)
         val cornerControlY = ridgeY(y0, r * 0.35f)
-        body.quadTo(w, cornerControlY, w - r, cornerY)
-        body.quadTo(w / 2f, 2 * centreY - cornerY, r, cornerY)
+        if (th.classic) {
+            body.quadTo(w, ridgeY(y0, w - r * 0.35f), w - r, ridgeY(y0, w - r))
+            var x = w - r
+            while (x > r) {
+                x -= w / 24f
+                val point = x.coerceAtLeast(r)
+                body.lineTo(point, ridgeY(y0, point))
+            }
+        } else {
+            val cornerY = ridgeY(y0, r)
+            body.quadTo(w, cornerControlY, w - r, cornerY)
+            body.quadTo(w / 2f, 2 * (y0 + smile) - cornerY, r, cornerY)
+        }
         body.quadTo(0f, cornerControlY, 0f, y0 - r)
         body.lineTo(0f, 0f)
         body.close()
@@ -303,13 +304,15 @@ class KeyboardView(
     override fun onDraw(canvas: Canvas) {
         // The live keyboard meets the black navigation bar. The preview sits on the card's surface.
         if (!preview) canvas.drawColor(0xFF000000.toInt())
-        fill.shader = bodyShade; fill.color = th.bg
+        fill.shader = null; fill.color = th.bg
         canvas.drawPath(body, fill)
-        fill.shader = null
         if (picker != Picker.NONE) { drawPicker(canvas); accessibility.drawFocus(canvas); return } // picker replaces keys, preserving accessibility focus
-        // The rounded body also contains the key shadows and backlight at both bottom corners.
-        canvas.save(); canvas.clipPath(body)
-        for (r in cells.indices) drawRidge(canvas, padTop + r * (keyH + rowGap) - rowGap / 2)
+        // Black keeps its original lower separator. The colour editions clip the glow to their shared body.
+        val bodyClip = canvas.save()
+        canvas.clipPath(body)
+        val ridgeCount = cells.size + if (th.colour == KeyColour.BLACK) 1 else 0
+        for (r in 0 until ridgeCount) drawRidge(canvas, padTop + r * (keyH + rowGap) - rowGap / 2)
+        if (th.classic) canvas.restoreToCount(bodyClip)
         val down = pressed.values.toSet()
         for (row in cells) for (c in row) drawKey(canvas, c, c in down || latched(c.key))
         if (picker != Picker.NONE) drawPicker(canvas)
@@ -319,7 +322,7 @@ class KeyboardView(
             voiceOutline.strokeWidth = dp(3f)
             canvas.drawRoundRect(RectF(c.rect).apply { inset(-dp(2f), -dp(2f)) }, dp(7f), dp(7f), voiceOutline)
         }
-        canvas.restore()
+        if (!th.classic) canvas.restoreToCount(bodyClip)
         if (voiceState == VoiceState.TRANSCRIBING && android.animation.ValueAnimator.areAnimatorsEnabled() && isShown) postInvalidateOnAnimation()
         drawAccents(canvas)
         drawVolume(canvas)

@@ -27,22 +27,18 @@ class KeyTheme(val colour: KeyColour) {
     constructor(dark: Boolean) : this(if (dark) KeyColour.BLACK else KeyColour.WHITE)
     val dark = colour.dark
     val oceanDrive = colour == KeyColour.OCEAN_DRIVE
-    private val accentedPalette = colour != KeyColour.BLACK && colour != KeyColour.WHITE
+    val classic = colour == KeyColour.BLACK || colour == KeyColour.WHITE
+    private val accentedPalette = !classic
     private val red = colour == KeyColour.RED
     private val gold = colour == KeyColour.BLACK_GOLD || colour == KeyColour.WHITE_GOLD
     private val ivory = colour == KeyColour.WHITE_GOLD
 
     val bg = when (colour) {
         KeyColour.RED -> 0xFF6E101B.toInt()
-        KeyColour.BLACK_GOLD -> 0xFF14120F.toInt()
+        KeyColour.BLACK_GOLD -> 0xFF352B20.toInt()
         KeyColour.WHITE_GOLD -> 0xFFE5DFD1.toInt()
-        KeyColour.OCEAN_DRIVE -> 0xFF101022.toInt()
+        KeyColour.OCEAN_DRIVE -> 0xFF302544.toInt()
         else -> if (dark) 0xFF000000.toInt() else 0xFFe6e8ec.toInt()
-    }
-    val bodyBottom = when (colour) {
-        KeyColour.BLACK_GOLD -> 0xFF594630.toInt()
-        KeyColour.OCEAN_DRIVE -> 0xFF4C3963.toInt()
-        else -> bg
     }
     val base = when {
         ivory -> floatArrayOf(250f, 247f, 238f)
@@ -79,10 +75,13 @@ class KeyTheme(val colour: KeyColour) {
     val padBottom = when { oceanDrive -> 0xFF1B1531.toInt(); ivory -> 0xFFE6DFCF.toInt(); accentedPalette -> 0xFF19191C.toInt(); dark -> 0xFF171c22.toInt(); else -> 0xFFe3e6ea.toInt() }
     val pillTop = when { oceanDrive -> 0xFF302544.toInt(); ivory -> 0xFFF8F4EA.toInt(); accentedPalette -> 0xFF303033.toInt(); dark -> 0xFF2b323b.toInt(); else -> 0xFFf6f7f9.toInt() }
     val pillBottom = when { oceanDrive -> 0xFF1A132B.toInt(); ivory -> 0xFFE4DDCC.toInt(); accentedPalette -> 0xFF141416.toInt(); dark -> 0xFF12161b.toInt(); else -> 0xFFdde0e5.toInt() }
-    val barBackground = if (oceanDrive) pillTop else bg
     val barText = legend
     val barText2 = when { oceanDrive -> 0xFFD0BBD9.toInt(); ivory -> 0xFF5E5748.toInt(); dark -> 0xFFB4B8BE.toInt(); else -> 0xFF565c64.toInt() }
-    val divider = if (dark) 0x22FFFFFF else 0x26000000
+    val divider = when {
+        oceanDrive -> 0
+        dark -> 0x22FFFFFF
+        else -> 0x26000000
+    }
 
     // The row separators and trackpad ring carry the edition colour.
     private val trimShadow = when { oceanDrive -> 0xFF762956.toInt(); red -> 0xFF6E101B.toInt(); colour == KeyColour.BLACK_GOLD -> 0xFF8B6B2E.toInt(); gold -> 0xFF786020.toInt(); else -> 0xFF8D9197.toInt() }

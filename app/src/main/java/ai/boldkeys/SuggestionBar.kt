@@ -102,7 +102,7 @@ class SuggestionBar(context: Context, private val feedback: Feedback, private va
     }
 
     override fun onDraw(canvas: Canvas) {
-        canvas.drawColor(th.barBackground)
+        canvas.drawColor(th.bg)
         val p = padRect()
         // the words
         val slotW = p.left - dp(8f)
@@ -129,9 +129,11 @@ class SuggestionBar(context: Context, private val feedback: Feedback, private va
         line.strokeWidth = dp(1f); line.color = 0x99000000.toInt()
         canvas.drawRoundRect(inner, dp(6.5f), dp(6.5f), line)
         // faint dividers either side of the pad
-        line.strokeWidth = dp(1f); line.color = th.divider
-        canvas.drawLine(p.left - dp(6f), dp(12f), p.left - dp(6f), height - dp(12f), line)
-        canvas.drawLine(p.right + dp(6f), dp(12f), p.right + dp(6f), height - dp(12f), line)
+        if (th.divider != 0) {
+            line.strokeWidth = dp(1f); line.color = th.divider
+            canvas.drawLine(p.left - dp(6f), dp(12f), p.left - dp(6f), height - dp(12f), line)
+            canvas.drawLine(p.right + dp(6f), dp(12f), p.right + dp(6f), height - dp(12f), line)
+        }
         accessibility.drawFocus(canvas)
     }
 
