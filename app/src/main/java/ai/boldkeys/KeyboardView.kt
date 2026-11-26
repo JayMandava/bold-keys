@@ -119,6 +119,7 @@ class KeyboardView(
             th = theme
             faces.clear()
             if (bodyChanges) buildBody()
+            updateBodyShade()
         }
         emojiKey = Prefs.emojiPages(c)
         currency = Prefs.currency(c)
@@ -238,11 +239,21 @@ class KeyboardView(
         faces.clear()
         lighting.clear()
         buildBody()
+        updateBodyShade()
         rebuild()
     }
 
     /** The keyboard's body: it ends in the same smile as the rows, with rounded corners, so it meets the black navigation bar as one curved shape. */
     private val body = Path()
+    private var bodyShade: Shader? = null
+
+    private fun updateBodyShade() {
+        bodyShade = if (width > 0 && th.bodyBottom != th.bg) {
+            val bottomRowRidge = padTop + 3 * (keyH + rowGap) - rowGap / 2
+            LinearGradient(0f, bottomRowRidge, 0f, height - dp(4f), th.bg, th.bodyBottom, Shader.TileMode.CLAMP)
+        } else null
+    }
+
     private fun ridgeY(y0: Float, x: Float): Float { val t = x / width; return y0 + 4f * smile * t * (1f - t) }
 
     private fun buildBody() {
@@ -304,8 +315,10 @@ class KeyboardView(
     override fun onDraw(canvas: Canvas) {
         // The live keyboard meets the black navigation bar. The preview sits on the card's surface.
         if (!preview) canvas.drawColor(0xFF000000.toInt())
-        fill.shader = null; fill.color = th.bg
+        fill.shader = if (picker == Picker.NONE) bodyShade else null
+        fill.color = th.bg
         canvas.drawPath(body, fill)
+        fill.shader = null
         if (picker != Picker.NONE) { drawPicker(canvas); accessibility.drawFocus(canvas); return } // picker replaces keys, preserving accessibility focus
         // Black keeps its original lower separator. The colour editions clip the glow to their shared body.
         val bodyClip = canvas.save()
@@ -515,15 +528,16 @@ class KeyboardView(
                     drawInk(canvas, if (isCurrencyKey(c.key)) currency else c.key.label, acx, cy + dp(2f))
                 }
                 clearShadow()
-                val sym = secondaryFor(c.row, c.col)
+                val secondary = secondaryFor(c.row, c.col)
+                val symbolLegend = if (th.oceanDrive && secondary == "6") "VI" else secondary
                 val rightSide = r.centerX() > width / 2f // from Y, H and B onward the small symbol sits in the right corner, as printed on the phone
-                if (sym != null && isLetter) {
+                if (symbolLegend != null && isLetter) {
                     small.textSize = dp(11.5f); small.color = th.legend; small.textAlign = Paint.Align.LEFT
                     if (glow > 0.01f) small.setShadowLayer(dp(3.5f), 0f, 0f, glowArgb(glow * 0.8f)) else small.clearShadowLayer()
-                    small.getTextBounds(sym, 0, sym.length, ink)
+                    small.getTextBounds(symbolLegend, 0, symbolLegend.length, ink)
                     val gapEdge = dp(8f) // the same distance from either edge, measured to the glyph itself
                     val x = if (rightSide) t.right - gapEdge - ink.right else t.left + gapEdge - ink.left
-                    canvas.drawText(sym, x, t.top + dp(14f), small)
+                    canvas.drawText(symbolLegend, x, t.top + dp(14f), small)
                 } else if (isCurrencyKey(c.key)) {
                     drawSpeaker(canvas, t.right - dp(15f), t.top + dp(9f))
                 }

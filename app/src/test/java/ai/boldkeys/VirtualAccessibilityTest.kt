@@ -65,6 +65,13 @@ class VirtualAccessibilityTest {
         click(keyboard,"Alt");click(keyboard,"Number sign");assertEquals(listOf("#"),typed)
         click(keyboard,"e",AccessibilityNodeInfo.ACTION_LONG_CLICK);assertTrue(click(keyboard,"é"));assertEquals(listOf("#","é"),typed)
     }
+    @Test fun oceanDriveExposesTheViLegendAsTheNumberSix() {
+        Prefs.put(activity, Prefs.THEME, KeyColour.OCEAN_DRIVE.id)
+        keyboard.applySettings()
+        assertTrue(click(keyboard, "Alt"))
+        assertTrue(click(keyboard, "6"))
+        assertEquals(listOf("6"), typed)
+    }
     @Test fun pickerReplacesKeysAndRejectsStaleActions() {
         val q=node(keyboard,"q").first;click(keyboard,"Symbols")
         assertFalse(provider(keyboard).performAction(q,AccessibilityNodeInfo.ACTION_CLICK,null))

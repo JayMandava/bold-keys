@@ -40,6 +40,7 @@ class KeyTheme(val colour: KeyColour) {
         KeyColour.OCEAN_DRIVE -> 0xFF302544.toInt()
         else -> if (dark) 0xFF000000.toInt() else 0xFFe6e8ec.toInt()
     }
+    val bodyBottom = if (colour == KeyColour.BLACK_GOLD) 0xFF463725.toInt() else bg
     val base = when {
         ivory -> floatArrayOf(250f, 247f, 238f)
         colour == KeyColour.BLACK_GOLD -> floatArrayOf(24f, 24f, 24f)
