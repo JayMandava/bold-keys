@@ -35,7 +35,7 @@ class KeyTheme(val colour: KeyColour) {
 
     val bg = when (colour) {
         KeyColour.RED -> 0xFF6E101B.toInt()
-        KeyColour.BLACK_GOLD -> 0xFF352B20.toInt()
+        KeyColour.BLACK_GOLD -> 0xFF14120F.toInt()
         KeyColour.WHITE_GOLD -> 0xFFE5DFD1.toInt()
         KeyColour.OCEAN_DRIVE -> 0xFF302544.toInt()
         else -> if (dark) 0xFF000000.toInt() else 0xFFe6e8ec.toInt()

@@ -53,6 +53,14 @@ class KeyThemeTest {
         assertEquals(0xFF2F8FE8.toInt(), white.selection)
     }
 
+    @Test fun blackAndGoldKeepsTheOriginalPalette() {
+        val theme = KeyTheme(KeyColour.BLACK_GOLD)
+        assertEquals(0xFF14120F.toInt(), theme.bg)
+        assertArrayEquals(floatArrayOf(24f, 24f, 24f), theme.base, 0f)
+        assertEquals(0xFFF6F0E1.toInt(), theme.legend)
+        assertEquals(0xFFF0DCA6.toInt(), theme.ringTop)
+    }
+
     @Test fun selectionsPersistAcrossContextsAndDoNotFollowSystemUnlessAutomatic() {
         val c = RuntimeEnvironment.getApplication()
         c.getSharedPreferences("bk", 0).edit().clear().commit()
