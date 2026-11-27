@@ -204,7 +204,7 @@ class KeyThemeTest {
                     }
                 }
                 val ridgeY = bar.height + (key(keyboard, 3, 2).bottom + 5.5f).toInt()
-                if (colour == KeyColour.BLACK || colour == KeyColour.BLACK_GOLD) {
+                if (colour == KeyColour.BLACK || colour == KeyColour.BLACK_GOLD || colour == KeyColour.OCEAN_DRIVE) {
                     assertTrue("${colour.id} has a lower rim in its own trim colour",
                         Color.red(bmp.getPixel(width / 2, ridgeY)) > Color.red(theme.bg) + 80)
                 } else {
