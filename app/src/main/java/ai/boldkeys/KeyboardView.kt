@@ -20,6 +20,7 @@ import android.view.KeyEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.MotionEvent
 import android.view.View
+import androidx.core.graphics.ColorUtils
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.max
@@ -518,12 +519,12 @@ class KeyboardView(
                 val secondary = secondaryFor(c.row, c.col)
                 val rightSide = r.centerX() > width / 2f // from Y, H and B onward the small symbol sits in the right corner, as printed on the phone
                 if (secondary != null && isLetter) {
-                    small.textSize = dp(11.5f); small.color = th.legend; small.textAlign = Paint.Align.LEFT
-                    if (glow > 0.01f) small.setShadowLayer(dp(3.5f), 0f, 0f, glowArgb(glow * 0.8f)) else small.clearShadowLayer()
                     val gapEdge = dp(8f) // the same distance from either edge, measured to the glyph itself
                     if (th.oceanDrive && secondary == "6") {
                         drawOceanVi(canvas, t, gapEdge)
                     } else {
+                        small.textSize = dp(11.5f); small.color = th.legend; small.textAlign = Paint.Align.LEFT
+                        if (glow > 0.01f) small.setShadowLayer(dp(3.5f), 0f, 0f, glowArgb(glow * 0.8f)) else small.clearShadowLayer()
                         small.getTextBounds(secondary, 0, secondary.length, ink)
                         val x = if (rightSide) t.right - gapEdge - ink.right else t.left + gapEdge - ink.left
                         canvas.drawText(secondary, x, t.top + dp(14f), small)
@@ -590,24 +591,39 @@ class KeyboardView(
 
     private val oceanVi = Path().apply {
         moveTo(0f, 0f)
-        lineTo(2.15f, 0f)
-        lineTo(4.5f, 6.7f)
-        lineTo(6.85f, 0f)
-        lineTo(9f, 0f)
-        lineTo(4.95f, 10f)
-        lineTo(4.05f, 10f)
+        lineTo(3.1f, 0f)
+        lineTo(5.2f, 5.1f)
+        lineTo(7.3f, 0f)
+        lineTo(10.4f, 0f)
+        lineTo(6.15f, 10.5f)
+        lineTo(4.25f, 10.5f)
         close()
-        addRect(10.8f, 0f, 13.2f, 10f, Path.Direction.CW)
+        addRect(12.3f, 0f, 15.7f, 10.5f, Path.Direction.CW)
+    }
+    private val oceanViStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeJoin = Paint.Join.ROUND
     }
 
     private fun drawOceanVi(canvas: Canvas, face: RectF, leftInset: Float) {
-        val scale = min(dp(1f), (face.width() - leftInset - dp(3f)) / 14f)
+        val scale = min(dp(1f), (face.width() - leftInset - dp(3f)) / 15.7f)
         if (scale <= 0f) return
-        small.color = th.trimHighlight
         val save = canvas.save()
-        canvas.translate(face.left + leftInset, face.top + dp(14f) - 10f * scale)
+        canvas.translate(face.left + leftInset, face.top + dp(14f) - 10.5f * scale)
         canvas.scale(scale, scale)
-        canvas.drawPath(oceanVi, small)
+        // The pink halo stays outside the outline so the key face shows through the centre.
+        val halo = canvas.save()
+        canvas.clipOutPath(oceanVi)
+        oceanViStroke.strokeWidth = 4f
+        oceanViStroke.color = glowArgb(0.17f + glow * 0.09f, th.trimHighlight)
+        canvas.drawPath(oceanVi, oceanViStroke)
+        oceanViStroke.strokeWidth = 2.5f
+        oceanViStroke.color = glowArgb(0.38f + glow * 0.12f, th.trimHighlight)
+        canvas.drawPath(oceanVi, oceanViStroke)
+        canvas.restoreToCount(halo)
+        oceanViStroke.strokeWidth = 1f
+        oceanViStroke.color = ColorUtils.blendARGB(th.trimHighlight, th.legend, 0.56f)
+        canvas.drawPath(oceanVi, oceanViStroke)
         canvas.restoreToCount(save)
     }
 
