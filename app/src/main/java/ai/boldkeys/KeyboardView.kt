@@ -1237,6 +1237,7 @@ class KeyboardView(
             canvas.drawRoundRect(g.grid.right - dp(4f), ty, g.grid.right - dp(0.5f), ty + thumbH, dp(2f), dp(2f), fill)
             if (since >= 700) postInvalidateOnAnimation()
         }
+        legend.color = th.legend
         for ((r, label) in listOf(g.more to "more", g.close to "close")) {
             fill.shader = LinearGradient(0f, r.top, 0f, r.bottom, th.pillTop, th.pillBottom, Shader.TileMode.CLAMP)
             canvas.drawRoundRect(r, dp(17f), dp(17f), fill)

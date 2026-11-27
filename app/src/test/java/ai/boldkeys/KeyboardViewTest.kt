@@ -424,6 +424,32 @@ class KeyboardViewTest {
 
     @Test
     @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun openEmojiPickerRestylesItsButtonsWhenTheThemeChanges() {
+        Prefs.put(activity, Prefs.THEME, KeyColour.OCEAN_DRIVE.id)
+        keyboard.applySettings()
+        tap(speed)
+        assertTrue(keyboard.pickerOpen())
+        val bitmap = Bitmap.createBitmap(keyboard.width, keyboard.height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        keyboard.draw(canvas)
+
+        Prefs.put(activity, Prefs.THEME, KeyColour.WHITE.id)
+        keyboard.applySettings()
+        val close = pickerRect("close")
+        repeat(2) {
+            bitmap.eraseColor(Color.TRANSPARENT)
+            keyboard.draw(canvas)
+            val hasDarkLabel = (-18..18).any { dx ->
+                (-7..7).any { dy ->
+                    Color.red(bitmap.getPixel(close.centerX().toInt() + dx, close.centerY().toInt() + dy)) < 45
+                }
+            }
+            assertTrue("The White picker’s Close label must use the current theme’s dark ink", hasDarkLabel)
+        }
+    }
+
+    @Test
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
     fun oceanDriveUsesNeonBacklightAndCoralVoiceOutlineEvenWithBacklightOff() {
         Prefs.put(activity, "theme", KeyColour.OCEAN_DRIVE.id)
         Prefs.put(activity, "backlightColor", "amber")
