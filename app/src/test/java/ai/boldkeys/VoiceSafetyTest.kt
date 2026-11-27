@@ -142,7 +142,7 @@ class VoiceSafetyTest {
     }
     @Test fun optingOutDiscardsPendingVoiceImmediately() {
         val s = service(); val ic = connection(s); val epoch = pending(s, ic)
-        val listener = ReflectionHelpers.getField<android.content.SharedPreferences.OnSharedPreferenceChangeListener>(s, "voicePreferenceListener")
+        val listener = ReflectionHelpers.getField<android.content.SharedPreferences.OnSharedPreferenceChangeListener>(s, "preferenceListener")
         Prefs.put(s, "voiceTyping", false)
         listener.onSharedPreferenceChanged(s.getSharedPreferences("bk", 0), "voiceTyping")
         shadowOf(android.os.Looper.getMainLooper()).idle()

@@ -3,10 +3,14 @@
 package ai.boldkeys
 
 import android.content.ActivityNotFoundException
+import android.widget.LinearLayout
 import android.widget.Toast
 import android.content.Context
 import android.content.Intent
+import android.database.ContentObserver
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.view.inputmethod.InputMethodManager
 import androidx.activity.ComponentActivity
@@ -95,12 +99,15 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.PlatformImeOptions
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import java.io.File
+
+internal const val APPEARANCE_TEST_IME_OPTION = "ai.boldkeys.appearance_test"
 
 class SetupActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -115,6 +122,29 @@ private fun imeState(context: Context): Pair<Boolean, Boolean> {
     val enabled = imm.enabledInputMethodList.any { it.packageName == context.packageName }
     val current = Settings.Secure.getString(context.contentResolver, Settings.Secure.DEFAULT_INPUT_METHOD)?.startsWith(context.packageName + "/") == true
     return enabled to current
+}
+
+@Composable
+private fun rememberImeState(): Pair<Boolean, Boolean> {
+    val context = LocalContext.current
+    val owner = LocalLifecycleOwner.current
+    var state by remember(context) { mutableStateOf(imeState(context)) }
+    DisposableEffect(context, owner) {
+        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) { state = imeState(context) }
+        }
+        val lifecycleObserver = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) state = imeState(context)
+        }
+        val resolver = context.contentResolver
+        resolver.registerContentObserver(Settings.Secure.getUriFor(Settings.Secure.DEFAULT_INPUT_METHOD), false, observer)
+        owner.lifecycle.addObserver(lifecycleObserver)
+        onDispose {
+            resolver.unregisterContentObserver(observer)
+            owner.lifecycle.removeObserver(lifecycleObserver)
+        }
+    }
+    return state
 }
 
 // ---- the personal dictionary lives in one small file the keyboard reads: word, a tab, how many times it was typed
@@ -218,13 +248,7 @@ private fun NavRow(title: String, subtitle: String, onClick: () -> Unit) {
 @Composable
 private fun StatusCards() {
     val context = LocalContext.current
-    var tick by remember { mutableIntStateOf(0) }
-    val owner = LocalLifecycleOwner.current
-    DisposableEffect(owner) {
-        val o = LifecycleEventObserver { _, e -> if (e == Lifecycle.Event.ON_RESUME) tick++ }
-        owner.lifecycle.addObserver(o); onDispose { owner.lifecycle.removeObserver(o) }
-    }
-    val (enabled, current) = remember(tick) { imeState(context) }
+    val (enabled, current) = rememberImeState()
     val ready = enabled && current
     val bg by animateColorAsState(if (ready) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.tertiaryContainer, label = "hero")
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -259,7 +283,7 @@ private fun StatusCards() {
                     headlineContent = { Text(if (current) "This keyboard is selected" else "Switch to this keyboard") },
                     trailingContent = {
                         if (current) Text("✓", color = MaterialTheme.colorScheme.primary, fontSize = 20.sp)
-                        else FilledTonalButton(enabled = enabled, onClick = { (context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).showInputMethodPicker(); tick++ }) { Text("Switch") }
+                        else FilledTonalButton(enabled = enabled, onClick = { context.getSystemService(InputMethodManager::class.java)?.showInputMethodPicker() }) { Text("Switch") }
                     },
                 )
             }
@@ -268,16 +292,32 @@ private fun StatusCards() {
 }
 
 @Composable
-private fun TryCard() {
+private fun TryCard(requireThisKeyboard: Boolean = false) {
+    val context = LocalContext.current
+    val (enabled, current) = if (requireThisKeyboard) rememberImeState() else true to true
     var text by rememberSaveable { mutableStateOf("") }
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp)) {
         Column(Modifier.padding(16.dp)) {
             Text("Try it", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(8.dp))
-            OutlinedTextField(
-                value = text, onValueChange = { text = it }, modifier = Modifier.fillMaxWidth(), minLines = 3, shape = RoundedCornerShape(20.dp),
-                placeholder = { Text("Type here") }, keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-            )
+            if (current) {
+                OutlinedTextField(
+                    value = text, onValueChange = { text = it }, modifier = Modifier.fillMaxWidth(), minLines = 3, shape = RoundedCornerShape(20.dp),
+                    placeholder = { Text("Type here") },
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Sentences,
+                        platformImeOptions = if (requireThisKeyboard) PlatformImeOptions(APPEARANCE_TEST_IME_OPTION) else null,
+                    ),
+                )
+            } else {
+                val name = remember(context) { context.applicationInfo.loadLabel(context.packageManager) }
+                Text("Select $name to type with this theme.", style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.height(8.dp))
+                FilledTonalButton(onClick = {
+                    if (enabled) context.getSystemService(InputMethodManager::class.java)?.showInputMethodPicker()
+                    else context.startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
+                }) { Text(if (enabled) "Switch keyboard" else "Enable keyboard") }
+            }
         }
     }
 }
@@ -411,12 +451,37 @@ private fun androidx.compose.foundation.lazy.LazyListScope.lookItems(context: Co
     item(key = "look") { AppearanceContent(context) }
 }
 
+/** The same trackpad and keys as the IME, with no editor or autofill session. */
+private class AppearanceKeyboard(context: Context) : LinearLayout(context), KeyboardView.Listener, SuggestionBar.Listener {
+    private val feedback = Feedback(context)
+    private val keys = KeyboardView(context, feedback, this, preview = true).apply { personalizedLearningAllowed = false }
+    private val bar = SuggestionBar(context, feedback, this, keys::isShiftHeld)
+
+    init {
+        orientation = VERTICAL
+        addView(bar, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
+        addView(keys, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
+    }
+
+    fun applySettings() {
+        keys.applySettings()
+        bar.applyTheme(Prefs.keyTheme(context))
+    }
+
+    override fun onText(text: String) = Unit
+    override fun onDelete() = Unit
+    override fun onEnter() = Unit
+    override fun onPick(index: Int) = Unit
+    override fun onMove(dx: Int, dy: Int, select: Boolean) {
+        if (keys.pickerOpen()) keys.pickerScroll(dx, dy)
+    }
+}
+
 @Composable
 private fun AppearanceContent(context: Context) {
     var theme by remember { mutableStateOf(Prefs.theme(context)) }
     var keySize by remember { mutableStateOf(Prefs.keySize(context)) }
     var mode by remember { mutableStateOf(Prefs.backlightMode(context)) }
-    var color by remember { mutableStateOf(Prefs.backlightColor(context)) }
     var level by remember { mutableStateOf(Prefs.backlightLevel(context)) }
     var version by remember { mutableIntStateOf(0) }
     // Observe the selected Compose state here, not only inside the colour card.
@@ -424,29 +489,34 @@ private fun AppearanceContent(context: Context) {
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
     val systemDark = configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK ==
         android.content.res.Configuration.UI_MODE_NIGHT_YES
-    val dark = KeyColour.resolve(theme, systemDark).dark
+    val colour = KeyColour.resolve(theme, systemDark)
+    val color = remember(colour, version) { Prefs.backlightColor(context, colour) }
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp)) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        ) {
             AndroidView(
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)),
-                factory = { c ->
-                    KeyboardView(c, Feedback(c), object : KeyboardView.Listener {
-                        override fun onText(text: String) = Unit
-                        override fun onDelete() = Unit
-                        override fun onEnter() = Unit
-                    })
-                },
+                modifier = Modifier.fillMaxWidth().padding(12.dp),
+                factory = ::AppearanceKeyboard,
                 update = { v -> version; v.applySettings() },
             )
         }
         Section("Key colour") {
-            ChoiceFlow(KeyColour.choices, theme) { key -> theme = key; Prefs.put(context, "theme", key); version++ }
+            ChoiceFlow(KeyColour.choices, theme) { key ->
+                theme = key
+                Prefs.put(context, Prefs.THEME, key)
+                version++
+            }
             Note(if (theme == "auto") "Match phone follows the system's light or dark setting."
                 else KeyColour.resolve(theme).inspiration)
             if (theme in setOf("red", "black_gold", "white_gold")) {
                 Note("Independent colour tribute; not affiliated with or endorsed by BlackBerry.")
             }
         }
+        TryCard(requireThisKeyboard = true)
         Section("Key size") {
             val options = listOf("small" to "Small", "normal" to "Normal", "large" to "Large", "xlarge" to "XL")
             ChoiceFlow(options, keySize) { key -> keySize = key; Prefs.put(context, "keySize", key); version++ }
@@ -456,10 +526,10 @@ private fun AppearanceContent(context: Context) {
             val options = listOf("off" to "Off", "on" to "On", "auto" to "Auto")
             ChoiceFlow(options, mode) { key -> mode = key; Prefs.put(context, "backlight", key); version++ }
             Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                for ((key, rgb) in Prefs.BACKLIGHT_COLORS) {
+                for ((key, rgb) in Prefs.backlightColors(colour)) {
                     Box(
                         Modifier.size(48.dp).clip(CircleShape).background(Color(rgb))
-                            .clickable { color = key; Prefs.put(context, "backlightColor", key); version++ }
+                            .clickable { Prefs.setBacklightColor(context, colour, key); version++ }
                             .semantics {
                                 contentDescription = "$key backlight color"
                                 stateDescription = if (color == key) "Selected" else "Not selected"
@@ -482,7 +552,7 @@ private fun AppearanceContent(context: Context) {
             )
             Note(
                 when {
-                    !dark -> "The backlight glows on dark keys. Choose Black, Red or Black & Gold to see it."
+                    !colour.dark -> "The backlight glows on dark keys. Choose a dark colour to see it."
                     mode == "auto" -> "Glows in the dark and fades in bright light, using the phone's light sensor."
                     mode == "on" -> "Glows all the time."
                     else -> "The letters and the gaps between keys stay unlit."

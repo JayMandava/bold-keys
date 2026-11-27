@@ -30,8 +30,8 @@ class KeyThemeTest {
         assertEquals(KeyColour.BLACK, KeyColour.resolve("auto", true))
         assertEquals(KeyColour.WHITE, KeyColour.resolve("auto", false))
         assertEquals(KeyColour.BLACK, KeyColour.resolve("missing", false))
-        assertEquals(6, KeyColour.choices.size)
-        assertEquals(6, KeyColour.choices.map { it.first }.toSet().size)
+        assertEquals(KeyColour.entries.map { it.id }.toSet() + "auto", KeyColour.choices.map { it.first }.toSet())
+        assertEquals(KeyColour.entries.size + 1, KeyColour.choices.size)
         val c = RuntimeEnvironment.getApplication()
         c.getSharedPreferences("bk", 0).edit().clear().commit()
         assertEquals("dark", Prefs.theme(c))
@@ -51,6 +51,14 @@ class KeyThemeTest {
         assertArrayEquals(black.ridgeColours, white.ridgeColours)
         assertEquals(0xFF2F8FE8.toInt(), black.selection)
         assertEquals(0xFF2F8FE8.toInt(), white.selection)
+    }
+
+    @Test fun blackAndGoldKeepsTheOriginalPalette() {
+        val theme = KeyTheme(KeyColour.BLACK_GOLD)
+        assertEquals(0xFF14120F.toInt(), theme.bg)
+        assertArrayEquals(floatArrayOf(24f, 24f, 24f), theme.base, 0f)
+        assertEquals(0xFFF6F0E1.toInt(), theme.legend)
+        assertEquals(0xFFF0DCA6.toInt(), theme.ringTop)
     }
 
     @Test fun selectionsPersistAcrossContextsAndDoNotFollowSystemUnlessAutomatic() {
@@ -79,7 +87,7 @@ class KeyThemeTest {
     private fun contrast(a: Int, b: Int): Double = listOf(luminance(a), luminance(b)).sorted().let { (it[1] + 0.05) / (it[0] + 0.05) }
 
     @Test fun heritageLegendsAndSuggestionsHaveReadableContrast() {
-        for (colour in listOf(KeyColour.RED, KeyColour.BLACK_GOLD, KeyColour.WHITE_GOLD)) {
+        for (colour in listOf(KeyColour.RED, KeyColour.BLACK_GOLD, KeyColour.WHITE_GOLD, KeyColour.OCEAN_DRIVE)) {
             val th = KeyTheme(colour)
             val base = Color.rgb(th.base[0].toInt(), th.base[1].toInt(), th.base[2].toInt())
             assertTrue("${colour.id} legends", contrast(th.legend, base) >= 4.5)
@@ -105,6 +113,43 @@ class KeyThemeTest {
     private fun layout(view: View, width: Int) {
         view.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED))
         view.layout(0, 0, width, view.measuredHeight)
+    }
+
+    @Test @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun appearancePreviewShowsTheCardSurfaceOutsideTheKeyboardOutline() {
+        val context = RuntimeEnvironment.getApplication()
+        Prefs.put(context, "backlight", "on")
+        Prefs.put(context, "backlightLevel", 1f)
+        val listener = object : KeyboardView.Listener {
+            override fun onText(text: String) = Unit
+            override fun onDelete() = Unit
+            override fun onEnter() = Unit
+        }
+        for (colour in KeyColour.entries) {
+            Prefs.put(context, "theme", colour.id)
+            for (preview in listOf(false, true)) {
+                val keyboard = KeyboardView(context, Feedback(context), listener, preview = preview)
+                keyboard.applySettings()
+                layout(keyboard, 304)
+                val bitmap = Bitmap.createBitmap(keyboard.width, keyboard.height, Bitmap.Config.ARGB_8888)
+                keyboard.draw(Canvas(bitmap))
+                val background = KeyTheme(colour).bg
+                assertEquals(background, bitmap.getPixel(keyboard.width / 2, 0))
+                assertEquals("The left top corner has an open edge", background, bitmap.getPixel(0, 0))
+                assertEquals("The right top corner has an open edge", background, bitmap.getPixel(keyboard.width - 1, 0))
+                val corner = if (preview) Color.TRANSPARENT else Color.BLACK
+                assertEquals(corner, bitmap.getPixel(0, keyboard.height - 1))
+                assertEquals(corner, bitmap.getPixel(keyboard.width - 1, keyboard.height - 1))
+                if (preview && !KeyTheme(colour).classic) {
+                    for (y in keyboard.height - 16 until keyboard.height) for (x in 0..4) {
+                        val left = Color.alpha(bitmap.getPixel(x, y))
+                        val right = Color.alpha(bitmap.getPixel(keyboard.width - 1 - x, y))
+                        // Skia can round fractional edge coverage differently on a mirrored path.
+                        assertTrue("${colour.id} bottom corners are symmetric at $x,$y ($left and $right)", kotlin.math.abs(left - right) <= 8)
+                    }
+                }
+            }
+        }
     }
 
     @Test @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -137,7 +182,8 @@ class KeyThemeTest {
             for (width in listOf(400, 800)) for (colour in KeyColour.entries) {
                 Prefs.put(activity, "theme", colour.id)
                 keyboard.applySettings(); keyboard.resetPicker()
-                bar.applyTheme(Prefs.keyTheme(activity))
+                val theme = Prefs.keyTheme(activity)
+                bar.applyTheme(theme)
                 layout(keyboard, width); layout(bar, width)
                 val bmp = Bitmap.createBitmap(width, keyboard.height + bar.height, Bitmap.Config.ARGB_8888)
                 val canvas = Canvas(bmp)
@@ -145,17 +191,36 @@ class KeyThemeTest {
                 canvas.save(); canvas.translate(0f, bar.height.toFloat())
                 // ViewGroup clips each child. drawColor ignores translation without this clip.
                 canvas.clipRect(0, 0, width, keyboard.height); keyboard.draw(canvas); canvas.restore()
-                assertNotEquals("Trackpad must render above the keys", Prefs.keyTheme(activity).bg, bmp.getPixel(width / 2, bar.height / 2))
+                assertEquals("The suggestion strip uses the theme's surface", theme.bg, bmp.getPixel(1, 1))
+                assertNotEquals("Trackpad must render above the keys", theme.bg, bmp.getPixel(width / 2, bar.height / 2))
                 for (x in listOf(width / 4, width / 2, width * 3 / 4)) {
-                    assertEquals("${colour.id}: no extra straight border below the trackpad",
-                        Prefs.keyTheme(activity).bg, bmp.getPixel(x, bar.height))
+                    for (y in bar.height - 1..bar.height + 1) {
+                        assertEquals("${colour.id}: the suggestion strip meets the keys without a colour break", theme.bg, bmp.getPixel(x, y))
+                    }
                 }
+                if (colour == KeyColour.OCEAN_DRIVE) {
+                    for (x in listOf(width / 2 - 26, width / 2 + 26)) {
+                        assertEquals("Ocean Drive has a clean suggestion surface beside the trackpad", theme.bg, bmp.getPixel(x, bar.height / 2))
+                    }
+                }
+                val ridgeY = bar.height + (key(keyboard, 3, 2).bottom + 5.5f).toInt()
+                if (colour == KeyColour.BLACK || colour == KeyColour.BLACK_GOLD) {
+                    assertTrue("${colour.id} has a lower rim in its own trim colour",
+                        Color.red(bmp.getPixel(width / 2, ridgeY)) > Color.red(theme.bg) + 80)
+                } else {
+                    for (y in ridgeY - 1..ridgeY + 1) assertEquals("${colour.id} has a continuous base under the keys", theme.bg, bmp.getPixel(width / 2, y))
+                }
+                val middleOfKey = bar.height + key(keyboard, 0, 0).centerY().toInt()
+                assertEquals("${colour.id} has no left border", theme.bg, bmp.getPixel(0, middleOfKey))
+                assertEquals("${colour.id} has no right border", theme.bg, bmp.getPixel(width - 1, middleOfKey))
                 File(output, "${colour.id}-$width.png").outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
                 val pixels = IntArray(width * bmp.height); bmp.getPixels(pixels, 0, width, 0, 0, width, bmp.height)
                 images += pixels.contentHashCode()
                 assertEquals(colour, (field(keyboard, "th") as KeyTheme).colour)
                 assertEquals(colour, (field(bar, "th") as KeyTheme).colour)
                 tap(keyboard, key(keyboard, 0, 0)); assertEquals("q", typed.last())
+                tap(keyboard, key(keyboard, 2, 0))
+                tap(keyboard, key(keyboard, 1, 3)); assertEquals("6", typed.last())
                 tap(keyboard, key(keyboard, 3, 0))
                 tap(keyboard, key(keyboard, 0, 0)); assertEquals("Q", typed.last())
                 tap(keyboard, key(keyboard, 0, 0)); assertEquals("q", typed.last())
@@ -174,7 +239,7 @@ class KeyThemeTest {
                     assertEquals(Triple(2, 0, selecting), moves.last())
                 }
             }
-            assertEquals("Each palette and orientation must produce a distinct rendering", 10, images.size)
+            assertEquals("Each palette and orientation must produce a distinct rendering", 2 * KeyColour.entries.size, images.size)
         } finally { controller.pause().stop().destroy() }
     }
 }

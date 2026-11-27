@@ -1,6 +1,7 @@
 package ai.boldkeys
 
 import android.content.Context
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
@@ -68,12 +69,55 @@ class SettingsScreensTest {
         }
         compose.onNodeWithText("White & Gold").performScrollTo().performClick()
         assertEquals(false, Prefs.isDark(activity.get()))
-        compose.onNode(hasText("Choose Black, Red or Black & Gold", substring = true))
+        compose.onNode(hasText("Choose a dark colour", substring = true))
             .performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Red").performScrollTo().performClick()
         compose.onNodeWithText("Glows all the time.").performScrollTo().assertIsDisplayed()
-        compose.onAllNodes(hasText("Choose Black, Red or Black & Gold", substring = true))
+        compose.onAllNodes(hasText("Choose a dark colour", substring = true))
             .assertCountEquals(0)
+    }
+
+    @Test fun oceanDriveOnlyOffersNeonAndRestoresEachPaletteSelection() {
+        val context = activity.get()
+        Prefs.put(context, "backlightColor", "amber")
+        open("Appearance")
+        val oceanDrive = compose.onNodeWithText("Ocean Drive")
+        oceanDrive.performScrollTo().performClick()
+        compose.onNodeWithContentDescription("amber backlight color").assertDoesNotExist()
+        val violet = compose.onNodeWithContentDescription("Neon violet backlight color")
+        violet.performScrollTo().performClick()
+        assertEquals("Neon violet", Prefs.backlightColor(context, KeyColour.OCEAN_DRIVE))
+        compose.onNodeWithText("Black").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Neon aqua backlight color").assertDoesNotExist()
+        compose.onNodeWithContentDescription("amber backlight color").performScrollTo()
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Selected"))
+        oceanDrive.performScrollTo().performClick()
+        violet.performScrollTo().assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Selected"))
+    }
+
+    @Test fun appearanceOffersAnEditorAsSoonAsThisBuildIsSelected() {
+        val context = activity.get()
+        val resolver = context.contentResolver
+        Settings.Secure.putString(resolver, Settings.Secure.DEFAULT_INPUT_METHOD, "other.keyboard/.Service")
+        open("Appearance")
+        compose.onNodeWithText("Enable keyboard").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Type here").assertDoesNotExist()
+
+        Settings.Secure.putString(resolver, Settings.Secure.DEFAULT_INPUT_METHOD, "${context.packageName}/ai.boldkeys.BoldKeysService")
+        compose.onNodeWithText("Type here").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Enable keyboard").assertDoesNotExist()
+    }
+
+    @Test fun selectingAnotherThemeKeepsTheAppearanceEditorFocused() {
+        val context = activity.get()
+        Settings.Secure.putString(context.contentResolver, Settings.Secure.DEFAULT_INPUT_METHOD, "${context.packageName}/ai.boldkeys.BoldKeysService")
+        open("Appearance")
+        val editor = compose.onNode(hasSetTextAction())
+        editor.performScrollTo().performClick().performTextInput("draft")
+        editor.assertIsFocused()
+        compose.onNodeWithText("Ocean Drive").performScrollTo().performClick()
+        editor.assertIsFocused().assertTextEquals("draft", includeEditableText = true)
+        assertEquals("ocean_drive", Prefs.theme(context))
     }
 
     @Test fun aboutDisclosesNetworkExceptionBeforePrivacyHelpIsExpanded() {

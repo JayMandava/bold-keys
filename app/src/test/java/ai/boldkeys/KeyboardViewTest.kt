@@ -1,6 +1,9 @@
 package ai.boldkeys
 
 import android.app.Activity
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.RectF
 import android.os.Looper
 import android.os.SystemClock
@@ -390,6 +393,90 @@ class KeyboardViewTest {
         assertEquals(1, voiceCancels); assertTrue(typed.isEmpty())
         keyboard.voiceState = KeyboardView.VoiceState.IDLE
     }
+    @Test
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun changingBacklightReusesRenderedKeyFaces() {
+        Prefs.put(activity, "backlight", "on")
+        keyboard.applySettings()
+        val bitmap = Bitmap.createBitmap(keyboard.width, keyboard.height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        keyboard.draw(canvas)
+        val faces = field(keyboard, "faces") as Map<*, *>
+        val original = faces.toMap()
+        val lighting = field(keyboard, "lighting") as Map<*, *>
+        val originalLighting = lighting.toMap()
+        assertTrue(original.isNotEmpty())
+
+        Prefs.put(activity, "backlightLevel", 0.9f)
+        keyboard.applySettings()
+        keyboard.draw(canvas)
+        assertEquals(original.keys, faces.keys)
+        for ((key, face) in original) assertSame(face, faces[key])
+
+        Prefs.put(activity, "theme", KeyColour.OCEAN_DRIVE.id)
+        keyboard.applySettings()
+        assertTrue(faces.isEmpty())
+        keyboard.draw(canvas)
+        assertTrue(faces.isNotEmpty())
+        assertEquals(originalLighting.keys, lighting.keys)
+        for ((key, samples) in originalLighting) assertSame(samples, lighting[key])
+    }
+
+    @Test
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun openEmojiPickerRestylesItsButtonsWhenTheThemeChanges() {
+        Prefs.put(activity, Prefs.THEME, KeyColour.OCEAN_DRIVE.id)
+        keyboard.applySettings()
+        tap(speed)
+        assertTrue(keyboard.pickerOpen())
+        val bitmap = Bitmap.createBitmap(keyboard.width, keyboard.height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        keyboard.draw(canvas)
+
+        Prefs.put(activity, Prefs.THEME, KeyColour.WHITE.id)
+        keyboard.applySettings()
+        val close = pickerRect("close")
+        repeat(2) {
+            bitmap.eraseColor(Color.TRANSPARENT)
+            keyboard.draw(canvas)
+            val hasDarkLabel = (-18..18).any { dx ->
+                (-7..7).any { dy ->
+                    Color.red(bitmap.getPixel(close.centerX().toInt() + dx, close.centerY().toInt() + dy)) < 45
+                }
+            }
+            assertTrue("The White picker’s Close label must use the current theme’s dark ink", hasDarkLabel)
+        }
+    }
+
+    @Test
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun oceanDriveUsesNeonBacklightAndCoralVoiceOutlineEvenWithBacklightOff() {
+        Prefs.put(activity, "theme", KeyColour.OCEAN_DRIVE.id)
+        Prefs.put(activity, "backlightColor", "amber")
+        Prefs.put(activity, "oceanDriveBacklightColor", "amber")
+        Prefs.put(activity, "backlight", "off")
+        keyboard.applySettings()
+        val palette = Prefs.backlightColors(KeyColour.OCEAN_DRIVE)
+        assertEquals(palette.getValue("Neon aqua"), field(keyboard, "glowRgb"))
+        Prefs.setBacklightColor(activity, KeyColour.OCEAN_DRIVE, "Neon violet")
+        keyboard.applySettings()
+        assertEquals(palette.getValue("Neon violet"), field(keyboard, "glowRgb"))
+        assertEquals("amber", Prefs.backlightColor(activity))
+
+        val space = key(3, 2)
+        fun renderedOutline(): Int {
+            val bitmap = Bitmap.createBitmap(keyboard.width, keyboard.height, Bitmap.Config.ARGB_8888)
+            keyboard.draw(Canvas(bitmap))
+            return bitmap.getPixel((space.left - 2).toInt(), space.centerY().toInt())
+        }
+        val idle = renderedOutline()
+        keyboard.voiceState = KeyboardView.VoiceState.RECORDING
+        val recording = renderedOutline()
+        assertTrue("The spacebar should glow even with regular backlighting off", Color.red(recording) > Color.red(idle) + 60)
+        assertTrue("The voice outline should be coral", Color.red(recording) > Color.green(recording) + 40)
+        assertTrue("The voice outline should be coral", Color.green(recording) > Color.blue(recording) + 15)
+    }
+
     @Test
     @GraphicsMode(GraphicsMode.Mode.NATIVE)
     fun transcriptionBacklightPulsesSlowlyWithoutChangingKeyboardSize() {

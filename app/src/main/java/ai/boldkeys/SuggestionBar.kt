@@ -29,7 +29,11 @@ class SuggestionBar(context: Context, private val feedback: Feedback, private va
     private fun dp(v: Float) = v * d
 
     private var th = KeyTheme(true)
-    fun applyTheme(theme: KeyTheme) { th = theme; invalidate() }
+    fun applyTheme(theme: KeyTheme) {
+        if (th.colour == theme.colour) return
+        th = theme
+        invalidate()
+    }
 
     internal var inlineAutofillVisible = false
         set(value) { field = value; accessibilityGeneration++; invalidate() }
@@ -114,7 +118,7 @@ class SuggestionBar(context: Context, private val feedback: Feedback, private va
         }
         // the trackpad: a silver square ring around a dark, slightly domed centre
         val r = RectF(p)
-        fill.shader = LinearGradient(0f, r.top, 0f, r.bottom, th.trimHighlight, th.ringBottom, Shader.TileMode.CLAMP)
+        fill.shader = LinearGradient(0f, r.top, 0f, r.bottom, th.ringTop, th.ringBottom, Shader.TileMode.CLAMP)
         canvas.drawRoundRect(r, dp(9f), dp(9f), fill)
         val inner = RectF(r).apply { inset(dp(3.2f), dp(3.2f)) }
         fill.shader = LinearGradient(0f, inner.top, 0f, inner.bottom, if (pressed) 0xFF0c0e10.toInt() else 0xFF1c2127.toInt(), 0xFF07080a.toInt(), Shader.TileMode.CLAMP)
@@ -125,9 +129,11 @@ class SuggestionBar(context: Context, private val feedback: Feedback, private va
         line.strokeWidth = dp(1f); line.color = 0x99000000.toInt()
         canvas.drawRoundRect(inner, dp(6.5f), dp(6.5f), line)
         // faint dividers either side of the pad
-        line.strokeWidth = dp(1f); line.color = th.divider
-        canvas.drawLine(p.left - dp(6f), dp(12f), p.left - dp(6f), height - dp(12f), line)
-        canvas.drawLine(p.right + dp(6f), dp(12f), p.right + dp(6f), height - dp(12f), line)
+        if (th.divider != 0) {
+            line.strokeWidth = dp(1f); line.color = th.divider
+            canvas.drawLine(p.left - dp(6f), dp(12f), p.left - dp(6f), height - dp(12f), line)
+            canvas.drawLine(p.right + dp(6f), dp(12f), p.right + dp(6f), height - dp(12f), line)
+        }
         accessibility.drawFocus(canvas)
     }
 
