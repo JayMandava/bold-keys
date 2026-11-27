@@ -524,7 +524,7 @@ private fun AppearanceContent(context: Context) {
         }
         Section("Backlight") {
             val options = listOf("off" to "Off", "on" to "On", "auto" to "Auto")
-            ChoiceFlow(options, mode) { key -> mode = key; Prefs.put(context, "backlight", key); version++ }
+            ChoiceFlow(options, mode) { key -> mode = key; Prefs.put(context, Prefs.BACKLIGHT_MODE, key); version++ }
             Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
                 for ((key, rgb) in Prefs.backlightColors(colour)) {
                     Box(
@@ -545,7 +545,7 @@ private fun AppearanceContent(context: Context) {
                 value = level,
                 onValueChange = {
                     level = it
-                    Prefs.put(context, "backlightLevel", it)
+                    Prefs.put(context, Prefs.BACKLIGHT_LEVEL, it)
                     version++
                 },
                 enabled = mode != "off", modifier = Modifier.padding(horizontal = 16.dp),

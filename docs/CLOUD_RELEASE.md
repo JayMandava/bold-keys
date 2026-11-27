@@ -2,6 +2,12 @@
 
 The manual **Protected Android release** workflow builds on a standard `ubuntu-24.04` GitHub-hosted runner. It does not require the Mac after initial credential migration. It uses the **existing** production key, not a new key, so installed Bold Keys builds retain update continuity.
 
+## Testing and release channels
+
+1. **Bold Keys Debug** (`ai.boldkeys.debug`) stays installed alongside Bold Keys on the test phone. Build it with `./gradlew -PunsignedRelease=true -PdeviceDebugBuild=true :app:assembleDebug` and update that package in place with `adb install -r app/build/outputs/apk/debug/app-debug.apk`.
+2. **GitHub Releases** carry the signed Bold Keys APK (`ai.boldkeys`) for manual testing before Play publication.
+3. **Google Play** receives the signed bundle after the APK has been tested and the owner gives the go-ahead.
+
 ## One-time setup (repository owner only)
 
 1. Review and merge the workflow and release tooling onto `JayMandava/bold-keys` **main**. Full action commit SHAs are pinned; review dependency updates before changing them.

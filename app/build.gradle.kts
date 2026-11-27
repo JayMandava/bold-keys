@@ -26,7 +26,16 @@ val voiceReviewBuild = when (providers.gradleProperty("voiceReviewBuild").orElse
     "false" -> false
     else -> throw GradleException("voiceReviewBuild must be exactly true or false.")
 }
-if (voiceReviewBuild && suggestionReviewBuild) throw GradleException("Choose one review build at a time.")
+
+// Stable, separate install for ongoing physical-device testing.
+val deviceDebugBuild = when (providers.gradleProperty("deviceDebugBuild").orElse("false").get()) {
+    "true" -> true
+    "false" -> false
+    else -> throw GradleException("deviceDebugBuild must be exactly true or false.")
+}
+if (listOf(suggestionReviewBuild, voiceReviewBuild, deviceDebugBuild).count { it } > 1) {
+    throw GradleException("Choose one review build at a time.")
+}
 
 val releaseSigningProperties = Properties()
 var releaseSigningProblem: String? = null
@@ -88,8 +97,8 @@ android {
         applicationId = "ai.boldkeys"
         minSdk = 33
         targetSdk = 36
-        versionCode = 20
-        versionName = "0.7.3"
+        versionCode = 21
+        versionName = "0.7.4"
         ndk { abiFilters += providers.gradleProperty("testAbi").orElse("arm64-v8a").get() }
         externalNativeBuild {
             cmake {
@@ -126,7 +135,12 @@ android {
                 applicationIdSuffix = ".voice.review"
                 versionNameSuffix = "-voice-experimental"
             }
+            if (deviceDebugBuild) {
+                applicationIdSuffix = ".debug"
+                versionNameSuffix = "-debug"
+            }
             manifestPlaceholders["appLabel"] = when {
+                deviceDebugBuild -> "Bold Keys Debug"
                 voiceReviewBuild -> "Bold Keys Voice Review"
                 suggestionReviewBuild -> "Bold Keys Suggestions Review"
                 else -> "Bold Keys"

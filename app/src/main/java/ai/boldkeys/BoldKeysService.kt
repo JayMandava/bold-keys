@@ -57,6 +57,9 @@ class BoldKeysService : InputMethodService(), KeyboardView.Listener, SuggestionB
         when (key) {
             "voiceTyping" -> ui.post { if (!Prefs.voiceTyping(this)) cancelVoice() else updateVoice() }
             Prefs.THEME -> if (isInputViewShown && ::kb.isInitialized && ::bar.isInitialized) applyKeyboardAppearance()
+            Prefs.BACKLIGHT_MODE, Prefs.BACKLIGHT_LEVEL,
+            Prefs.BACKLIGHT_COLOR, Prefs.OCEAN_DRIVE_BACKLIGHT_COLOR ->
+                if (isInputViewShown && ::kb.isInitialized) kb.applyBacklightSettings()
         }
     }
     private var voiceCapture: VoiceCapture? = null
