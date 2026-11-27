@@ -204,14 +204,9 @@ class KeyThemeTest {
                     }
                 }
                 val ridgeY = bar.height + (key(keyboard, 3, 2).bottom + 5.5f).toInt()
-                if (colour == KeyColour.BLACK) {
-                    assertNotEquals("Black retains its original bottom separator", theme.bg, bmp.getPixel(width / 2, ridgeY))
-                } else if (colour == KeyColour.BLACK_GOLD) {
-                    assertEquals("Black & Gold fills the base below the keys", theme.bodyBottom, bmp.getPixel(width / 2, bmp.height - 3))
-                    for (y in ridgeY - 1..ridgeY + 1) {
-                        val pixel = bmp.getPixel(width / 2, y)
-                        assertTrue("Black & Gold keeps the base free of a gold rim", Color.red(pixel) <= Color.red(theme.bodyBottom))
-                    }
+                if (colour == KeyColour.BLACK || colour == KeyColour.BLACK_GOLD) {
+                    assertTrue("${colour.id} has a lower rim in its own trim colour",
+                        Color.red(bmp.getPixel(width / 2, ridgeY)) > Color.red(theme.bg) + 80)
                 } else {
                     for (y in ridgeY - 1..ridgeY + 1) assertEquals("${colour.id} has a continuous base under the keys", theme.bg, bmp.getPixel(width / 2, y))
                 }
