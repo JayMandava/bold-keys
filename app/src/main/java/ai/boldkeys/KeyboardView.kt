@@ -590,14 +590,14 @@ class KeyboardView(
 
     private val oceanVi = Path().apply {
         moveTo(0f, 0f)
-        lineTo(2.9f, 0f)
-        lineTo(4.5f, 5.25f)
-        lineTo(6.15f, 0f)
+        lineTo(2.15f, 0f)
+        lineTo(4.5f, 6.7f)
+        lineTo(6.85f, 0f)
         lineTo(9f, 0f)
-        lineTo(5.15f, 10f)
-        lineTo(3.85f, 10f)
+        lineTo(4.95f, 10f)
+        lineTo(4.05f, 10f)
         close()
-        addRect(10.4f, 0f, 14f, 10f, Path.Direction.CW)
+        addRect(10.8f, 0f, 13.2f, 10f, Path.Direction.CW)
     }
 
     private fun drawOceanVi(canvas: Canvas, face: RectF, leftInset: Float) {
