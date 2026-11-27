@@ -606,7 +606,9 @@ class KeyboardView(
     }
 
     private fun drawOceanVi(canvas: Canvas, face: RectF, leftInset: Float) {
-        val scale = min(dp(1f), (face.width() - leftInset - dp(3f)) / 15.7f)
+        val haloStrokeWidth = 4f
+        val rightEdge = 15.7f + haloStrokeWidth / 2f
+        val scale = min(dp(0.78f), (face.width() - leftInset - dp(3f)) / rightEdge)
         if (scale <= 0f) return
         val save = canvas.save()
         canvas.translate(face.left + leftInset, face.top + dp(14f) - 10.5f * scale)
@@ -614,7 +616,7 @@ class KeyboardView(
         // The pink halo stays outside the outline so the key face shows through the centre.
         val halo = canvas.save()
         canvas.clipOutPath(oceanVi)
-        oceanViStroke.strokeWidth = 4f
+        oceanViStroke.strokeWidth = haloStrokeWidth
         oceanViStroke.color = glowArgb(0.17f + glow * 0.09f, th.trimHighlight)
         canvas.drawPath(oceanVi, oceanViStroke)
         oceanViStroke.strokeWidth = 2.5f
