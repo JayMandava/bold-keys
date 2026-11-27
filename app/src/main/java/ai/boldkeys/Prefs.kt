@@ -6,6 +6,10 @@ import android.content.res.Configuration
 /** Everything the user can change, kept in one small preferences file on the phone. */
 object Prefs {
     internal const val THEME = "theme"
+    internal const val BACKLIGHT_MODE = "backlight"
+    internal const val BACKLIGHT_LEVEL = "backlightLevel"
+    internal const val BACKLIGHT_COLOR = "backlightColor"
+    internal const val OCEAN_DRIVE_BACKLIGHT_COLOR = "oceanDriveBacklightColor"
     private fun sp(c: Context) = c.getSharedPreferences("bk", Context.MODE_PRIVATE)
 
     fun string(c: Context, key: String, def: String) = sp(c).getString(key, def) ?: def
@@ -28,7 +32,7 @@ object Prefs {
     /** How tall the keys are: small, normal, large or xlarge. The width is always the screen's, so a bigger key is a taller one. */
     fun keySize(c: Context) = string(c, "keySize", "normal")
     fun keyScale(c: Context) = when (keySize(c)) { "small" -> 0.9f; "large" -> 1.12f; "xlarge" -> 1.25f; else -> 1f }
-    fun backlightMode(c: Context) = string(c, "backlight", "auto") // off, on, auto (follows the phone's light sensor)
+    fun backlightMode(c: Context) = string(c, BACKLIGHT_MODE, "auto") // off, on, auto (follows the phone's light sensor)
     fun backlightColor(c: Context, colour: KeyColour = KeyColour.BLACK): String {
         val palette = backlightColors(colour)
         val default = palette.keys.first()
@@ -37,7 +41,7 @@ object Prefs {
     fun setBacklightColor(c: Context, colour: KeyColour, color: String) {
         if (color in backlightColors(colour)) put(c, backlightColorKey(colour), color)
     }
-    fun backlightLevel(c: Context) = float(c, "backlightLevel", 0.6f)
+    fun backlightLevel(c: Context) = float(c, BACKLIGHT_LEVEL, 0.6f)
 
     // typing
     fun voiceTyping(c: Context) = bool(c, "voiceTyping", false)
@@ -72,7 +76,7 @@ object Prefs {
         if (colour == KeyColour.OCEAN_DRIVE) neonBacklightColors else classicBacklightColors
 
     private fun backlightColorKey(colour: KeyColour) =
-        if (colour == KeyColour.OCEAN_DRIVE) "oceanDriveBacklightColor" else "backlightColor"
+        if (colour == KeyColour.OCEAN_DRIVE) OCEAN_DRIVE_BACKLIGHT_COLOR else BACKLIGHT_COLOR
 
     private val classicBacklightColors = linkedMapOf(
         "white" to 0xFFEAF2FF.toInt(), "amber" to 0xFFFFB347.toInt(), "blue" to 0xFF4DA3FF.toInt(), "green" to 0xFF5CF29A.toInt(),

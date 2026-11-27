@@ -124,22 +124,30 @@ class KeyboardView(
         emojiKey = Prefs.emojiPages(c)
         currency = Prefs.currency(c)
         volumeSlide = Prefs.volumeSlide(c)
-        glowMode = Prefs.backlightMode(c)
-        glowRgb = Prefs.backlightColors(th.colour).getValue(Prefs.backlightColor(c, th.colour))
-        glowSetting = Prefs.backlightLevel(c)
         val scale = Prefs.keyScale(c)
         if (scale != sizeScale) { sizeScale = scale; faces.clear(); requestLayout() } // a new height measures again, and the keys are laid out afresh with it
         val layout = Prefs.layout(c)
         accentMap = Layouts.accentsFor(Prefs.language(c))
         if (layout != layoutId) { layoutId = layout; rebuild() }
-        updateGlow()
+        applyBacklightSettings()
         if (picker == Picker.EMOJI && !emojiKey) closePicker()
         invalidate()
     }
 
-    private fun updateGlow() {
+    internal fun applyBacklightSettings() {
+        val previousRgb = glowRgb
+        glowMode = Prefs.backlightMode(context)
+        glowRgb = Prefs.backlightColors(th.colour).getValue(Prefs.backlightColor(context, th.colour))
+        glowSetting = Prefs.backlightLevel(context)
+        updateGlow(colorChanged = previousRgb != glowRgb)
+    }
+
+    private fun updateGlow(colorChanged: Boolean = false) {
         val g = if (!th.dark) 0f else when (glowMode) { "on" -> glowSetting; "auto" -> glowSetting * ambient; else -> 0f }
-        if (g != glow) { glow = g; invalidate() }
+        if (g != glow || (colorChanged && g > 0.01f)) {
+            glow = g
+            super.invalidate() // A lighting change only affects pixels, so accessibility nodes can be reused.
+        }
     }
 
     private fun glowArgb(alpha: Float, rgb: Int = glowRgb) =

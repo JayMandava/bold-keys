@@ -11,6 +11,7 @@ import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.util.ReflectionHelpers
 import java.io.File
@@ -55,6 +56,37 @@ class ReviewRegressionTest {
         assertTrue(service.isAppearanceTestEditor(editor))
         editor.packageName = "other.app"
         assertFalse(service.isAppearanceTestEditor(editor))
+    }
+
+    @Test fun backlightSettingsReachTheInputViewWhileItStaysOpen() {
+        Prefs.put(service, "theme", "ocean_drive")
+        Prefs.put(service, "backlight", "off")
+        service.onCreate()
+        try {
+            service.onCreateInputView()
+            ReflectionHelpers.setField(service, "mDecorViewVisible", true)
+            assertTrue(service.isInputViewShown)
+            val keyboard = ReflectionHelpers.getField<KeyboardView>(service, "kb")
+            keyboard.applySettings()
+
+            Prefs.put(service, "backlight", "on")
+            assertEquals(0.6f, ReflectionHelpers.getField<Float>(keyboard, "glow"), 0.001f)
+            Prefs.put(service, "backlightLevel", 0.25f)
+            assertEquals(0.25f, ReflectionHelpers.getField<Float>(keyboard, "glow"), 0.001f)
+            val shadow = shadowOf(keyboard)
+            shadow.clearWasInvalidated()
+            Prefs.setBacklightColor(service, KeyColour.OCEAN_DRIVE, "Neon pink")
+            assertEquals(0xFFFF51AA.toInt(), ReflectionHelpers.getField<Int>(keyboard, "glowRgb"))
+            assertTrue("A colour-only change must redraw the visible backlight", shadow.wasInvalidated())
+            Prefs.put(service, "theme", "dark")
+            Prefs.setBacklightColor(service, KeyColour.BLACK, "amber")
+            assertEquals(0xFFFFB347.toInt(), ReflectionHelpers.getField<Int>(keyboard, "glowRgb"))
+            Prefs.put(service, "backlight", "off")
+            assertEquals(0f, ReflectionHelpers.getField<Float>(keyboard, "glow"), 0.001f)
+            assertTrue(service.isInputViewShown)
+        } finally {
+            service.onDestroy()
+        }
     }
 
     @Test fun privateEditorSuggestionTapsDoNotLearnWordsOrPairsEvenWithStaleSmartState() {
