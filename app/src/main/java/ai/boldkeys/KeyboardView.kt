@@ -316,7 +316,7 @@ class KeyboardView(
         fill.shader = null; fill.color = th.bg
         canvas.drawPath(body, fill)
         if (picker != Picker.NONE) { drawPicker(canvas); accessibility.drawFocus(canvas); return } // picker replaces keys, preserving accessibility focus
-        // Black and Black & Gold share the lower separator. The colour editions clip the glow to their shared body.
+        // Clip the separators to the body. The colour editions also clip the key glow.
         val bodyClip = canvas.save()
         canvas.clipPath(body)
         val ridgeCount = cells.size + if (th.hasBottomRidge) 1 else 0

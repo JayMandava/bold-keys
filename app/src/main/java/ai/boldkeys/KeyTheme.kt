@@ -28,7 +28,7 @@ class KeyTheme(val colour: KeyColour) {
     val dark = colour.dark
     val oceanDrive = colour == KeyColour.OCEAN_DRIVE
     val classic = colour == KeyColour.BLACK || colour == KeyColour.WHITE
-    val hasBottomRidge = colour == KeyColour.BLACK || colour == KeyColour.BLACK_GOLD
+    val hasBottomRidge = colour == KeyColour.BLACK || colour == KeyColour.BLACK_GOLD || oceanDrive
     private val accentedPalette = !classic
     private val red = colour == KeyColour.RED
     private val gold = colour == KeyColour.BLACK_GOLD || colour == KeyColour.WHITE_GOLD
